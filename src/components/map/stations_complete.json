@@ -1,0 +1,973 @@
+{
+  "project": "KKC-UFM",
+  "projectName": "ระบบการเตือนภัยและแนวทางการป้องกันน้ำท่วมในเขตเมืองขอนแก่น",
+  "description": "ข้อมูลตำแหน่งและรายละเอียดสถานีเซนเซอร์ทั้งหมด 39 สถานี",
+  "totalStations": 39,
+  "summary": {
+    "waterLevelPipe": 7,
+    "waterLevelRoad": 9,
+    "pondWaterLevel": 5,
+    "rainfallMeasurement": 8,
+    "total": 29
+  },
+  "areas": [
+    "เทศบาลนครขอนแก่น",
+    "เทศบาลบ้านเป็ด",
+    "เทศบาลศิลา"
+  ],
+  "stationTypes": [
+    {
+      "type": "waterLevelPipe",
+      "name": "อุปกรณ์ตรวจจับระดับน้ำในระบบท่อระบายน้ำ",
+      "description": "ติดตั้งในระบบท่อระบายน้ำเพื่อวัดระดับน้ำและความเร็วการไหล",
+      "totalStations": 7,
+      "stations": [
+        {
+          "id": "WP01",
+          "no": 1,
+          "name": "ซอยเทพารักษ์",
+          "location": {
+            "latitude": 16.433,
+            "longitude": 102.829,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "waterLevel",
+              "name": "ระดับน้ำ",
+              "range": "0-300",
+              "unit": "เซนติเมตร",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "flowSpeed",
+              "name": "ความเร็วการไหล",
+              "range": "10-100",
+              "unit": "เมตรวินาที",
+              "frequency": "15-60 นาที"
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 1",
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        },
+        {
+          "id": "WP02",
+          "no": 2,
+          "name": "ถนนหมอชาญอุทิศ",
+          "location": {
+            "latitude": 16.449,
+            "longitude": 102.831,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "waterLevel",
+              "name": "ระดับน้ำ",
+              "range": "0-300",
+              "unit": "เซนติเมตร",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "flowSpeed",
+              "name": "ความเร็วการไหล",
+              "range": "10-100",
+              "unit": "เมตรวินาที",
+              "frequency": "15-60 นาที"
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 2",
+            "phase1_wuttinan": "งวดงานที่ 2"
+          }
+        },
+        {
+          "id": "WP03",
+          "no": 3,
+          "name": "หน้าร้านจิ้มจุ่มริมคลอง",
+          "location": {
+            "latitude": 16.423,
+            "longitude": 102.838,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "waterLevel",
+              "name": "ระดับน้ำ",
+              "range": "0-300",
+              "unit": "เซนติเมตร",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "flowSpeed",
+              "name": "ความเร็วการไหล",
+              "range": "10-100",
+              "unit": "เมตรวินาที",
+              "frequency": "15-60 นาที"
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 2",
+            "phase1_wuttinan": "งวดงานที่ 2"
+          }
+        },
+        {
+          "id": "WP04",
+          "no": 4,
+          "name": "ประตูระบายน้ำที่ 5 (ในท่อก่อนเข้า ปตร.5)",
+          "location": {
+            "latitude": 16.432,
+            "longitude": 102.827,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "waterLevel",
+              "name": "ระดับน้ำ",
+              "range": "0-300",
+              "unit": "เซนติเมตร",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "flowSpeed",
+              "name": "ความเร็วการไหล",
+              "range": "10-100",
+              "unit": "เมตรวินาที",
+              "frequency": "15-60 นาที"
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 1",
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        },
+        {
+          "id": "WP05",
+          "no": 5,
+          "name": "ศูนย์วิจัยและเพาะเลี้ยงสัตว์น้ำจืด",
+          "location": {
+            "latitude": 16.444,
+            "longitude": 102.841,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "waterLevel",
+              "name": "ระดับน้ำ",
+              "range": "0-300",
+              "unit": "เซนติเมตร",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "flowSpeed",
+              "name": "ความเร็วการไหล",
+              "range": "10-100",
+              "unit": "เมตรวินาที",
+              "frequency": "15-60 นาที"
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 1",
+            "phase1_wuttinan": "งวดงานที่ 2"
+          }
+        },
+        {
+          "id": "WP06",
+          "no": 6,
+          "name": "สะพาน บ้านทุ่งเศรษฐี",
+          "location": {
+            "latitude": 16.435,
+            "longitude": 102.87,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "waterLevel",
+              "name": "ระดับน้ำ",
+              "range": "0-300",
+              "unit": "เซนติเมตร",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "flowSpeed",
+              "name": "ความเร็วการไหล",
+              "range": "10-100",
+              "unit": "เมตรวินาที",
+              "frequency": "15-60 นาที"
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 2",
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        },
+        {
+          "id": "WP07",
+          "no": 7,
+          "name": "หน้าโรงพยาบาลขอนแก่นราม",
+          "location": {
+            "latitude": 16.432,
+            "longitude": 102.821,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "waterLevel",
+              "name": "ระดับน้ำ",
+              "range": "0-300",
+              "unit": "เซนติเมตร",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "flowSpeed",
+              "name": "ความเร็วการไหล",
+              "range": "10-100",
+              "unit": "เมตรวินาที",
+              "frequency": "15-60 นาที"
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": null,
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        }
+      ]
+    },
+    {
+      "type": "waterLevelRoad",
+      "name": "อุปกรณ์สังเกตระดับน้ำท่วม (ระดับน้ำเหนือผิวถนน)",
+      "description": "ติดตั้งบนผิวถนนเพื่อเตือนภัยน้ำท่วม มีไซเรนแจ้งเตือน 3 ระดับ",
+      "totalStations": 9,
+      "stations": [
+        {
+          "id": "WR01",
+          "no": 1,
+          "name": "ตลาดจอมพล ถนนจอมพล",
+          "location": {
+            "latitude": 16.448,
+            "longitude": 102.841,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "floodLevel",
+              "name": "ระดับน้ำจากผิวถนน 3 ระดับ และไซเรนแจ้งเตือนตามระดับความรุนแรง",
+              "range": "0-300",
+              "unit": "เซนติเมตร",
+              "frequency": "15-60 นาที",
+              "features": ["3 level warning", "siren alert"]
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 2",
+            "phase1_wuttinan": "งวดงานที่ 2"
+          }
+        },
+        {
+          "id": "WR02",
+          "no": 2,
+          "name": "สถานีน้ำมันพีทีที หน้าซอยสวัสดี ถนนมิตรภาพ",
+          "location": {
+            "latitude": 16.452,
+            "longitude": 102.831,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "floodLevel",
+              "name": "ระดับน้ำจากผิวถนน 3 ระดับ และไซเรนแจ้งเตือนตามระดับความรุนแรง",
+              "range": "0-300",
+              "unit": "เซนติเมตร",
+              "frequency": "15-60 นาที",
+              "features": ["3 level warning", "siren alert"]
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 1",
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        },
+        {
+          "id": "WR03",
+          "no": 3,
+          "name": "สำนักทรัพยากรน้ำบาดาลเขต 4 ถนนมิตรภาพ",
+          "location": {
+            "latitude": 16.487,
+            "longitude": 102.832,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "floodLevel",
+              "name": "ระดับน้ำจากผิวถนน 3 ระดับ และไซเรนแจ้งเตือนตามระดับความรุนแรง",
+              "range": "0-300",
+              "unit": "เซนติเมตร",
+              "frequency": "15-60 นาที",
+              "features": ["3 level warning", "siren alert"]
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 1",
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        },
+        {
+          "id": "WR04",
+          "no": 4,
+          "name": "ซอยกังวาน 4 ถนนบ้านกอก",
+          "location": {
+            "latitude": 16.421,
+            "longitude": 102.812,
+            "area": "เทศบาลบ้านเป็ด"
+          },
+          "sensors": [
+            {
+              "type": "floodLevel",
+              "name": "ระดับน้ำจากผิวถนน 3 ระดับ และไซเรนแจ้งเตือนตามระดับความรุนแรง",
+              "range": "0-300",
+              "unit": "เซนติเมตร",
+              "frequency": "15-60 นาที",
+              "features": ["3 level warning", "siren alert"]
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 1",
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        },
+        {
+          "id": "WR05",
+          "no": 5,
+          "name": "หน้าหมู่บ้านชลพฤกษ์ กรีนวิลล์ ถนนศรีจันทร์",
+          "location": {
+            "latitude": 16.438,
+            "longitude": 102.789,
+            "area": "เทศบาลบ้านเป็ด"
+          },
+          "sensors": [
+            {
+              "type": "floodLevel",
+              "name": "ระดับน้ำจากผิวถนน 3 ระดับ และไซเรนแจ้งเตือนตามระดับความรุนแรง",
+              "range": "0-300",
+              "unit": "เซนติเมตร",
+              "frequency": "15-60 นาที",
+              "features": ["3 level warning", "siren alert"]
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 2",
+            "phase1_wuttinan": "งวดงานที่ 2"
+          }
+        },
+        {
+          "id": "WR06",
+          "no": 6,
+          "name": "โรงเรียนการศึกษาคนตาบอด ขอนแก่น ถนนโยธาธิการ 3035",
+          "location": {
+            "latitude": 16.439,
+            "longitude": 102.806,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "floodLevel",
+              "name": "ระดับน้ำจากผิวถนน 3 ระดับ และไซเรนแจ้งเตือนตามระดับความรุนแรง",
+              "range": "0-300",
+              "unit": "เซนติเมตร",
+              "frequency": "15-60 นาที",
+              "features": ["3 level warning", "siren alert"]
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 1",
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        },
+        {
+          "id": "WR07",
+          "no": 7,
+          "name": "สถานีน้ำมันเซลล์ เอส พี ขอนแก่น ถนนมะลิวัลล์",
+          "location": {
+            "latitude": 16.443,
+            "longitude": 102.805,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "floodLevel",
+              "name": "ระดับน้ำจากผิวถนน 3 ระดับ และไซเรนแจ้งเตือนตามระดับความรุนแรง",
+              "range": "0-300",
+              "unit": "เซนติเมตร",
+              "frequency": "15-60 นาที",
+              "features": ["3 level warning", "siren alert"]
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 1",
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        },
+        {
+          "id": "WR08",
+          "no": 8,
+          "name": "ศูนย์วิทยาศาสตร์ทางการแพทย์ที่ 7 ถนนสีหราชเดโชชัย",
+          "location": {
+            "latitude": 16.462,
+            "longitude": 102.8,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "floodLevel",
+              "name": "ระดับน้ำจากผิวถนน 3 ระดับ และไซเรนแจ้งเตือนตามระดับความรุนแรง",
+              "range": "0-300",
+              "unit": "เซนติเมตร",
+              "frequency": "15-60 นาที",
+              "features": ["3 level warning", "siren alert"]
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 2",
+            "phase1_wuttinan": "งวดงานที่ 2"
+          }
+        },
+        {
+          "id": "WR09",
+          "no": 9,
+          "name": "ตลาดหนองไผ่ ถนนโยธาธิการ 2060",
+          "location": {
+            "latitude": 16.478,
+            "longitude": 102.855,
+            "area": "เทศบาลศิลา"
+          },
+          "sensors": [
+            {
+              "type": "floodLevel",
+              "name": "ระดับน้ำจากผิวถนน 3 ระดับ และไซเรนแจ้งเตือนตามระดับความรุนแรง",
+              "range": "0-300",
+              "unit": "เซนติเมตร",
+              "frequency": "15-60 นาที",
+              "features": ["3 level warning", "siren alert"]
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 2",
+            "phase1_wuttinan": "งวดงานที่ 2"
+          }
+        }
+      ]
+    },
+    {
+      "type": "pondWaterLevel",
+      "name": "สถานีโทรมาตรตรวจวัดระดับน้ำในหนองน้ำ",
+      "description": "ตรวจวัดระดับน้ำในบึงและหนองน้ำ พร้อมข้อมูลลม",
+      "totalStations": 5,
+      "stations": [
+        {
+          "id": "PW01",
+          "no": 1,
+          "name": "บึงแก่นนคร",
+          "location": {
+            "latitude": 16.419,
+            "longitude": 102.836,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "waterLevel",
+              "name": "ระดับน้ำ",
+              "range": "0-300",
+              "unit": "เซนติเมตร",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "windSpeed",
+              "name": "ความเร็วลม",
+              "range": "0-60",
+              "unit": "เมตรวินาที",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "windDirection",
+              "name": "ทิศทางลม",
+              "range": "0-7",
+              "unit": "ทิศ",
+              "frequency": "15-60 นาที"
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 1",
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        },
+        {
+          "id": "PW02",
+          "no": 2,
+          "name": "บึงทุ่งสร้าง",
+          "location": {
+            "latitude": 16.452,
+            "longitude": 102.855,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "waterLevel",
+              "name": "ระดับน้ำ",
+              "range": "0-300",
+              "unit": "เซนติเมตร",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "windSpeed",
+              "name": "ความเร็วลม",
+              "range": "0-60",
+              "unit": "เมตรวินาที",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "windDirection",
+              "name": "ทิศทางลม",
+              "range": "0-7",
+              "unit": "ทิศ",
+              "frequency": "15-60 นาที"
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 1",
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        },
+        {
+          "id": "PW03",
+          "no": 3,
+          "name": "สะพาน บ้านทุ่งเศรษฐี (ทางน้ำเปิด)",
+          "location": {
+            "latitude": 16.435,
+            "longitude": 102.869,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "waterLevel",
+              "name": "ระดับน้ำ",
+              "range": "0-300",
+              "unit": "เซนติเมตร",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "flowSpeed",
+              "name": "ความเร็วการไหล",
+              "range": "10-200",
+              "unit": "ลิตร/นาที",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "windSpeed",
+              "name": "ความเร็วลม",
+              "range": "0-60",
+              "unit": "เมตรวินาที",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "windDirection",
+              "name": "ทิศทางลม",
+              "range": "0-7",
+              "unit": "ทิศ",
+              "frequency": "15-60 นาที"
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 1",
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        },
+        {
+          "id": "PW04",
+          "no": 4,
+          "name": "คุ้มสีฐาน มหาวิทยาลัยขอนแก่น (ทางน้ำเปิด)",
+          "location": {
+            "latitude": 16.443,
+            "longitude": 102.814,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "waterLevel",
+              "name": "ระดับน้ำ",
+              "range": "0-300",
+              "unit": "เซนติเมตร",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "flowSpeed",
+              "name": "ความเร็วการไหล",
+              "range": "0-60",
+              "unit": "เมตรวินาที",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "windSpeed",
+              "name": "ความเร็วลม",
+              "range": "0-60",
+              "unit": "เมตรวินาที",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "windDirection",
+              "name": "ทิศทางลม",
+              "range": "0-7",
+              "unit": "ทิศ",
+              "frequency": "15-60 นาที"
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 1",
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        },
+        {
+          "id": "PW05",
+          "no": 5,
+          "name": "บึงหนองโคตร",
+          "location": {
+            "latitude": 16.429,
+            "longitude": 102.805,
+            "area": "เทศบาลบ้านเป็ด"
+          },
+          "sensors": [
+            {
+              "type": "waterLevel",
+              "name": "ระดับน้ำ",
+              "range": "0-300",
+              "unit": "เซนติเมตร",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "windSpeed",
+              "name": "ความเร็วลม",
+              "range": "0-60",
+              "unit": "เมตรวินาที",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "windDirection",
+              "name": "ทิศทางลม",
+              "range": "0-7",
+              "unit": "ทิศ",
+              "frequency": "15-60 นาที"
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 1",
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        }
+      ]
+    },
+    {
+      "type": "rainfallMeasurement",
+      "name": "เครื่องมือวัดปริมาณฝน",
+      "description": "ตรวจวัดปริมาณฝน อุณหภูมิ และความชื้น",
+      "totalStations": 8,
+      "stations": [
+        {
+          "id": "RF01",
+          "no": 1,
+          "name": "โรงพยาบาลศรีนครินทร์",
+          "location": {
+            "latitude": 16.466,
+            "longitude": 102.831,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "rainfall",
+              "name": "ปริมาณฝน",
+              "range": "0-4",
+              "unit": "มิลลิเมตร",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "humidity",
+              "name": "ความชื้นสัมพัทธ์",
+              "range": "0-100",
+              "unit": "%",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "temperature",
+              "name": "อุณหภูมิ",
+              "range": "0-50",
+              "unit": "องศาเซลเซียส",
+              "frequency": "15-60 นาที"
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 1",
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        },
+        {
+          "id": "RF02",
+          "no": 2,
+          "name": "เทศบาลนครขอนแก่น",
+          "location": {
+            "latitude": 16.429,
+            "longitude": 102.829,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "rainfall",
+              "name": "ปริมาณฝน",
+              "range": "0-4",
+              "unit": "มิลลิเมตร",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "humidity",
+              "name": "ความชื้นสัมพัทธ์",
+              "range": "0-100",
+              "unit": "%",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "temperature",
+              "name": "อุณหภูมิ",
+              "range": "0-50",
+              "unit": "องศาเซลเซียส",
+              "frequency": "15-60 นาที"
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 1",
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        },
+        {
+          "id": "RF03",
+          "no": 3,
+          "name": "บึงแก่นนคร",
+          "location": {
+            "latitude": 16.419,
+            "longitude": 102.836,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "rainfall",
+              "name": "ปริมาณฝน",
+              "range": "0-4",
+              "unit": "มิลลิเมตร",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "humidity",
+              "name": "ความชื้นสัมพัทธ์",
+              "range": "0-100",
+              "unit": "%",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "temperature",
+              "name": "อุณหภูมิ",
+              "range": "0-50",
+              "unit": "องศาเซลเซียส",
+              "frequency": "15-60 นาที"
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 1",
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        },
+        {
+          "id": "RF04",
+          "no": 4,
+          "name": "บึงทุ่งสร้าง",
+          "location": {
+            "latitude": 16.452,
+            "longitude": 102.855,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "rainfall",
+              "name": "ปริมาณฝน",
+              "range": "0-4",
+              "unit": "มิลลิเมตร",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "humidity",
+              "name": "ความชื้นสัมพัทธ์",
+              "range": "0-100",
+              "unit": "%",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "temperature",
+              "name": "อุณหภูมิ",
+              "range": "0-50",
+              "unit": "องศาเซลเซียส",
+              "frequency": "15-60 นาที"
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 1",
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        },
+        {
+          "id": "RF05",
+          "no": 5,
+          "name": "หนองเลิงเปือย",
+          "location": {
+            "latitude": 16.43,
+            "longitude": 102.877,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "rainfall",
+              "name": "ปริมาณฝน",
+              "range": "0-4",
+              "unit": "มิลลิเมตร",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "humidity",
+              "name": "ความชื้นสัมพัทธ์",
+              "range": "0-100",
+              "unit": "%",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "temperature",
+              "name": "อุณหภูมิ",
+              "range": "0-50",
+              "unit": "องศาเซลเซียส",
+              "frequency": "15-60 นาที"
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 1",
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        },
+        {
+          "id": "RF06",
+          "no": 6,
+          "name": "บึงหนองโคตร",
+          "location": {
+            "latitude": 16.429,
+            "longitude": 102.805,
+            "area": "เทศบาลบ้านเป็ด"
+          },
+          "sensors": [
+            {
+              "type": "rainfall",
+              "name": "ปริมาณฝน",
+              "range": "0-4",
+              "unit": "มิลลิเมตร",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "humidity",
+              "name": "ความชื้นสัมพัทธ์",
+              "range": "0-100",
+              "unit": "%",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "temperature",
+              "name": "อุณหภูมิ",
+              "range": "0-50",
+              "unit": "องศาเซลเซียส",
+              "frequency": "15-60 นาที"
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 1",
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        },
+        {
+          "id": "RF07",
+          "no": 7,
+          "name": "เทศบาลเมืองศิลา",
+          "location": {
+            "latitude": 16.473,
+            "longitude": 102.849,
+            "area": "เทศบาลศิลา"
+          },
+          "sensors": [
+            {
+              "type": "rainfall",
+              "name": "ปริมาณฝน",
+              "range": "0-4",
+              "unit": "มิลลิเมตร",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "humidity",
+              "name": "ความชื้นสัมพัทธ์",
+              "range": "0-100",
+              "unit": "%",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "temperature",
+              "name": "อุณหภูมิ",
+              "range": "0-50",
+              "unit": "องศาเซลเซียส",
+              "frequency": "15-60 นาที"
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 1",
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        },
+        {
+          "id": "RF08",
+          "no": 8,
+          "name": "ศูนย์อุตุนิยมวิทยาภาคตะวันออกฉียงเหนือตอนบน",
+          "location": {
+            "latitude": 16.463,
+            "longitude": 102.786,
+            "area": "เทศบาลนครขอนแก่น"
+          },
+          "sensors": [
+            {
+              "type": "rainfall",
+              "name": "ปริมาณฝน",
+              "range": "0-4",
+              "unit": "มิลลิเมตร",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "humidity",
+              "name": "ความชื้นสัมพัทธ์",
+              "range": "0-100",
+              "unit": "%",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "temperature",
+              "name": "อุณหภูมิ",
+              "range": "0-50",
+              "unit": "องศาเซลเซียส",
+              "frequency": "15-60 นาที"
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 1",
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        }
+      ]
+    }
+  ]
+}
