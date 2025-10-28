@@ -23,6 +23,7 @@ import maplibregl, {
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import stationsData from "./stations_complete.json";
+import { useStation, generateMockStationData } from "@/contexts/station-context";
 
 // --- SVG Icons (เพื่อใช้ใน HTML String) ---
 const ICONS = {
@@ -78,6 +79,9 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
   const isResizing = useRef(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
+  
+  // Use station context
+  const { setSelectedStationData } = useStation();
 
   const API_KEY: string = "yYduxrRP3C81U2fRFNIU";
 
@@ -230,6 +234,9 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
 
         el.addEventListener("click", () => {
           setSelectedStation(station);
+          // Generate mock data and pass to sidebar
+          const mockData = generateMockStationData(station);
+          setSelectedStationData(mockData);
         });
       });
     });

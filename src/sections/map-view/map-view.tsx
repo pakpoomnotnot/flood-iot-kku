@@ -3,6 +3,7 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import MapLibreComponent from "@/components/map/map-defult";
 import DashboardSidebar from "@/components/sidebar/sidebar-layout";
 import { Menu, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { StationProvider } from "@/contexts/station-context";
 
 const MapView = () => {
   // State สำหรับ sidebar
@@ -105,7 +106,8 @@ const MapView = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-900 relative">
+    <StationProvider>
+      <div className="flex h-screen overflow-hidden bg-slate-900 relative">
       
       {/* Mobile Menu Button - แสดงเฉพาะบน mobile */}
       {isMobile && (
@@ -215,7 +217,8 @@ const MapView = () => {
         </div>
       )}
 
-    </div>
+      </div>
+    </StationProvider>
   );
 };
 

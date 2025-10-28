@@ -1,6 +1,6 @@
 "use client";
-import React, { FC, useState } from 'react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend, LineChart, Line, CartesianGrid } from 'recharts';
+import React, { FC, useState, useEffect } from 'react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Legend, LineChart, Line, CartesianGrid, Area, AreaChart } from 'recharts';
 import { 
   LayoutDashboard, 
   AlertTriangle, 
@@ -10,39 +10,55 @@ import {
   Activity,
   TrendingUp,
   Waves,
-  Cloud
+  Cloud,
+  Wifi,
+  WifiOff,
+  Thermometer,
+  Wind,
+  Sun,
+  Battery,
+  Radio,
+  Navigation,
+  Clock
 } from 'lucide-react';
+import WaterLevelChart from '../charts/water-level-chart';
+import StationDetails from './station-details';
+import { useStation } from '@/contexts/station-context';
 
 interface SidebarProps {
   width: number;
 }
 
+// ข้อมูลสถิติหลักจากระบบ KKC-UFM
 const summaryStats = [
   { 
     id: 1, 
     label: 'สถานีทั้งหมด', 
     value: '29', 
+    subValue: '(ฝน 8, บึง 5, ท่อ 7, ถนน 9)',
     icon: MapPin, 
     color: 'from-blue-500 to-blue-600',
     iconColor: 'text-blue-400',
-    trend: '+2',
-    trendLabel: 'เพิ่มขึ้น'
+    trend: '100%',
+    trendLabel: 'ติดตั้งครบ'
   },
   { 
     id: 2, 
-    label: 'แจ้งเตือน', 
+    label: 'แจ้งเตือนวิกฤต', 
     value: '3', 
+    subValue: 'ระดับน้ำสูง',
     icon: AlertTriangle, 
-    color: 'from-amber-500 to-amber-600',
-    iconColor: 'text-amber-400',
-    trend: '-5',
-    trendLabel: 'ลดลง'
+    color: 'from-red-500 to-red-600',
+    iconColor: 'text-red-400',
+    trend: 'สูง',
+    trendLabel: 'ระดับความเสี่ยง'
   },
   { 
     id: 3, 
     label: 'ออนไลน์', 
-    value: '27', 
-    icon: Activity, 
+    value: '27/29', 
+    subValue: 'Telemetry Active',
+    icon: Wifi, 
     color: 'from-green-500 to-green-600',
     iconColor: 'text-green-400',
     trend: '93%',
@@ -50,63 +66,113 @@ const summaryStats = [
   },
   { 
     id: 4, 
-    label: 'ระดับน้ำเฉลี่ย', 
-    value: '45%', 
-    icon: Waves, 
+    label: 'ปริมาณฝนวันนี้', 
+    value: '43.4', 
+    subValue: 'มม.',
+    icon: Cloud, 
     color: 'from-cyan-500 to-cyan-600',
     iconColor: 'text-cyan-400',
-    trend: '+12%',
-    trendLabel: 'เพิ่มขึ้น'
+    trend: '+12 มม.',
+    trendLabel: 'ในชั่วโมงที่ผ่านมา'
   },
 ];
 
-// ข้อมูลระดับน้ำ 5 อันดับสูงสุด
-const waterLevelData = [
-  { name: 'บึงแก่นนคร', level: 85, status: 'high' },
-  { name: 'บึงทุ่งสร้าง', level: 72, status: 'medium' },
-  { name: 'บึงหนองโคตร', level: 68, status: 'medium' },
-  { name: 'ประตูน้ำที่ 5', level: 52, status: 'normal' },
-  { name: 'สะพานบ้านทุ่ง', level: 38, status: 'normal' },
+// ข้อมูลระดับน้ำตามประเภทสถานี
+const waterLevelByType = [
+  { type: 'บึงแก่นนคร', level: 85, max: 100, status: 'critical', color: '#EF4444' },
+  { type: 'บึงทุ่งสร้าง', level: 72, max: 100, status: 'warning', color: '#F59E0B' },
+  { type: 'บึงหนองโคตร', level: 68, max: 100, status: 'warning', color: '#F59E0B' },
+  { type: 'ประตูน้ำ 5', level: 52, max: 100, status: 'normal', color: '#10B981' },
+  { type: 'ท่อระบาย A1', level: 45, max: 100, status: 'normal', color: '#10B981' },
 ];
 
-// ข้อมูลสถานะสถานี
-const statusData = [
+// ข้อมูลสถานะสถานีทั้งหมด
+const stationStatusData = [
   { name: 'ปกติ', value: 24, color: '#10B981' },
   { name: 'เฝ้าระวัง', value: 3, color: '#F59E0B' },
   { name: 'วิกฤต', value: 2, color: '#EF4444' },
 ];
 
-// ข้อมูลแนวโน้ม 7 วัน
-const trendData = [
-  { day: 'จ.', value: 35 },
-  { day: 'อ.', value: 42 },
-  { day: 'พ.', value: 38 },
-  { day: 'พฤ.', value: 45 },
-  { day: 'ศ.', value: 52 },
-  { day: 'ส.', value: 48 },
-  { day: 'อา.', value: 45 },
+// ข้อมูลแนวโน้มฝนและน้ำ 7 วัน (จำลอง)
+const weatherTrendData = [
+  { day: 'จ.', rain: 15.2, water: 35, temp: 26.4 },
+  { day: 'อ.', rain: 28.5, water: 42, temp: 27.1 },
+  { day: 'พ.', rain: 12.3, water: 38, temp: 26.8 },
+  { day: 'พฤ.', rain: 35.7, water: 45, temp: 25.9 },
+  { day: 'ศ.', rain: 43.4, water: 52, temp: 26.2 },
+  { day: 'ส.', rain: 22.1, water: 48, temp: 27.5 },
+  { day: 'อา.', rain: 18.6, water: 45, temp: 26.9 },
 ];
 
-// ข้อมูลประเภทสถานี
+// ข้อมูลประเภทสถานีตาม TOR
 const stationTypeData = [
-  { type: 'ท่อระบาย', count: 7, color: '#3B82F6', icon: '💧' },
-  { type: 'ถนน', count: 9, color: '#EF4444', icon: '⚠️' },
-  { type: 'บึง', count: 5, color: '#10B981', icon: '🌊' },
-  { type: 'ฝน', count: 8, color: '#8B5CF6', icon: '🌧️' },
+  { type: 'สถานีฝน', count: 8, color: '#8B5CF6', icon: '🌧️', description: 'ตรวจวัดปริมาณฝน' },
+  { type: 'สถานีบึง', count: 5, color: '#10B981', icon: '🌊', description: 'ระดับน้ำในบึง' },
+  { type: 'สถานีท่อระบาย', count: 7, color: '#3B82F6', icon: '💧', description: 'ท่อระบายน้ำ' },
+  { type: 'สถานีถนน', count: 9, color: '#EF4444', icon: '⚠️', description: 'น้ำท่วมถนน' },
 ];
+
+// ข้อมูล Telemetry แบบเรียลไทม์ (จำลองจาก MQTT)
+const telemetryData = {
+  station01: {
+    time: "09:35:00",
+    date: "October 27 2025",
+    rain: {
+      value: 0,
+      total: 43.4,
+      daily: 0
+    },
+    water: {
+      level: 68,
+      flow: 0,
+      total: 0
+    },
+    wind: {
+      speed: 0.3,
+      direction: 0,
+      directionName: "E"
+    },
+    weather: {
+      airTemp: 26.4,
+      airHumid: 80.9,
+      light: 36318
+    },
+    battery: {
+      voltage: 13.29,
+      current: 240.5
+    },
+    system: {
+      temp: 32.6,
+      humid: 66.2,
+      onTime: 9188,
+      updateTime: 15,
+      rssi: -79
+    }
+  }
+};
 
 // --- Sub-Components ---
 interface StatCardProps {
   icon: React.ElementType;
   label: string;
   value: string;
+  subValue?: string;
   color: string;
   iconColor: string;
   trend: string;
   trendLabel: string;
 }
 
-const StatCard: FC<StatCardProps> = ({ icon: Icon, label, value, color, iconColor, trend, trendLabel }) => (
+const StatCard: FC<StatCardProps> = ({ 
+  icon: Icon, 
+  label, 
+  value, 
+  subValue,
+  color, 
+  iconColor, 
+  trend, 
+  trendLabel 
+}) => (
   <div className="group relative bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300 border border-gray-100 hover:border-blue-200">
     <div className="flex items-start justify-between mb-3">
       <div className={`p-2.5 rounded-lg bg-gradient-to-br ${color} shadow-lg`}>
@@ -114,7 +180,7 @@ const StatCard: FC<StatCardProps> = ({ icon: Icon, label, value, color, iconColo
       </div>
       <div className="text-right">
         <span className="text-xs text-gray-500 font-medium">{trendLabel}</span>
-        <p className="text-xs font-semibold text-green-600">{trend}</p>
+        <p className="text-xs font-semibold text-blue-600">{trend}</p>
       </div>
     </div>
     <div>
@@ -122,6 +188,9 @@ const StatCard: FC<StatCardProps> = ({ icon: Icon, label, value, color, iconColo
       <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
         {value}
       </p>
+      {subValue && (
+        <p className="text-xs text-gray-500 mt-1">{subValue}</p>
+      )}
     </div>
     <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-500/5 to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
   </div>
@@ -133,35 +202,162 @@ interface StationTypeCardProps {
   count: number;
   color: string;
   icon: string;
+  description: string;
 }
 
-const StationTypeCard: FC<StationTypeCardProps> = ({ type, count, color, icon }) => (
-  <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100 hover:border-blue-200 hover:shadow-sm transition-all duration-200">
+const StationTypeCard: FC<StationTypeCardProps> = ({ type, count, color, icon, description }) => (
+  <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100 hover:border-blue-200 hover:shadow-sm transition-all duration-200 group">
     <div className="flex items-center gap-3">
       <div 
-        className="w-10 h-10 rounded-lg flex items-center justify-center text-lg shadow-sm"
+        className="w-10 h-10 rounded-lg flex items-center justify-center text-lg shadow-sm group-hover:scale-110 transition-transform"
         style={{ backgroundColor: `${color}15` }}
       >
         {icon}
       </div>
       <div>
         <p className="text-sm font-semibold text-gray-700">{type}</p>
-        <p className="text-xs text-gray-500">สถานี</p>
+        <p className="text-xs text-gray-500">{description}</p>
       </div>
     </div>
     <div className="text-right">
       <p className="text-xl font-bold" style={{ color }}>{count}</p>
+      <p className="text-xs text-gray-400">สถานี</p>
     </div>
   </div>
 );
 
+// Water Level Progress Bar
+interface WaterLevelBarProps {
+  type: string;
+  level: number;
+  max: number;
+  status: 'normal' | 'warning' | 'critical';
+  color: string;
+}
+
+const WaterLevelBar: FC<WaterLevelBarProps> = ({ type, level, max, status, color }) => {
+  const percentage = (level / max) * 100;
+  
+  return (
+    <div className="mb-3">
+      <div className="flex justify-between items-center mb-1">
+        <span className="text-xs font-semibold text-gray-700">{type}</span>
+        <span className="text-xs font-bold" style={{ color }}>
+          {level}%
+        </span>
+      </div>
+      <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-500 ease-out"
+          style={{ 
+            width: `${percentage}%`,
+            backgroundColor: color
+          }}
+        />
+      </div>
+      <div className="flex justify-between items-center mt-1">
+        <span className="text-xs text-gray-400">
+          {status === 'critical' ? '🔴 วิกฤต' : status === 'warning' ? '🟡 เฝ้าระวัง' : '🟢 ปกติ'}
+        </span>
+        <span className="text-xs text-gray-400">Max: {max}%</span>
+      </div>
+    </div>
+  );
+};
+
+// Telemetry Info Card
+const TelemetryInfoCard: FC = () => {
+  const data = telemetryData.station01;
+  
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-bold text-gray-800 flex items-center">
+          <Radio className="h-4 w-4 mr-2 text-blue-600" />
+          Telemetry Station 01
+        </h3>
+        <div className="flex items-center gap-1 text-xs">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+          <span className="text-green-600 font-semibold">Live</span>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-3">
+        {/* อุณหภูมิอากาศ */}
+        <div className="bg-gradient-to-br from-orange-50 to-orange-50 rounded-lg p-3 border border-orange-100">
+          <div className="flex items-center gap-2 mb-1">
+            <Thermometer className="h-4 w-4 text-orange-500" />
+            <span className="text-xs text-gray-600 font-medium">อุณหภูมิ</span>
+          </div>
+          <p className="text-lg font-bold text-orange-600">{data.weather.airTemp}°C</p>
+        </div>
+        
+        {/* ความชืน */}
+        <div className="bg-gradient-to-br from-blue-50 to-blue-50 rounded-lg p-3 border border-blue-100">
+          <div className="flex items-center gap-2 mb-1">
+            <Droplets className="h-4 w-4 text-blue-500" />
+            <span className="text-xs text-gray-600 font-medium">ความชื้น</span>
+          </div>
+          <p className="text-lg font-bold text-blue-600">{data.weather.airHumid}%</p>
+        </div>
+        
+        {/* ความเร็วลม */}
+        <div className="bg-gradient-to-br from-cyan-50 to-cyan-50 rounded-lg p-3 border border-cyan-100">
+          <div className="flex items-center gap-2 mb-1">
+            <Wind className="h-4 w-4 text-cyan-500" />
+            <span className="text-xs text-gray-600 font-medium">ลม</span>
+          </div>
+          <p className="text-lg font-bold text-cyan-600">{data.wind.speed} m/s</p>
+          <p className="text-xs text-gray-500">{data.wind.directionName}</p>
+        </div>
+        
+        {/* แบตเตอรี่ */}
+        <div className="bg-gradient-to-br from-green-50 to-green-50 rounded-lg p-3 border border-green-100">
+          <div className="flex items-center gap-2 mb-1">
+            <Battery className="h-4 w-4 text-green-500" />
+            <span className="text-xs text-gray-600 font-medium">แบตเตอรี่</span>
+          </div>
+          <p className="text-lg font-bold text-green-600">{data.battery.voltage}V</p>
+          <p className="text-xs text-gray-500">{data.battery.current} mA</p>
+        </div>
+      </div>
+      
+      {/* สัญญาณ WiFi */}
+      <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Wifi className="h-4 w-4 text-blue-600" />
+          <span className="text-xs text-gray-600">RSSI Signal</span>
+        </div>
+        <span className="text-xs font-bold text-blue-600">{data.system.rssi} dBm</span>
+      </div>
+      
+      {/* เวลาอัพเดท */}
+      <div className="mt-2 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Clock className="h-4 w-4 text-gray-500" />
+          <span className="text-xs text-gray-600">Update Every</span>
+        </div>
+        <span className="text-xs font-bold text-gray-600">{data.system.updateTime} min</span>
+      </div>
+    </div>
+  );
+};
+
 // --- Main Sidebar Component ---
 const DashboardSidebar: FC<SidebarProps> = ({ width }) => {
   const [timeRange, setTimeRange] = useState('24h');
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <aside 
-      className="bg-gradient-to-b from-gray-50 to-gray-50 text-gray-800 h-screen flex flex-col overflow-hidden"
+      className="bg-gradient-to-b from-gray-50 to-white text-gray-800 h-screen flex flex-col overflow-hidden border-r border-gray-200"
       style={{ width: `${width}px` }}
     >
       <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-blue-200 scrollbar-track-transparent">
@@ -175,9 +371,9 @@ const DashboardSidebar: FC<SidebarProps> = ({ width }) => {
               </div>
               <div>
                 <a href='/' className="text-xl font-bold bg-gradient-to-r from-blue-700 to-cyan-600 bg-clip-text text-transparent">
-                  Dashboard
+                  KKC-UFM
                 </a>
-                <p className="text-xs text-gray-500">KKC-UFM System</p>
+                <p className="text-xs text-gray-500">Urban Flood Management</p>
               </div>
             </div>
             <div className="relative">
@@ -186,11 +382,35 @@ const DashboardSidebar: FC<SidebarProps> = ({ width }) => {
                 onChange={(e) => setTimeRange(e.target.value)}
                 className="bg-white border border-gray-200 text-sm rounded-lg py-2 pl-3 pr-9 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:border-blue-300 transition-colors cursor-pointer"
               >
+                <option value="1h">1 ชม.</option>
                 <option value="24h">24 ชม.</option>
                 <option value="7d">7 วัน</option>
                 <option value="30d">30 วัน</option>
               </select>
               <ChevronDown className="h-4 w-4 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
+            </div>
+          </div>
+
+          {/* === Selected Station Details === */}
+          <StationDetails />
+
+          {/* === Current Time === */}
+          <div className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl shadow-lg p-4 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs opacity-90 mb-1">เวลาปัจจุบัน</p>
+                <p className="text-2xl font-bold">
+                  {currentTime.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                </p>
+                <p className="text-xs opacity-75 mt-1">
+                  {currentTime.toLocaleDateString('th-TH', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </p>
+              </div>
+              <Clock className="h-12 w-12 opacity-20" />
             </div>
           </div>
 
@@ -201,7 +421,8 @@ const DashboardSidebar: FC<SidebarProps> = ({ width }) => {
                 key={stat.id} 
                 icon={stat.icon} 
                 label={stat.label} 
-                value={stat.value} 
+                value={stat.value}
+                subValue={stat.subValue}
                 color={stat.color}
                 iconColor={stat.iconColor}
                 trend={stat.trend}
@@ -215,7 +436,7 @@ const DashboardSidebar: FC<SidebarProps> = ({ width }) => {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-bold text-gray-800 flex items-center">
                 <MapPin className="h-4 w-4 mr-2 text-blue-600" />
-                ประเภทสถานี
+                ประเภทสถานีตรวจวัด
               </h3>
               <span className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-full font-semibold">
                 {stationTypeData.reduce((sum, item) => sum + item.count, 0)} สถานี
@@ -229,79 +450,57 @@ const DashboardSidebar: FC<SidebarProps> = ({ width }) => {
                   count={item.count}
                   color={item.color}
                   icon={item.icon}
+                  description={item.description}
                 />
               ))}
             </div>
           </div>
 
-          {/* === Water Level Chart === */}
+          {/* === Water Level Status === */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
             <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center">
-              <Droplets className="h-4 w-4 mr-2 text-blue-600" />
-              5 อันดับระดับน้ำสูงสุด
+              <Waves className="h-4 w-4 mr-2 text-blue-600" />
+              ระดับน้ำ 5 อันดับสูงสุด
             </h3>
-            <div style={{ width: '100%', height: 220 }}>
-              <ResponsiveContainer>
-                <BarChart 
-                  data={waterLevelData} 
-                  layout="vertical" 
-                  margin={{ top: 5, right: 20, left: 5, bottom: 5 }}
-                >
-                  <XAxis type="number" hide />
-                  <YAxis 
-                    type="category" 
-                    dataKey="name" 
-                    stroke="#64748b" 
-                    fontSize={11} 
-                    tickLine={false} 
-                    axisLine={false}
-                    width={90}
-                  />
-                  <Tooltip
-                    cursor={{ fill: 'rgba(59, 130, 246, 0.1)' }}
-                    contentStyle={{ 
-                      backgroundColor: 'white', 
-                      borderColor: '#e5e7eb', 
-                      borderRadius: '0.75rem',
-                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                      border: '1px solid #e5e7eb'
-                    }}
-                    labelStyle={{ fontWeight: 'bold', color: '#1f2937' }}
-                    itemStyle={{ color: '#3b82f6' }}
-                  />
-                  <Bar 
-                    dataKey="level" 
-                    radius={[0, 8, 8, 0]} 
-                    barSize={16}
-                  >
-                    {waterLevelData.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={
-                          entry.status === 'high' ? '#EF4444' : 
-                          entry.status === 'medium' ? '#F59E0B' : 
-                          '#3B82F6'
-                        } 
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+            <div>
+              {waterLevelByType.map((item, idx) => (
+                <WaterLevelBar
+                  key={idx}
+                  type={item.type}
+                  level={item.level}
+                  max={item.max}
+                  status={item.status as 'normal' | 'warning' | 'critical'}
+                  color={item.color}
+                />
+              ))}
             </div>
           </div>
 
-          {/* === Trend Chart === */}
+          {/* === Telemetry Information === */}
+          <TelemetryInfoCard />
+
+          {/* === Weather & Water Trend Chart === */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
             <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center">
               <TrendingUp className="h-4 w-4 mr-2 text-blue-600" />
-              แนวโน้มระดับน้ำ 7 วัน
+              แนวโน้มฝน-น้ำ 7 วัน
             </h3>
-            <div style={{ width: '100%', height: 180 }}>
+            <div style={{ width: '100%', height: 200 }}>
               <ResponsiveContainer>
-                <LineChart 
-                  data={trendData} 
+                <AreaChart 
+                  data={weatherTrendData} 
                   margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
                 >
+                  <defs>
+                    <linearGradient id="colorRain" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorWater" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis 
                     dataKey="day" 
@@ -321,16 +520,87 @@ const DashboardSidebar: FC<SidebarProps> = ({ width }) => {
                       borderColor: '#e5e7eb', 
                       borderRadius: '0.75rem',
                       boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                      border: '1px solid #e5e7eb',
+                      fontSize: '12px'
+                    }}
+                    formatter={(value: number, name: string) => {
+                      if (name === 'rain') return [`${value} มม.`, 'ฝน'];
+                      if (name === 'water') return [`${value}%`, 'ระดับน้ำ'];
+                      return [value, name];
+                    }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="rain" 
+                    stroke="#8B5CF6" 
+                    fillOpacity={1} 
+                    fill="url(#colorRain)" 
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="water" 
+                    stroke="#3B82F6" 
+                    fillOpacity={1} 
+                    fill="url(#colorWater)" 
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex justify-center gap-4 mt-2">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-purple-500"></div>
+                <span className="text-xs text-gray-600">ปริมาณฝน (มม.)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-blue-500"></div>
+                <span className="text-xs text-gray-600">ระดับน้ำ (%)</span>
+              </div>
+            </div>
+          </div>
+
+          {/* === Temperature Trend === */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center">
+              <Thermometer className="h-4 w-4 mr-2 text-orange-600" />
+              อุณหภูมิ 7 วัน
+            </h3>
+            <div style={{ width: '100%', height: 150 }}>
+              <ResponsiveContainer>
+                <LineChart 
+                  data={weatherTrendData} 
+                  margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis 
+                    dataKey="day" 
+                    stroke="#94a3b8" 
+                    fontSize={11}
+                    tickLine={false}
+                  />
+                  <YAxis 
+                    stroke="#94a3b8" 
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    domain={[24, 28]}
+                  />
+                  <Tooltip
+                    contentStyle={{ 
+                      backgroundColor: 'white', 
+                      borderColor: '#e5e7eb', 
+                      borderRadius: '0.75rem',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                       border: '1px solid #e5e7eb'
                     }}
+                    formatter={(value: number) => [`${value}°C`, 'อุณหภูมิ']}
                   />
                   <Line 
                     type="monotone" 
-                    dataKey="value" 
-                    stroke="#3b82f6" 
+                    dataKey="temp" 
+                    stroke="#F97316" 
                     strokeWidth={3}
-                    dot={{ fill: '#3b82f6', r: 4 }}
-                    activeDot={{ r: 6, fill: '#2563eb' }}
+                    dot={{ fill: '#F97316', r: 4 }}
+                    activeDot={{ r: 6, fill: '#EA580C' }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -341,13 +611,13 @@ const DashboardSidebar: FC<SidebarProps> = ({ width }) => {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
             <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center">
               <Activity className="h-4 w-4 mr-2 text-blue-600" />
-              สถานะโดยรวม
+              สถานะสถานีโดยรวม
             </h3>
             <div style={{ width: '100%', height: 240 }}>
               <ResponsiveContainer>
                 <PieChart>
                   <Pie
-                    data={statusData}
+                    data={stationStatusData}
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
@@ -355,7 +625,7 @@ const DashboardSidebar: FC<SidebarProps> = ({ width }) => {
                     paddingAngle={3}
                     dataKey="value"
                   >
-                    {statusData.map((entry, index) => (
+                    {stationStatusData.map((entry, index) => (
                       <Cell 
                         key={`cell-${index}`} 
                         fill={entry.color}
@@ -372,6 +642,7 @@ const DashboardSidebar: FC<SidebarProps> = ({ width }) => {
                       boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                       border: '1px solid #e5e7eb'
                     }}
+                    formatter={(value: number) => [`${value} สถานี`, '']}
                   />
                   <Legend 
                     iconSize={10}
@@ -389,10 +660,10 @@ const DashboardSidebar: FC<SidebarProps> = ({ width }) => {
             </div>
           </div>
 
-          {/* === Quick Actions === */}
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-4 text-white">
+          {/* === Latest Alerts === */}
+          <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-4 text-white">
             <h3 className="text-sm font-bold mb-3 flex items-center">
-              <Cloud className="h-4 w-4 mr-2" />
+              <AlertTriangle className="h-4 w-4 mr-2" />
               การแจ้งเตือนล่าสุด
             </h3>
             <div className="space-y-2">
@@ -400,8 +671,8 @@ const DashboardSidebar: FC<SidebarProps> = ({ width }) => {
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="h-4 w-4 text-amber-300 mt-0.5 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold">ระดับน้ำสูง</p>
-                    <p className="text-xs opacity-90 truncate">บึงแก่นนคร - 85%</p>
+                    <p className="text-xs font-semibold">ระดับน้ำวิกฤต</p>
+                    <p className="text-xs opacity-90 truncate">บึงแก่นนคร - 85% (เกินเกณฑ์)</p>
                   </div>
                   <span className="text-xs opacity-75 whitespace-nowrap">5 นาที</span>
                 </div>
@@ -412,10 +683,51 @@ const DashboardSidebar: FC<SidebarProps> = ({ width }) => {
                   <Droplets className="h-4 w-4 text-cyan-300 mt-0.5 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold">ฝนตกหนัก</p>
-                    <p className="text-xs opacity-90 truncate">เขตเทศบาลนครขอนแก่น</p>
+                    <p className="text-xs opacity-90 truncate">43.4 มม. - สถานีฝน S01</p>
                   </div>
                   <span className="text-xs opacity-75 whitespace-nowrap">15 นาที</span>
                 </div>
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 hover:bg-white/20 transition-all cursor-pointer">
+                <div className="flex items-start gap-2">
+                  <WifiOff className="h-4 w-4 text-gray-300 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold">สถานีออฟไลน์</p>
+                    <p className="text-xs opacity-90 truncate">ท่อระบาย T04 - ขาดการติดต่อ</p>
+                  </div>
+                  <span className="text-xs opacity-75 whitespace-nowrap">1 ชม.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* === System Info === */}
+          <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
+            <h3 className="text-xs font-bold text-gray-600 mb-3 uppercase tracking-wide">
+              ข้อมูลระบบ
+            </h3>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">เวอร์ชัน</span>
+                <span className="font-semibold text-gray-800">KKC-UFM v2.12</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">อัพเดทล่าสุด</span>
+                <span className="font-semibold text-gray-800">
+                  {currentTime.toLocaleTimeString('th-TH', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">รอบการอัพเดท</span>
+                <span className="font-semibold text-gray-800">ทุก 10 นาที</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">โปรโตคอล</span>
+                <span className="font-semibold text-gray-800">MQTT, HTTP/HTTPS</span>
               </div>
             </div>
           </div>
