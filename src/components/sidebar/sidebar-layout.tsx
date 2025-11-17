@@ -24,6 +24,8 @@ import {
 import WaterLevelChart from '../charts/water-level-chart';
 import StationDetails from './station-details';
 import { useStation } from '@/contexts/station-context';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface SidebarProps {
   width: number;
@@ -110,6 +112,80 @@ const stationTypeData = [
   { type: 'สถานีบึง', count: 5, color: '#10B981', icon: '🌊', description: 'ระดับน้ำในบึง' },
   { type: 'สถานีท่อระบาย', count: 7, color: '#3B82F6', icon: '💧', description: 'ท่อระบายน้ำ' },
   { type: 'สถานีถนน', count: 9, color: '#EF4444', icon: '⚠️', description: 'น้ำท่วมถนน' },
+];
+
+// ข้อมูลสถานีสำหรับตาราง (จำลอง)
+const stationTableData = [
+  { 
+    station: 'บ้านท่านางเลื่อน', 
+    location: 'ต.ชนบท อ.ชนบท', 
+    river: 'ลุ่มน้ำชี', 
+    level: '161.34', 
+    bank: '162.1', 
+    situation: 'น้ำมาก', 
+    trend: 'ต่ำกว่าตลิ่ง (ม.) 0.76',
+    time: '22:00 น.'
+  },
+  { 
+    station: 'ชนบท', 
+    location: 'ต.ชนบท อ.ชนบท', 
+    river: 'ลุ่มน้ำชี', 
+    level: '160.79', 
+    bank: '161.58', 
+    situation: 'น้ำมาก', 
+    trend: 'ต่ำกว่าตลิ่ง (ม.) 0.79',
+    time: '23:00 น.'
+  },
+  { 
+    station: 'สะพานข้ามสาน้ำเชิญ', 
+    location: 'ต.หนองเรือ อ.หนองเรือ', 
+    river: 'ลุ่มน้ำชี', 
+    level: '181.85', 
+    bank: '182.86', 
+    situation: 'น้ำมาก', 
+    trend: 'ต่ำกว่าตลิ่ง (ม.) 1.01',
+    time: '23:00 น.'
+  },
+  { 
+    station: 'เมืองขอนแก่น', 
+    location: 'ต.ท่าพระ อ.เมืองขอนแก่น', 
+    river: 'ลุ่มน้ำชี', 
+    level: '150.43', 
+    bank: '153.04', 
+    situation: 'น้ำมาก', 
+    trend: 'ต่ำกว่าตลิ่ง (ม.) 2.61',
+    time: '23:00 น.'
+  },
+  { 
+    station: 'สาเชิญ อ.ชุมแพ', 
+    location: 'ต.ชุมแพ อ.ชุมแพ', 
+    river: 'ลุ่มน้ำชี', 
+    level: '218.97', 
+    bank: '221.17', 
+    situation: 'น้ำมาก', 
+    trend: 'ต่ำกว่าตลิ่ง (ม.) 2.20',
+    time: '22:00 น.'
+  },
+  { 
+    station: 'บ้านกุดกว้าง', 
+    location: 'ต.ท่าพระ อ.เมืองขอนแก่น', 
+    river: 'ลุ่มน้ำชี', 
+    level: '149.58', 
+    bank: '152.3', 
+    situation: 'น้ำมาก', 
+    trend: 'ต่ำกว่าตลิ่ง (ม.) 2.72',
+    time: '22:00 น.'
+  },
+  { 
+    station: 'แม่น้ำชีบ้านหินกอง', 
+    location: 'ต.บ้านโต้น อ.พระยืน', 
+    river: 'ลุ่มน้ำชี', 
+    level: '151.44', 
+    bank: '155.24', 
+    situation: 'น้ำปกติ', 
+    trend: 'ต่ำกว่าตลิ่ง (ม.) 3.80',
+    time: '22:00 น.'
+  },
 ];
 
 // ข้อมูล Telemetry แบบเรียลไทม์ (จำลองจาก MQTT)
@@ -658,6 +734,55 @@ const DashboardSidebar: FC<SidebarProps> = ({ width }) => {
                 </PieChart>
               </ResponsiveContainer>
             </div>
+          </div>
+
+          {/* === Station Data Table === */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-gray-800 flex items-center">
+                <MapPin className="h-4 w-4 mr-2 text-blue-600" />
+                ระดับน้ำ
+              </h3>
+              <span className="text-xs text-gray-500">ปริมาณน้ำ</span>
+            </div>
+            <ScrollArea className="h-[400px]">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gray-50">
+                    <TableHead className="text-[10px] font-bold text-gray-700 h-8 py-1">สถานี</TableHead>
+                    <TableHead className="text-[10px] font-bold text-gray-700 h-8 py-1">ที่ตั้ง</TableHead>
+                    <TableHead className="text-[10px] font-bold text-gray-700 h-8 py-1">แม่น้ำ/คลอง</TableHead>
+                    <TableHead className="text-[10px] font-bold text-gray-700 h-8 py-1">ระดับน้ำ (ม.รทก.)</TableHead>
+                    <TableHead className="text-[10px] font-bold text-gray-700 h-8 py-1">ระดับตลิ่ง (ม.รทก.)</TableHead>
+                    <TableHead className="text-[10px] font-bold text-gray-700 h-8 py-1">สถานการณ์น้ำ</TableHead>
+                    <TableHead className="text-[10px] font-bold text-gray-700 h-8 py-1">แนวโน้ม</TableHead>
+                    <TableHead className="text-[10px] font-bold text-gray-700 h-8 py-1">เวลา</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {stationTableData.map((row, idx) => (
+                    <TableRow key={idx} className="hover:bg-gray-50">
+                      <TableCell className="text-[10px] py-2 font-medium text-gray-900">{row.station}</TableCell>
+                      <TableCell className="text-[10px] py-2 text-gray-600">{row.location}</TableCell>
+                      <TableCell className="text-[10px] py-2 text-gray-600">{row.river}</TableCell>
+                      <TableCell className="text-[10px] py-2 text-gray-900 font-semibold">{row.level}</TableCell>
+                      <TableCell className="text-[10px] py-2 text-gray-600">{row.bank}</TableCell>
+                      <TableCell className="text-[10px] py-2">
+                        <span className={`px-2 py-0.5 rounded ${
+                          row.situation === 'น้ำมาก' 
+                            ? 'bg-blue-100 text-blue-700' 
+                            : 'bg-green-100 text-green-700'
+                        }`}>
+                          {row.situation}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-[10px] py-2 text-gray-600">{row.trend}</TableCell>
+                      <TableCell className="text-[10px] py-2 text-gray-500">{row.time}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
           </div>
 
           {/* === Latest Alerts === */}

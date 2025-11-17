@@ -24,6 +24,7 @@ import maplibregl, {
 import "maplibre-gl/dist/maplibre-gl.css";
 import stationsData from "./stations_complete.json";
 import { useStation, generateMockStationData } from "@/contexts/station-context";
+import { PredictionModal } from "./prediction-modal";
 
 // --- SVG Icons (เพื่อใช้ใน HTML String) ---
 const ICONS = {
@@ -79,6 +80,8 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
   const isResizing = useRef(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isTablet, setIsTablet] = useState(false);
+  const [showPredictionModal, setShowPredictionModal] = useState(false);
+  const [selectedStationForPrediction, setSelectedStationForPrediction] = useState<Station | null>(null);
   
   // Use station context
   const { setSelectedStationData } = useStation();
@@ -237,6 +240,9 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
           // Generate mock data and pass to sidebar
           const mockData = generateMockStationData(station);
           setSelectedStationData(mockData);
+          // Show prediction modal
+          setSelectedStationForPrediction(station);
+          setShowPredictionModal(true);
         });
       });
     });
@@ -522,6 +528,16 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
           </div>
         </div>
       )}
+
+      {/* Prediction Modal */}
+      <PredictionModal
+        station={selectedStationForPrediction}
+        isOpen={showPredictionModal}
+        onClose={() => {
+          setShowPredictionModal(false);
+          setSelectedStationForPrediction(null);
+        }}
+      />
 
       {/* Custom Styles */}
       <style jsx global>{`
