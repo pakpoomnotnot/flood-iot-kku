@@ -1,5 +1,6 @@
 "use client";
 import React from 'react';
+import Image from 'next/image';
 import { Thermometer, Wifi } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -11,6 +12,18 @@ export const DashboardHeader = () => {
         <div className="flex items-center justify-between gap-3 flex-wrap">
           {/* Left: Title and Logos */}
           <div className="flex items-center gap-3">
+            {/* KKU Logo */}
+            <div className="flex items-center">
+              <Image
+                src="/kku.png"
+                alt="KKU Logo"
+                width={40}
+                height={40}
+                className="object-contain"
+                priority
+              />
+            </div>
+            
             {/* Logos */}
             <div className="flex items-center gap-2">
               <div className="w-9 h-9 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded flex items-center justify-center shadow-sm">
@@ -22,7 +35,7 @@ export const DashboardHeader = () => {
             {/* Main Title */}
             <div className="border-l border-gray-300 pl-3">
               <h1 className="text-xs font-bold text-gray-900 leading-tight">
-                ระบบการเตือนภัยและแนวทางการป้องกันน้ำท่วม ใน
+                ระบบการเตือนภัยและแนวทางการป้องกันน้ำท่วมในเทศบาลเมืองขอนแก่น
                 <br />
                 <span className="text-[10px] text-gray-600 font-normal">
                   Flood Warning System and Prevention Measures in Khon Kaen City

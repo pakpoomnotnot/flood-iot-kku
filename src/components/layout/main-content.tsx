@@ -1,8 +1,10 @@
 "use client";
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, CheckCircle2, Droplets } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface MainContentProps {
   activeView: string;
@@ -10,9 +12,42 @@ interface MainContentProps {
 }
 
 export const MainContent: React.FC<MainContentProps> = ({ activeView, mapComponent }) => {
+  const [activeTab, setActiveTab] = useState<'level' | 'volume'>('level');
+
   return (
     <div className="flex-1 overflow-auto bg-gray-50 p-4 space-y-4">
-      {/* Special Watch Areas */}
+      {/* Tabs */}
+      <div className="flex items-center gap-2 border-b border-gray-200 pb-2 mb-4">
+        <Button
+          variant="ghost"
+          onClick={() => setActiveTab('level')}
+          className={cn(
+            "px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors",
+            activeTab === 'level'
+              ? "border-blue-600 text-blue-600 bg-blue-50"
+              : "border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+          )}
+        >
+          ระดับน้ำ
+        </Button>
+        <Button
+          variant="ghost"
+          onClick={() => setActiveTab('volume')}
+          className={cn(
+            "px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors",
+            activeTab === 'volume'
+              ? "border-blue-600 text-blue-600 bg-blue-50"
+              : "border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+          )}
+        >
+          ปริมาณน้ำ
+        </Button>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'level' ? (
+        <>
+          {/* Special Watch Areas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* 48 Hours Ahead */}
         <Card>
@@ -340,6 +375,116 @@ export const MainContent: React.FC<MainContentProps> = ({ activeView, mapCompone
           </CardContent>
         </Card>
       </div>
+        </>
+      ) : (
+        <>
+          {/* Volume Tab Content */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-bold">
+                  ปริมาณน้ำ บึงหนองโคตร
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-gray-900">1,234</span>
+                    <span className="text-sm text-gray-500">ล้าน ลบ.ม.</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div 
+                      className="bg-blue-500 h-3 rounded-full transition-all"
+                      style={{ width: '64%' }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Last updated: 2025-11-04
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-bold">
+                  ปริมาณน้ำ บึงแก่นนคร
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-gray-900">856</span>
+                    <span className="text-sm text-gray-500">ล้าน ลบ.ม.</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div 
+                      className="bg-blue-500 h-3 rounded-full transition-all"
+                      style={{ width: '58%' }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Last updated: 2025-11-04
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-bold">
+                  ปริมาณน้ำ บึงทุ่งสร้าง
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-gray-900">523</span>
+                    <span className="text-sm text-gray-500">ล้าน ลบ.ม.</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div 
+                      className="bg-blue-500 h-3 rounded-full transition-all"
+                      style={{ width: '45%' }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Last updated: 2025-11-04
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Total Volume Summary */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-bold">
+                สรุปปริมาณน้ำทั้งหมด
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                  <p className="text-xs text-gray-500 mb-2">ปริมาณน้ำรวม</p>
+                  <p className="text-2xl font-bold text-blue-600">2,613</p>
+                  <p className="text-xs text-gray-500 mt-1">ล้าน ลบ.ม.</p>
+                </div>
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <p className="text-xs text-gray-500 mb-2">ความจุรวม</p>
+                  <p className="text-2xl font-bold text-green-600">4,085</p>
+                  <p className="text-xs text-gray-500 mt-1">ล้าน ลบ.ม.</p>
+                </div>
+                <div className="text-center p-4 bg-orange-50 rounded-lg">
+                  <p className="text-xs text-gray-500 mb-2">เปอร์เซ็นต์</p>
+                  <p className="text-2xl font-bold text-orange-600">64%</p>
+                  <p className="text-xs text-gray-500 mt-1">ของความจุทั้งหมด</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 };
