@@ -35,7 +35,7 @@ export const DashboardHeader = () => {
             {/* Main Title */}
             <div className="border-l border-gray-300 pl-3">
               <h1 className="text-xs font-bold text-gray-900 leading-tight">
-                ระบบการเตือนภัยและแนวทางการป้องกันน้ำท่วมในเทศบาลเมืองขอนแก่น
+                ระบบการเตือนภัยและแนวทางการป้องกันน้ำท่วมในเขตเมืองขอนแก่น
                 <br />
                 <span className="text-[10px] text-gray-600 font-normal">
                   Flood Warning System and Prevention Measures in Khon Kaen City
