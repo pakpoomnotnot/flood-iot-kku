@@ -34,6 +34,14 @@ const BusinessPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
+  const brandGradient =
+    "bg-gradient-to-r from-[#a73824] via-[#c45a3c] to-[#f4a259]";
+  const brandGradientText =
+    "bg-gradient-to-r from-[#a73824] via-[#c45a3c] to-[#f4a259]";
+  const brandAccent = "text-[#a73824]";
+  const brandSoftBg = "bg-[#fff4ef]";
+  const brandBorder = "border-[#edd9d4]";
+
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
@@ -43,13 +51,13 @@ const BusinessPage = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#f8f5f3] text-[#2c120c]">
       
       {/* Navigation - Ultra Modern */}
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled 
-          ? 'bg-white/80 backdrop-blur-xl border-b border-gray-200 shadow-lg' 
-          : 'bg-transparent'
+        scrolled
+          ? "bg-[#fff8f5]/90 backdrop-blur-xl border-b border-[#edd9d4] shadow-[0_10px_30px_rgba(167,56,36,0.12)]"
+          : "bg-transparent"
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
@@ -57,16 +65,20 @@ const BusinessPage = () => {
             {/* Logo - Professional */}
             <div className="flex items-center space-x-4">
               <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl blur-xl opacity-50"></div>
-                <div className="relative w-12 h-12 bg-gradient-to-br from-blue-600 via-blue-700 to-cyan-600 rounded-2xl flex items-center justify-center shadow-2xl">
+                <div
+                  className={`absolute inset-0 ${brandGradient} rounded-2xl blur-xl opacity-50`}
+                ></div>
+                <div
+                  className={`relative h-12 w-12 ${brandGradient} rounded-2xl flex items-center justify-center shadow-2xl`}
+                >
                   <Droplets className="h-7 w-7 text-white" strokeWidth={2.5} />
                 </div>
               </div>
               <div>
-                <h1 className="text-xl font-bold tracking-tight text-gray-900">
+                <h1 className="text-xl font-bold tracking-tight text-[#2c120c]">
                   KKC-UFM
                 </h1>
-                <p className="text-xs text-gray-500 font-medium tracking-wide">
+                <p className="text-xs font-medium tracking-wide text-[#8a6458]">
                   URBAN FLOOD MANAGEMENT SYSTEM
                 </p>
               </div>
@@ -74,22 +86,22 @@ const BusinessPage = () => {
 
             {/* Desktop Menu - Clean & Professional */}
             <div className="hidden lg:flex items-center space-x-1">
-              <a href="#overview" className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
+              <a href="#overview" className="px-4 py-2 text-sm font-medium text-[#5c3d34] hover:text-[#a73824] hover:bg-[#ffeae2] rounded-lg transition-all">
                 ภาพรวม
               </a>
-              <a href="#features" className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
+              <a href="#features" className="px-4 py-2 text-sm font-medium text-[#5c3d34] hover:text-[#a73824] hover:bg-[#ffeae2] rounded-lg transition-all">
                 ความสามารถ
               </a>
-              <a href="#technology" className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
+              <a href="#technology" className="px-4 py-2 text-sm font-medium text-[#5c3d34] hover:text-[#a73824] hover:bg-[#ffeae2] rounded-lg transition-all">
                 เทคโนโลยี
               </a>
-              <a href="#impact" className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
+              <a href="#impact" className="px-4 py-2 text-sm font-medium text-[#5c3d34] hover:text-[#a73824] hover:bg-[#ffeae2] rounded-lg transition-all">
                 ผลกระทบ
               </a>
               <div className="w-px h-6 bg-gray-300 mx-2"></div>
-              <Link 
+              <Link
                 href="/login"
-                className="ml-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-semibold rounded-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+                className={`ml-2 px-6 py-2.5 ${brandGradient} text-white text-sm font-semibold rounded-lg hover:shadow-xl hover:scale-105 transition-all duration-300`}
               >
                 เข้าสู่ระบบ
               </Link>
@@ -113,21 +125,21 @@ const BusinessPage = () => {
         {mobileMenuOpen && (
           <div className="lg:hidden border-t border-gray-200 bg-white/95 backdrop-blur-xl">
             <div className="px-4 py-6 space-y-2">
-              <a href="#overview" className="block px-4 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50 rounded-lg transition-all">
+              <a href="#overview" className="block px-4 py-3 text-sm font-medium text-[#5c3d34] hover:bg-[#ffeae2] rounded-lg transition-all">
                 ภาพรวม
               </a>
-              <a href="#features" className="block px-4 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50 rounded-lg transition-all">
+              <a href="#features" className="block px-4 py-3 text-sm font-medium text-[#5c3d34] hover:bg-[#ffeae2] rounded-lg transition-all">
                 ความสามารถ
               </a>
-              <a href="#technology" className="block px-4 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50 rounded-lg transition-all">
+              <a href="#technology" className="block px-4 py-3 text-sm font-medium text-[#5c3d34] hover:bg-[#ffeae2] rounded-lg transition-all">
                 เทคโนโลยี
               </a>
-              <a href="#impact" className="block px-4 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50 rounded-lg transition-all">
+              <a href="#impact" className="block px-4 py-3 text-sm font-medium text-[#5c3d34] hover:bg-[#ffeae2] rounded-lg transition-all">
                 ผลกระทบ
               </a>
-              <Link 
+              <Link
                 href="/map"
-                className="block w-full mt-4 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-sm font-semibold rounded-lg text-center"
+                className={`block w-full mt-4 px-4 py-3 ${brandGradient} text-white text-sm font-semibold rounded-lg text-center`}
               >
                 เข้าสู่ระบบ
               </Link>
@@ -139,15 +151,15 @@ const BusinessPage = () => {
       {/* Hero Section - Premium & Professional */}
       <section className="relative pt-32 pb-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
         {/* Background Pattern */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-cyan-50"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-[#fff4ef] via-white to-[#fde7dc]"></div>
         <div className="absolute inset-0" style={{
-          backgroundImage: `radial-gradient(circle at 1px 1px, rgb(226 232 240 / 0.3) 1px, transparent 0)`,
+          backgroundImage: `radial-gradient(circle at 1px 1px, rgb(249 214 200 / 0.4) 1px, transparent 0)`,
           backgroundSize: '40px 40px'
         }}></div>
         
         {/* Gradient Orbs */}
-        <div className="absolute top-20 right-0 w-96 h-96 bg-blue-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse"></div>
-        <div className="absolute bottom-20 left-0 w-96 h-96 bg-cyan-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute top-20 right-0 w-96 h-96 bg-[#f4a259] rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse"></div>
+        <div className="absolute bottom-20 left-0 w-96 h-96 bg-[#a73824] rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse" style={{ animationDelay: '2s' }}></div>
 
         <div className="relative max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
@@ -162,10 +174,10 @@ const BusinessPage = () => {
               
               {/* Main Heading */}
               <div className="space-y-4">
-                <h1 className="text-5xl lg:text-6xl xl:text-7xl font-bold text-gray-900 leading-tight tracking-tight">
+                <h1 className="text-5xl lg:text-6xl xl:text-7xl font-bold text-[#2c120c] leading-tight tracking-tight">
                   ระบบจัดการ
                   <br />
-                  <span className="bg-gradient-to-r from-blue-600 via-blue-700 to-cyan-600 bg-clip-text text-transparent">
+                  <span className={`${brandGradientText} bg-clip-text text-transparent`}>
                     น้ำท่วมเมือง
                   </span>
                   <br />
@@ -181,12 +193,12 @@ const BusinessPage = () => {
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link
                   href="/map"
-                  className="group inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-semibold shadow-xl shadow-blue-500/30 hover:shadow-2xl hover:shadow-blue-600/40 hover:scale-105 transition-all duration-300"
+                  className={`group inline-flex items-center justify-center px-8 py-4 ${brandGradient} text-white rounded-xl font-semibold shadow-xl shadow-[rgba(167,56,36,0.35)] hover:shadow-2xl hover:shadow-[rgba(167,56,36,0.45)] hover:scale-105 transition-all duration-300`}
                 >
                   เข้าสู่แดชบอร์ด
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
-                <button className="group inline-flex items-center justify-center px-8 py-4 bg-white border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:border-blue-600 hover:text-blue-600 transition-all duration-300">
+                <button className="group inline-flex items-center justify-center px-8 py-4 bg-white border-2 border-[#edd9d4] text-[#5c3d34] rounded-xl font-semibold hover:border-[#a73824] hover:text-[#a73824] transition-all duration-300">
                   <Play className="mr-2 h-5 w-5" />
                   ดูการสาธิต
                 </button>
@@ -195,12 +207,12 @@ const BusinessPage = () => {
               {/* Trust Indicators */}
               <div className="flex items-center gap-8 pt-8 border-t border-gray-200">
                 <div className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-blue-600" />
-                  <span className="text-sm font-medium text-gray-700">มหาวิทยาลัยขอนแก่น</span>
+                  <Building2 className="h-5 w-5 text-[#a73824]" />
+                  <span className="text-sm font-medium text-[#5c3d34]">มหาวิทยาลัยขอนแก่น</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Award className="h-5 w-5 text-blue-600" />
-                  <span className="text-sm font-medium text-gray-700">วช. ประจำปี 2568</span>
+                  <Award className="h-5 w-5 text-[#a73824]" />
+                  <span className="text-sm font-medium text-[#5c3d34]">วช. ประจำปี 2568</span>
                 </div>
               </div>
             </div>
@@ -208,8 +220,8 @@ const BusinessPage = () => {
             {/* Right Content - Advanced map Preview */}
             <div className="relative">
               {/* Floating Card 1 - Main map */}
-              <div className="relative bg-white rounded-3xl shadow-2xl border border-gray-200 overflow-hidden">
-                <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+              <div className="relative bg-white rounded-3xl shadow-2xl border border-[#edd9d4] overflow-hidden">
+                <div className={`px-6 py-4 ${brandGradient}`}>
                   <div className="flex items-center justify-between">
                     <h3 className="text-white font-semibold text-lg">Real-time Monitoring</h3>
                     <div className="flex items-center gap-2">
@@ -224,8 +236,8 @@ const BusinessPage = () => {
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <Droplets className="h-4 w-4 text-blue-600" />
-                        <span className="text-xs font-medium text-gray-500">ระดับน้ำ</span>
+                        <Droplets className="h-4 w-4 text-[#a73824]" />
+                        <span className="text-xs font-medium text-[#8a6458]">ระดับน้ำ</span>
                       </div>
                       <p className="text-2xl font-bold text-gray-900">45%</p>
                       <p className="text-xs text-green-600 font-medium">↓ 12%</p>
@@ -258,7 +270,7 @@ const BusinessPage = () => {
                       {[35, 42, 38, 45, 52, 48, 45].map((height, i) => (
                         <div
                           key={i}
-                          className="flex-1 bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-lg relative group cursor-pointer transition-all hover:from-blue-700 hover:to-blue-500"
+                          className="flex-1 bg-gradient-to-t from-[#a73824] to-[#f4a259] rounded-t-lg relative group cursor-pointer transition-all hover:from-[#8d2f18] hover:to-[#f7b267]"
                           style={{ height: `${height}%` }}
                         >
                           <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
@@ -313,14 +325,14 @@ const BusinessPage = () => {
               </div>
 
               {/* Floating Card 3 - Small Stat */}
-              <div className="absolute -top-6 -left-6 bg-white rounded-2xl shadow-xl border border-gray-200 p-4 hidden xl:block">
+              <div className="absolute -top-6 -left-6 bg-white rounded-2xl shadow-xl border border-[#edd9d4] p-4 hidden xl:block">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Activity className="h-5 w-5 text-blue-600" />
+                  <div className="w-10 h-10 rounded-lg bg-[#ffe0d1] flex items-center justify-center">
+                    <Activity className="h-5 w-5 text-[#a73824]" />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">อัพเดทล่าสุด</p>
-                    <p className="text-sm font-bold text-gray-900">2 นาทีที่แล้ว</p>
+                    <p className="text-xs text-[#8a6458]">อัพเดทล่าสุด</p>
+                    <p className="text-sm font-bold text-[#2c120c]">2 นาทีที่แล้ว</p>
                   </div>
                 </div>
               </div>
@@ -363,14 +375,14 @@ const BusinessPage = () => {
           
           {/* Section Header */}
           <div className="max-w-3xl mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-semibold mb-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold mb-6 bg-[#ffeae2] text-[#a73824]">
               <Sparkles className="h-4 w-4" />
               ความสามารถของระบบ
             </div>
             <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6 leading-tight">
               เทคโนโลยีระดับสากล
               <br />
-              <span className="text-blue-600">สำหรับชุมชนไทย</span>
+              <span className="text-[#a73824]">สำหรับชุมชนไทย</span>
             </h2>
             <p className="text-xl text-gray-600 leading-relaxed">
               ออกแบบมาเพื่อตอบโจทย์การจัดการน้ำท่วมในเมืองอย่างมีประสิทธิภาพ
@@ -426,7 +438,7 @@ const BusinessPage = () => {
             ].map((feature, idx) => (
               <div
                 key={idx}
-                className="group relative bg-white border-2 border-gray-200 rounded-2xl p-8 hover:border-blue-500 hover:shadow-2xl transition-all duration-300"
+                className="group relative bg-white border-2 border-[#ead0c7] rounded-2xl p-8 hover:border-[#a73824] hover:shadow-2xl transition-all duration-300"
               >
                 <div className={`w-14 h-14 bg-${feature.color}-100 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
                   <feature.icon className={`h-7 w-7 text-${feature.color}-600`} strokeWidth={2} />
@@ -452,7 +464,7 @@ const BusinessPage = () => {
                 </div>
 
                 <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <ChevronRight className="h-5 w-5 text-blue-600" />
+                  <ChevronRight className="h-5 w-5 text-[#a73824]" />
                 </div>
               </div>
             ))}
@@ -488,8 +500,8 @@ const BusinessPage = () => {
             {/* Frontend Stack */}
             <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
-                  <Sparkles className="h-6 w-6 text-blue-400" />
+                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
+                  <Sparkles className="h-6 w-6 text-[#f7b267]" />
                 </div>
                 <h3 className="text-2xl font-bold">Frontend</h3>
               </div>
@@ -508,7 +520,7 @@ const BusinessPage = () => {
                       <p className="font-semibold text-white">{tech.name}</p>
                       <p className="text-sm text-gray-400">{tech.desc}</p>
                     </div>
-                    <span className="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs font-bold rounded-full">
+                    <span className="px-3 py-1 rounded-full bg-white/10 text-[#f7b267] text-xs font-bold">
                       {tech.badge}
                     </span>
                   </div>
@@ -551,24 +563,24 @@ const BusinessPage = () => {
       </section>
 
       {/* Impact Section */}
-      <section id="impact" className="py-24 px-4 sm:px-6 lg:px-8 bg-white">
+      <section id="impact" className="py-24 px-4 sm:px-6 lg:px-8 bg-[#fff4ef]">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             
             {/* Left - Content */}
             <div className="space-y-8">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-full text-sm font-semibold">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#ffeae2] text-[#a73824] rounded-full text-sm font-semibold">
                 <Award className="h-4 w-4" />
                 ผลกระทบเชิงบวก
               </div>
               
-              <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
+              <h2 className="text-4xl lg:text-5xl font-bold text-[#2c120c] leading-tight">
                 สร้างความเปลี่ยนแปลง
                 <br />
                 ที่สำคัญ
               </h2>
               
-              <p className="text-xl text-gray-600 leading-relaxed">
+              <p className="text-xl text-[#5c3d34] leading-relaxed">
                 ระบบ KKC-UFM ช่วยปกป้องชีวิตและทรัพย์สินของประชาชน 
                 ลดความเสียหายจากภัยน้ำท่วม และเพิ่มประสิทธิภาพการบริหารจัดการเมือง
               </p>
@@ -597,16 +609,16 @@ const BusinessPage = () => {
                     statLabel: 'ตลอดเวลา'
                   },
                 ].map((impact, idx) => (
-                  <div key={idx} className="flex gap-4 p-6 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors">
-                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <impact.icon className="h-6 w-6 text-blue-600" />
+                  <div key={idx} className="flex gap-4 p-6 bg-white rounded-2xl border border-[#f0cfc4] hover:bg-[#fff1eb] transition-colors">
+                    <div className="w-12 h-12 rounded-xl bg-[#ffe0d1] flex items-center justify-center flex-shrink-0">
+                      <impact.icon className="h-6 w-6 text-[#a73824]" />
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-bold text-gray-900 mb-2">{impact.title}</h4>
-                      <p className="text-sm text-gray-600 mb-3">{impact.description}</p>
+                      <h4 className="mb-2 font-bold text-[#2c120c]">{impact.title}</h4>
+                      <p className="mb-3 text-sm text-[#5c3d34]">{impact.description}</p>
                       <div className="flex items-baseline gap-2">
-                        <span className="text-2xl font-bold text-blue-600">{impact.stat}</span>
-                        <span className="text-sm text-gray-500">{impact.statLabel}</span>
+                        <span className="text-2xl font-bold text-[#a73824]">{impact.stat}</span>
+                        <span className="text-sm text-[#8a6458]">{impact.statLabel}</span>
                       </div>
                     </div>
                   </div>
@@ -616,10 +628,10 @@ const BusinessPage = () => {
 
             {/* Right - Stats */}
             <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-3xl blur-3xl opacity-20"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-[#a73824] to-[#f4a259] rounded-3xl blur-3xl opacity-20"></div>
               <div className="relative space-y-6">
                 {[
-                  { value: '98%', label: 'ความแม่นยำในการคาดการณ์', icon: TrendingUp, color: 'blue' },
+                  { value: '98%', label: 'ความแม่นยำในการคาดการณ์', icon: TrendingUp, color: 'rose' },
                   { value: '< 5min', label: 'เวลาตอบสนองเฉลี่ย', icon: Zap, color: 'amber' },
                   { value: '29', label: 'จุดติดตามทั่วเมือง', icon: MapPinIcon, color: 'green' },
                   { value: '15min', label: 'ความถี่ในการอัพเดท', icon: Activity, color: 'purple' },
@@ -646,7 +658,7 @@ const BusinessPage = () => {
 
       {/* CTA Section - Premium */}
       <section className="relative py-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-blue-700 to-cyan-600"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-[#a73824] via-[#c45a3c] to-[#f4a259]"></div>
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS1vcGFjaXR5PSIwLjEiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-40"></div>
         
         <div className="relative max-w-4xl mx-auto text-center">
@@ -661,7 +673,7 @@ const BusinessPage = () => {
             ให้กับเมืองของคุณ?
           </h2>
           
-          <p className="text-xl text-blue-100 mb-10 max-w-2xl mx-auto">
+          <p className="text-xl text-[#ffe3d6] mb-10 max-w-2xl mx-auto">
             เข้าถึงแพลตฟอร์มจัดการน้ำท่วมที่ทันสมัยที่สุด 
             เพื่อปกป้องชุมชนและทรัพย์สินของคุณ
           </p>
@@ -669,7 +681,7 @@ const BusinessPage = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/map"
-              className="group inline-flex items-center justify-center px-10 py-5 bg-white text-blue-600 rounded-xl font-bold text-lg shadow-2xl hover:shadow-white/50 hover:scale-105 transition-all duration-300"
+              className="group inline-flex items-center justify-center px-10 py-5 bg-white text-[#a73824] rounded-xl font-bold text-lg shadow-2xl hover:shadow-white/50 hover:scale-105 transition-all duration-300"
             >
               เข้าสู่แดชบอร์ด
               <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
@@ -709,7 +721,7 @@ const BusinessPage = () => {
             {/* Logo & Description */}
             <div className="col-span-1 md:col-span-5">
               <div className="flex items-center space-x-4 mb-6">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center shadow-xl">
+                <div className="w-12 h-12 bg-gradient-to-br from-[#a73824] to-[#f4a259] rounded-2xl flex items-center justify-center shadow-xl">
                   <Droplets className="h-7 w-7 text-white" strokeWidth={2.5} />
                 </div>
                 <div>
@@ -757,7 +769,7 @@ const BusinessPage = () => {
                   <Mail className="h-5 w-5 text-gray-500 mt-0.5" />
                   <div>
                     <p className="text-sm text-gray-400">อีเมล</p>
-                    <a href="mailto:contact@kkc-ufm.com" className="text-white hover:text-blue-400 transition-colors">
+                    <a href="mailto:contact@kkc-ufm.com" className="text-white hover:text-[#f4a259] transition-colors">
                       contact@kkc-ufm.com
                     </a>
                   </div>
@@ -766,7 +778,7 @@ const BusinessPage = () => {
                   <Phone className="h-5 w-5 text-gray-500 mt-0.5" />
                   <div>
                     <p className="text-sm text-gray-400">โทรศัพท์</p>
-                    <a href="tel:043-123-4567" className="text-white hover:text-blue-400 transition-colors">
+                    <a href="tel:043-123-4567" className="text-white hover:text-[#f4a259] transition-colors">
                       043-123-4567
                     </a>
                   </div>

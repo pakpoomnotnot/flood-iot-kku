@@ -88,35 +88,30 @@ const MapView = () => {
 
   return (
     <StationProvider>
-      <div className="flex flex-col h-screen overflow-hidden bg-gray-50">
-        {/* Top Header */}
+      <div className="flex h-screen flex-col overflow-hidden bg-[#f8f5f3]">
         <DashboardHeader />
 
         <div className="flex flex-1 overflow-hidden">
-          {/* Left Navigation Sidebar */}
           <DashboardNav activeView={activeView} onViewChange={setActiveView} />
 
-          {/* Main Content Area */}
-          <div className="flex-1 flex flex-col relative overflow-hidden bg-gray-50">
-            {/* Show Dashboard-focused layout when in overview, otherwise show map */}
+          <div className="relative flex flex-1 flex-col overflow-hidden bg-[#fffaf7]">
             {activeView === "overview" ? (
               <div className="flex-1 overflow-auto">
                 <MainContent
                   activeView={activeView}
                   mapComponent={
-                    <div className="h-full w-full relative overflow-hidden bg-slate-900 rounded-lg border border-gray-200 shadow-lg">
+                    <div className="relative h-full w-full overflow-hidden rounded-lg border border-[#ead0c7] bg-slate-900 shadow-inner">
                       <MapLibreComponent sidebarWidth={0} isWidth={() => {}} />
                     </div>
                   }
                 />
               </div>
             ) : (
-              /* Full map view for other views */
-              <main className="flex flex-row w-full h-full relative overflow-hidden bg-white p-4 gap-4 ">
-                <div className="w-1/2 h-full rounded-md">
+              <main className="flex h-full w-full flex-row gap-4 overflow-hidden bg-white p-4">
+                <div className="h-full w-1/2 rounded-xl border border-[#ead0c7] bg-slate-900 shadow-inner">
                   <MapLibreComponent sidebarWidth={0} isWidth={() => {}} />
                 </div>
-                <div className="w-1/2 h-full">
+                <div className="h-full w-1/2 rounded-xl border border-[#ead0c7] bg-white shadow-sm">
                   <WaterTable data={data} />
                 </div>
               </main>
@@ -124,10 +119,9 @@ const MapView = () => {
           </div>
         </div>
 
-        {/* Screen Size Indicator (Development only - ลบออกใน production) */}
         {process.env.NODE_ENV === "development" &&
           typeof window !== "undefined" && (
-            <div className="fixed bottom-4 right-4 z-50 px-3 py-1 bg-black/70 text-white text-xs rounded-full font-mono">
+            <div className="fixed bottom-4 right-4 z-50 rounded-full bg-black/70 px-3 py-1 font-mono text-xs text-white">
               <span className="sm:hidden">XS</span>
               <span className="hidden sm:inline md:hidden">SM</span>
               <span className="hidden md:inline lg:hidden">MD</span>
