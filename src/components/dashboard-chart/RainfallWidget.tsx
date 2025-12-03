@@ -19,7 +19,7 @@ const RainfallWidget = () => {
         <div className="flex flex-row items-start mb-1 pt-1"> 
           {/* ใช้ React Icon และลดขนาดจาก w-8 h-8 เป็น w-7 h-7 */}
           <BsCloudRainFill 
-            className="w-7 h-7 mr-2 text-blue-600" // ใช้สีน้ำเงินเข้มแทน #1d4ed8
+            className="w-7 h-7 mr-2" // ใช้สีน้ำเงินเข้มแทน #1d4ed8
           />
           <div className="flex flex-col text-sm font-semibold text-black leading-tight">
             <div className="whitespace-nowrap">ฝนสะสม 1 ชม. ที่ผ่านมา</div>

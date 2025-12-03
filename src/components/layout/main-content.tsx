@@ -3,7 +3,10 @@ import React from "react";
 import Dashboard from "../dashboard-chart/dashboard-chart";
 import MapLibreComponent from "../map/map-defult";
 import RainfallWidget from "../dashboard-chart/RainfallWidget";
-import WaterVolumeWidget from "../dashboard-chart/WaterVolumeWidget";
+import WaterVolumeWidget from "../dashboard-chart/water_value/WaterVolumeWidget";
+import WaterVolumeWidget2 from "../dashboard-chart/water_value/WaterVolumeWidget2";
+import WaterVolumeWidget3 from "../dashboard-chart/water_value/WaterVolumeWidget3";
+import KhonKaenMap from "../map/khonkaen_map";
 
 interface MainContentProps {
   activeView: string;
@@ -50,10 +53,10 @@ export const MainContent: React.FC<MainContentProps> = ({
               <WaterVolumeWidget />
             </div>
             <div className="flex flex-1 h-full  items-center justify-center rounded-lg border border-[#ead0c7] p-2 bg-white">
-              <WaterVolumeWidget />
+              <WaterVolumeWidget2 />
             </div>
             <div className="flex flex-1  h-full items-center justify-center rounded-lg border border-[#ead0c7] p-2 bg-white">
-              <WaterVolumeWidget />
+              <WaterVolumeWidget3 />
             </div>
           </div>
 
@@ -63,7 +66,7 @@ export const MainContent: React.FC<MainContentProps> = ({
             </div>
             <div className="flex flex-1 h-full  items-center justify-center rounded-lg border border-[#ead0c7] p-0 bg-white">
               <div className="relative h-full w-full overflow-hidden rounded-lg border border-[#ead0c7] bg-slate-900 shadow-inner">
-                <MapLibreComponent sidebarWidth={0} isWidth={() => {}} />
+                <KhonKaenMap />
               </div>
             </div>
           </div>

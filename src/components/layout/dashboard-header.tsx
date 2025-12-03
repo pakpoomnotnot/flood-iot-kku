@@ -9,7 +9,7 @@ export const DashboardHeader = () => {
     <header className="sticky top-0 z-40 w-full border-b border-[#ead0c7] bg-white/95 shadow-sm backdrop-blur-sm">
       <div className="flex flex-col items-center justify-center space-y-1">
         <div className="mt-2 flex flex-col items-center">
-          <div className="flex flex-row space-x-2 rounded-2xl bg-[#fff5f2] px-4 py-3 shadow-sm w-screen justify-center">
+          <div className="flex flex-row space-x-2 bg-[#fff5f2] shadow-sm w-screen justify-center">
             <div className="flex flex-row items-center gap-3">
               <Image
                 src="/uni.png"
