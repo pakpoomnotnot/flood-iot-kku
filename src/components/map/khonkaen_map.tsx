@@ -86,7 +86,7 @@ const KhonKaenMap: FC<MapProps> = ({ sidebarWidth = 0 }) => {
     if (map.current && isLoaded) {
       const handle = requestAnimationFrame(() => {
         map.current?.resize();
-        
+
         // ปรับ padding เมื่อ sidebar เปลี่ยน
         if (sidebarWidth > 0) {
           map.current?.easeTo({
@@ -107,6 +107,56 @@ const KhonKaenMap: FC<MapProps> = ({ sidebarWidth = 0 }) => {
   return (
     <div className="relative w-full h-screen bg-gray-900">
       <div ref={mapContainer} className="w-full h-full" />
+
+      {/* Info Panel - แสดงสถานการณ์ */}
+      <div className="absolute top-1 right-1 bg-white rounded shadow p-1 w-28 z-10 text-[8px]">
+        <h3 className="text-[8px] font-bold text-gray-800 mb-0.5 border-b pb-0.5">
+          สถานการณ์น้ำ
+        </h3>
+
+        {/* วันที่ */}
+        <div className="mb-1 bg-gray-50 rounded px-1 py-0.5">
+          <div className="text-[7px] text-gray-600 leading-none">วันที่</div>
+          <div className="text-[8px] font-semibold text-gray-800 leading-none">
+            {new Date().toLocaleDateString("th-TH", {
+              day: "numeric",
+              month: "short",
+              year: "2-digit",
+            })}
+          </div>
+        </div>
+
+        {/* ระดับน้ำ */}
+        <div className="space-y-[2px]">
+          <div className="flex items-center justify-between px-1 py-[2px] bg-red-50 rounded border-l border-red-500">
+            <span className="text-[7px] text-gray-700">วันนี้</span>
+            <span className="px-1 py-[1px] bg-red-500 text-white text-[6px] font-bold rounded">
+              ไม่มี
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between px-1 py-[2px] bg-orange-50 rounded border-l border-orange-500">
+            <span className="text-[7px] text-gray-700">พรุ่งนี้</span>
+            <span className="px-1 py-[1px] bg-gray-400 text-white text-[6px] font-bold rounded">
+              ไม่มี
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between px-1 py-[2px] bg-yellow-50 rounded border-l border-yellow-500">
+            <span className="text-[7px] text-gray-700">อีก 2 วันข้างหน้า</span>
+            <span className="px-1 py-[1px] bg-gray-400 text-white text-[6px] font-bold rounded">
+              ไม่มี
+            </span>
+          </div>
+        </div>
+
+        {/* หมายเหตุ */}
+        <div className="mt-1 border-t pt-0.5">
+          <p className="text-[6px] text-gray-500 italic leading-none">
+            * ทุก 15 นาที
+          </p>
+        </div>
+      </div>
 
       {/* Loading Overlay */}
       {!isLoaded && (

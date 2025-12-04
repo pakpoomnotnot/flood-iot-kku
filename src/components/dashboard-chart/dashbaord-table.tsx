@@ -29,41 +29,44 @@ export default function WaterTable({ data }: Props) {
   });
 
   return (
-    <div className="rounded-xl border p-4 overflow-auto bg-white shadow">
-      <table className="min-w-full text-sm">
-        <thead className="bg-gray-100">
-          {table.getHeaderGroups().map(headerGroup => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map(header => (
-                <th
-                  key={header.id}
-                  className="px-4 py-3 text-left font-semibold text-gray-700"
-                >
-                  {flexRender(
-                    header.column.columnDef.header,
-                    header.getContext()
-                  )}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
+    <div className="w-full overflow-hidden rounded-lg border bg-white shadow-sm">
+      <div className="overflow-auto">
+        <table className="w-full text-xs border-collapse">
+          
+          {/* Header */}
+          <thead className="bg-gray-50 border-b">
+            {table.getHeaderGroups().map(headerGroup => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map(header => (
+                  <th
+                    key={header.id}
+                    className="px-3 py-2 text-left font-semibold text-gray-700"
+                  >
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
 
-        <tbody>
-          {table.getRowModel().rows.map(row => (
-            <tr
-              key={row.id}
-              className="border-b hover:bg-gray-50 transition"
-            >
-              {row.getVisibleCells().map(cell => (
-                <td key={cell.id} className="px-4 py-3">
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          {/* Body */}
+          <tbody className="divide-y divide-gray-100">
+            {table.getRowModel().rows.map(row => (
+              <tr
+                key={row.id}
+                className="hover:bg-gray-50 transition-colors"
+              >
+                {row.getVisibleCells().map(cell => (
+                  <td key={cell.id} className="px-3 py-[11.4px] text-gray-700">
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+
+        </table>
+      </div>
     </div>
   );
 }

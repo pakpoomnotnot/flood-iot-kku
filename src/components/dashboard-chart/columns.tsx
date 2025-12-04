@@ -33,6 +33,8 @@ export const columns: ColumnDef<WaterLevel>[] = [
     accessorKey: "bankLevel",
     header: "ระดับตลิ่ง (ม.รทก.)",
   },
+
+  // 🎨 เงื่อนไขสีของสถานะทั้งหมด
   {
     accessorKey: "status",
     header: "สถานการณ์น้ำ",
@@ -40,21 +42,32 @@ export const columns: ColumnDef<WaterLevel>[] = [
       const status = row.original.status;
 
       const color =
-        status === "น้ำมาก"
-          ? "bg-blue-500"
-          : status === "น้ำปกติ"
-          ? "bg-green-500"
-          : "bg-red-500";
+        status === "น้ำท่วม"
+          ? "bg-red-700 text-white"
+        : status === "สูง"
+          ? "bg-red-500 text-white"
+        : status === "กลาง"
+          ? "bg-yellow-400 text-black"
+        : status === "ต่ำ"
+          ? "bg-blue-400 text-white"
+        : status === "ปกติ"
+          ? "bg-green-500 text-white"
+        : status === "น้ำมาก"
+          ? "bg-blue-600 text-white"
+        : status === "น้ำปกติ"
+          ? "bg-green-600 text-white"
+        : status === "น้ำน้อย"
+          ? "bg-yellow-500 text-black"
+        : "bg-gray-300 text-black"; // fallback
 
       return (
-        <span
-          className={`text-white px-3 py-1 rounded-md text-sm ${color}`}
-        >
+        <span className={`px-2 py-1 rounded-md text-sm font-medium ${color}`}>
           {status}
         </span>
       );
     },
   },
+
   {
     accessorKey: "diff",
     header: "ต่ำกว่าตลิ่ง (ม.)",

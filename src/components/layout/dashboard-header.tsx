@@ -2,7 +2,6 @@
 import React from "react";
 import Image from "next/image";
 import { Wifi } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
 
 export const DashboardHeader = () => {
   return (
@@ -71,19 +70,25 @@ export const DashboardHeader = () => {
             <div className="text-sm font-semibold text-[#4b1f17]">
               ปริมาณน้ำฝนสะสมสูงสุด 1 ชม.
             </div>
-            <div className="text-[#a73824]">เทศบาลนครขอนแก่น</div>
+            <div className="text-2xl font-bold text-[#a73824]">0</div>
+            <div className="text-xs text-[#8c6a61]">มม.</div>
+            <div className="text-xs text-[#a73824]">เทศบาลนครขอนแก่น</div>
           </div>
           <div className="flex flex-col text-center">
             <div className="text-sm font-semibold text-[#4b1f17]">
               ปริมาณน้ำฝนสะสมสูงสุด 3 ชม.
             </div>
-            <div className="text-[#a73824]">บึงหนองโคตร</div>
+            <div className="text-2xl font-bold text-[#a73824]">0</div>
+            <div className="text-xs text-[#8c6a61]">มม.</div>
+            <div className="text-xs text-[#a73824]">บึงหนองโคตร</div>
           </div>
           <div className="flex flex-col text-center">
             <div className="text-sm font-semibold text-[#4b1f17]">
               ปริมาณน้ำฝนสะสมสูงสุด 24 ชม.
             </div>
-            <div className="text-[#a73824]">
+            <div className="text-2xl font-bold text-[#a73824]">0</div>
+            <div className="text-xs text-[#8c6a61]">มม.</div>
+            <div className="text-xs text-[#a73824]">
               ศูนย์อุตุฯ ภาคตะวันออกเฉียงเหนือตอนบน
             </div>
           </div>
@@ -117,7 +122,8 @@ export const DashboardHeader = () => {
             <div className="text-sm font-semibold text-[#4b1f17]">
               ปริมาณน้ำในบึงทั้งหมด
             </div>
-            <div className="text-[#a73824]">1,617 (67%) ลบ.ซม.</div>
+            <div className="text-2xl font-bold text-[#a73824]">1,617</div>
+            <div className="text-xs text-[#8c6a61]">(64%) ลบ.ซม.</div>
           </div>
           <div className="flex flex-col items-center text-center rounded-xl border border-[#edd9d4] bg-[#fff8f5] px-3 py-2 shadow-sm">
             <div className="text-sm font-semibold text-[#4b1f17]">
