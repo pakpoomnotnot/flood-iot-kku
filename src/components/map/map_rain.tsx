@@ -93,7 +93,7 @@ const MapComponent: FC = () => {
   const fetchRainData = async () => {
     try {
       // ในการใช้งานจริง ถ้าติด CORS อาจต้องตั้งค่า Proxy ใน next.config.js หรือ Backend
-      const response = await fetch("http://localhost:3000/api/rain_1hr_2km?limit=1");
+      const response = await fetch("http://10.198.110.39:3000/api/rain_1hr_2km?limit=1");
       const result = await response.json();
 
       if (result.status === "success" && result.data && result.data.length > 0) {

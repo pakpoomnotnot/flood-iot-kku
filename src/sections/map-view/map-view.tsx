@@ -214,7 +214,7 @@ const MapView = () => {
 
   const fetchRainData = async () => {
     try {
-      const response = await fetch("http://localhost:3000/api/rain_1hr_2km?limit=1");
+      const response = await fetch("http://10.198.110.39:3000/api/rain_1hr_2km?limit=1");
       const result = await response.json();
 
       if (result.status === "success" && result.data && result.data.length > 0) {

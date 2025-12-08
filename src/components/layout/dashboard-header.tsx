@@ -187,9 +187,9 @@ export const DashboardHeader = () => {
 
         // Fetch all three APIs in parallel
         const [response1hr, response3hr, response24hr] = await Promise.all([
-          fetch("http://localhost:3000/api/rain_1hr_2km?limit=1"),
-          fetch("http://localhost:3000/api/rain_3hr_2km?limit=1"),
-          fetch("http://localhost:3000/api/rain_24hr_2km?limit=1"),
+          fetch("http://10.198.110.39:3000/api/rain_1hr_2km?limit=1"),
+          fetch("http://10.198.110.39:3000/api/rain_3hr_2km?limit=1"),
+          fetch("http://10.198.110.39:3000/api/rain_24hr_2km?limit=1"),
         ]);
 
         const [data1hr, data3hr, data24hr]: [

@@ -88,7 +88,7 @@ const RainfallWidget = () => {
     const fetchRainData = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch("http://localhost:3000/api/rain_1hr_2km?limit=1");
+        const response = await fetch("http://10.198.110.39:3000/api/rain_1hr_2km?limit=1");
         const data: ApiResponse = await response.json();
 
         if (data.status === "success" && data.data.length > 0) {
