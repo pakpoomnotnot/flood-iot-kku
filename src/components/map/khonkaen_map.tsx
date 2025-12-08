@@ -11,8 +11,20 @@ const KhonKaenMap: FC<MapProps> = ({ sidebarWidth = 0 }) => {
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const map = useRef<Map | null>(null);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
 
   const API_KEY: string = "yYduxrRP3C81U2fRFNIU";
+
+  // ตรวจสอบขนาดหน้าจอ
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
@@ -20,8 +32,8 @@ const KhonKaenMap: FC<MapProps> = ({ sidebarWidth = 0 }) => {
     map.current = new Map({
       container: mapContainer.current,
       style: `https://api.maptiler.com/maps/topo-v2/style.json?key=${API_KEY}`,
-      center: [102.324578, 9.630004], // จุดกึ่งกลางภาคอีสาน
-      zoom: 5, // ซูมระดับที่เห็นภาคอีสานทั้งหมด
+      center: [102.324578, 9.630004],
+      zoom: isMobile ? 4.5 : 5, // ซูมน้อยลงบน mobile
       attributionControl: false,
     });
 
@@ -29,17 +41,14 @@ const KhonKaenMap: FC<MapProps> = ({ sidebarWidth = 0 }) => {
       if (!map.current) return;
 
       try {
-        // โหลด GeoJSON
         const response = await fetch("/data/khonkaen.json");
         const geojsonData = await response.json();
 
-        // เพิ่ม source
         map.current.addSource("khonkaen", {
           type: "geojson",
           data: geojsonData,
         });
 
-        // เพิ่ม layer สำหรับ polygon (fill)
         map.current.addLayer({
           id: "khonkaen-fill",
           type: "fill",
@@ -50,7 +59,6 @@ const KhonKaenMap: FC<MapProps> = ({ sidebarWidth = 0 }) => {
           },
         });
 
-        // เพิ่ม layer สำหรับ outline
         map.current.addLayer({
           id: "khonkaen-outline",
           type: "line",
@@ -61,8 +69,8 @@ const KhonKaenMap: FC<MapProps> = ({ sidebarWidth = 0 }) => {
           },
         });
 
-        // ปรับ padding ถ้ามี sidebar
-        if (sidebarWidth > 0) {
+        // ปรับ padding สำหรับ desktop เท่านั้น
+        if (sidebarWidth > 0 && !isMobile) {
           map.current.easeTo({
             padding: { left: sidebarWidth },
             duration: 0,
@@ -80,15 +88,15 @@ const KhonKaenMap: FC<MapProps> = ({ sidebarWidth = 0 }) => {
       map.current?.remove();
       map.current = null;
     };
-  }, [sidebarWidth]);
+  }, [sidebarWidth, isMobile]);
 
   useEffect(() => {
     if (map.current && isLoaded) {
       const handle = requestAnimationFrame(() => {
         map.current?.resize();
 
-        // ปรับ padding เมื่อ sidebar เปลี่ยน
-        if (sidebarWidth > 0) {
+        // ปรับ padding เฉพาะ desktop
+        if (!isMobile && sidebarWidth > 0) {
           map.current?.easeTo({
             padding: { left: sidebarWidth },
             duration: 300,
@@ -102,22 +110,24 @@ const KhonKaenMap: FC<MapProps> = ({ sidebarWidth = 0 }) => {
       });
       return () => cancelAnimationFrame(handle);
     }
-  }, [sidebarWidth, isLoaded]);
+  }, [sidebarWidth, isLoaded, isMobile]);
 
   return (
     <div className="relative w-full h-screen bg-gray-900">
       <div ref={mapContainer} className="w-full h-full" />
 
-      {/* Info Panel - แสดงสถานการณ์ */}
-      <div className="absolute top-1 right-1 bg-white rounded shadow p-1 w-28 z-10 text-[8px]">
-        <h3 className="text-[8px] font-bold text-gray-800 mb-0.5 border-b pb-0.5">
+      {/* Info Panel - ปรับขนาดตาม responsive */}
+      <div className="absolute top-1 right-1 md:top-2 md:right-2 bg-white rounded shadow p-1 md:p-2 w-24 md:w-32 lg:w-22 z-10 text-[7px] md:text-[8px]">
+        <h3 className="text-[7px] md:text-[9px] font-bold text-gray-800 mb-0.5 md:mb-1 border-b pb-0.5">
           สถานการณ์น้ำ
         </h3>
 
         {/* วันที่ */}
-        <div className="mb-1 bg-gray-50 rounded px-1 py-0.5">
-          <div className="text-[7px] text-gray-600 leading-none">วันที่</div>
-          <div className="text-[8px] font-semibold text-gray-800 leading-none">
+        <div className="mb-0.5 md:mb-1 bg-gray-50 rounded px-0.5 md:px-1 py-0.5">
+          <div className="text-[6px] md:text-[7px] text-gray-600 leading-none">
+            วันที่
+          </div>
+          <div className="text-[7px] md:text-[8px] font-semibold text-gray-800 leading-tight">
             {new Date().toLocaleDateString("th-TH", {
               day: "numeric",
               month: "short",
@@ -128,42 +138,48 @@ const KhonKaenMap: FC<MapProps> = ({ sidebarWidth = 0 }) => {
 
         {/* ระดับน้ำ */}
         <div className="space-y-[2px]">
-          <div className="flex items-center justify-between px-1 py-[2px] bg-red-50 rounded border-l border-red-500">
-            <span className="text-[7px] text-gray-700">วันนี้</span>
-            <span className="px-1 py-[1px] bg-red-500 text-white text-[6px] font-bold rounded">
+          <div className="flex items-center justify-between px-0.5 md:px-1 py-[2px] bg-red-50 rounded border-l-2 border-red-500">
+            <span className="text-[6px] md:text-[7px] text-gray-700">
+              วันนี้
+            </span>
+            <span className="px-0.5 md:px-1 py-[1px] bg-red-500 text-white text-[5px] md:text-[6px] font-bold rounded">
               ไม่มี
             </span>
           </div>
 
-          <div className="flex items-center justify-between px-1 py-[2px] bg-orange-50 rounded border-l border-orange-500">
-            <span className="text-[7px] text-gray-700">พรุ่งนี้</span>
-            <span className="px-1 py-[1px] bg-gray-400 text-white text-[6px] font-bold rounded">
+          <div className="flex items-center justify-between px-0.5 md:px-1 py-[2px] bg-orange-50 rounded border-l-2 border-orange-500">
+            <span className="text-[6px] md:text-[7px] text-gray-700">
+              พรุ่งนี้
+            </span>
+            <span className="px-0.5 md:px-1 py-[1px] bg-gray-400 text-white text-[5px] md:text-[6px] font-bold rounded">
               ไม่มี
             </span>
           </div>
 
-          <div className="flex items-center justify-between px-1 py-[2px] bg-yellow-50 rounded border-l border-yellow-500">
-            <span className="text-[7px] text-gray-700">อีก 2 วันข้างหน้า</span>
-            <span className="px-1 py-[1px] bg-gray-400 text-white text-[6px] font-bold rounded">
+          <div className="flex items-center justify-between px-0.5 md:px-1 py-[2px] bg-yellow-50 rounded border-l-2 border-yellow-500">
+            <span className="text-[6px] md:text-[7px] text-gray-700 leading-tight">
+              {isMobile ? "2 วัน" : "อีก 2 วันข้างหน้า"}
+            </span>
+            <span className="px-0.5 md:px-1 py-[1px] bg-gray-400 text-white text-[5px] md:text-[6px] font-bold rounded">
               ไม่มี
             </span>
           </div>
         </div>
 
         {/* หมายเหตุ */}
-        <div className="mt-1 border-t pt-0.5">
-          <p className="text-[6px] text-gray-500 italic leading-none">
+        <div className="mt-0.5 md:mt-1 border-t pt-0.5">
+          <p className="text-[5px] md:text-[6px] text-gray-500 italic leading-none">
             * ทุก 15 นาที
           </p>
         </div>
       </div>
 
-      {/* Loading Overlay */}
+      {/* Loading Overlay - ปรับขนาดตาม responsive */}
       {!isLoaded && (
         <div className="absolute inset-0 bg-slate-800 bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto"></div>
-            <p className="text-white text-lg mt-4 font-semibold">
+            <div className="animate-spin rounded-full h-8 w-8 md:h-12 md:w-12 border-b-2 border-cyan-400 mx-auto"></div>
+            <p className="text-white text-sm md:text-lg mt-2 md:mt-4 font-semibold">
               กำลังโหลดแผนที่...
             </p>
           </div>
@@ -173,4 +189,4 @@ const KhonKaenMap: FC<MapProps> = ({ sidebarWidth = 0 }) => {
   );
 };
 
-export default KhonKaenMap;
+export default KhonKaenMap

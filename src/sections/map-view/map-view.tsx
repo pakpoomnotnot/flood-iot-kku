@@ -1,91 +1,53 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import MapLibreComponent from "@/components/map/map-defult";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { DashboardNav } from "@/components/layout/dashboard-nav";
 import { MainContent } from "@/components/layout/main-content";
 import { StationProvider } from "@/contexts/station-context";
 import WaterTable from "@/components/dashboard-chart/dashbaord-table";
+// Maps
 import MapComponent from "@/components/map/map_rain";
 import MapComponentSwamp from "@/components/map/map_swamp";
 import MapComponentDrainage from "@/components/map/map_drainage";
 import MapComponentRoads from "@/components/map/map_road";
 import MapComponentAnalytics from "@/components/map/map_analytics";
+import MapComponentFlood from "@/components/map/map_flood_area";
+import FloodDashboard from "@/components/map/map_help";
 
-// ข้อมูลสำหรับแต่ละ tab
-const dataByView = {
-  rainfall: [
-    {
-      station: "บ้านท่างบางเลื่อน",
-      location: "ต. ชนบท อ. ชนบท",
-      basin: "ลุ่มน้ำชี",
-      level: 161.34,
-      bankLevel: 162.1,
-      status: "น้ำมาก",
-      diff: 0.76,
-      time: "22:00 น.",
-    },
-    {
-      station: "ชุมแพ",
-      location: "ต. ชุมแพ อ. ชุมแพ",
-      basin: "ลุ่มน้ำชี",
-      level: 160.79,
-      bankLevel: 161.58,
-      status: "น้ำมาก",
-      diff: 0.79,
-      time: "23:00 น.",
-    },
-    {
-      station: "สะพานข้ามลำน้ำเชิญ (มิตรผลหนองเรือ)",
-      location: "ต. หนองเรือ อ. หนองเรือ",
-      basin: "ลุ่มน้ำชี",
-      level: 181.85,
-      bankLevel: 182.86,
-      status: "น้ำมาก",
-      diff: 1.01,
-      time: "23:00 น.",
-    },
-    {
-      station: "เมืองขอนแก่น",
-      location: "ต. ท่าพระ อ. เมืองขอนแก่น",
-      basin: "ลุ่มน้ำชี",
-      level: 150.43,
-      bankLevel: 153.04,
-      status: "น้ำมาก",
-      diff: 2.61,
-      time: "23:00 น.",
-    },
-    {
-      station: "ลำน้ำเชิญ (ท้ายฝายโครงการชลประทานน้ำเชิญ)",
-      location: "ต. ชุมแพ อ. ชุมแพ",
-      basin: "ลุ่มน้ำชี",
-      level: 218.97,
-      bankLevel: 221.17,
-      status: "น้ำมาก",
-      diff: 2.2,
-      time: "22:00 น.",
-    },
-    {
-      station: "บ้านดงกว้าง",
-      location: "ต. ท่าพระ อ. เมืองขอนแก่น",
-      basin: "ลุ่มน้ำชี",
-      level: 149.58,
-      bankLevel: 152.3,
-      status: "น้ำมาก",
-      diff: 2.72,
-      time: "22:00 น.",
-    },
-    {
-      station: "แม่ข่าชี บ้านหันกอง",
-      location: "ต. บ้านโต้น อ. พระยืน",
-      basin: "ลุ่มน้ำชี",
-      level: 151.44,
-      bankLevel: 155.24,
-      status: "น้ำปกติ",
-      diff: 3.8,
-      time: "22:00 น.",
-    },
-  ],
+// --- 0. แก้ไข Interface ให้ตรงกับที่ WaterTable ต้องการ (Strict Number) ---
+interface WaterData {
+  station: string;
+  location: string;
+  basin: string;
+  level: number;      // เปลี่ยนเป็น number
+  bankLevel: number;  // เปลี่ยนเป็น number
+  status: string;
+  diff: number;       // เปลี่ยนเป็น number
+  time: string;
+}
+
+// --- 1. ข้อมูล Metadata ---
+const STATION_METADATA = [
+  { id: "SNK_HOSP", name: "โรงพยาบาลศรีนครินทร์", location: "ต. ในเมือง อ. เมือง" },
+  { id: "KKC_MUN", name: "เทศบาลนครขอนแก่น", location: "ต. ในเมือง อ. เมือง" },
+  { id: "BKN", name: "บึงแก่นนคร", location: "ต. ในเมือง อ. เมือง" },
+  { id: "BTS", name: "บึงทุ่งสร้าง", location: "ต. ในเมือง อ. เมือง" },
+  { id: "NLP", name: "หนองเลิงเปือย", location: "อ. เมือง" },
+  { id: "BNK", name: "บึงหนองโคตร", location: "ต. บ้านเป็ด อ. เมือง" },
+  { id: "SIL_MUN", name: "เทศบาลเมืองศิลา", location: "ต. ศิลา อ. เมือง" },
+  { id: "UNE_MC", name: "ศูนย์อุตุนิยมวิทยาฯ", location: "ต. ในเมือง อ. เมือง" },
+  { id: "MKO_MUN", name: "เทศบาลเมืองเก่า", location: "ต. เมืองเก่า อ. เมือง" },
+  { id: "NEU", name: "ม.ภาคตะวันออกเฉียงเหนือ", location: "ต. ในเมือง อ. เมือง" },
+  { id: "UNE_SH", name: "บ้านพักพนักงานอุตุฯ", location: "ต. ในเมือง อ. เมือง" },
+  { id: "KKC_SP", name: "อุทยานวิทยาศาสตร์ มข.", location: "ต. ในเมือง อ. เมือง" },
+  { id: "BSV", name: "หมู่บ้านสีวลี", location: "ต. บ้านเป็ด อ. เมือง" },
+  { id: "RMUTI", name: "มทร.อีสาน ขอนแก่น", location: "ต. ในเมือง อ. เมือง" },
+  { id: "KKC_BL", name: "โรงเรียนสอนคนตาบอด", location: "ต. ในเมือง อ. เมือง" },
+];
+
+// Mock Data เดิม (ใส่ Type ให้ถูกต้อง)
+const dataByView: Record<string, WaterData[]> = {
   ponds: [
     {
       station: "บึงแก่นนคร",
@@ -244,40 +206,88 @@ const dataByView = {
   ],
 };
 
+
 const MapView = () => {
   const [activeView, setActiveView] = useState("overview");
+  const [showTable, setShowTable] = useState(false);
+  const [realRainfallData, setRealRainfallData] = useState<WaterData[]>([]);
 
-  // เลือกข้อมูลตาม activeView
-  const getCurrentData = () => {
+  const fetchRainData = async () => {
+    try {
+      const response = await fetch("http://localhost:3000/api/rain_1hr_2km?limit=1");
+      const result = await response.json();
+
+      if (result.status === "success" && result.data && result.data.length > 0) {
+        const latestData = result.data[0];
+        
+        const dateObj = new Date(latestData.datetime);
+        const timeStr = `${dateObj.getHours().toString().padStart(2, '0')}:${dateObj.getMinutes().toString().padStart(2, '0')} น.`;
+        
+        const rainValues: Record<string, number> = {}; 
+        Object.entries(latestData.stations).forEach(([key, value]) => {
+          rainValues[key.trim()] = Number(value);
+        });
+
+        const formattedData: WaterData[] = STATION_METADATA.map((meta) => {
+          const value = rainValues[meta.id] ?? 0;
+          
+          let statusText = "ไม่มีฝน";
+          if (value > 90) statusText = "หนักมาก";
+          else if (value > 35) statusText = "หนัก";
+          else if (value > 10) statusText = "ปานกลาง";
+          else if (value > 0) statusText = "เล็กน้อย";
+
+          return {
+            station: meta.name,
+            location: meta.location,
+            basin: "ลุ่มน้ำชี",
+            // แก้ไขตรงนี้: แปลงเป็น Number แทน String
+            level: Number(value.toFixed(1)), 
+            // แก้ไขตรงนี้: ใส่เลข 0 แทน "-" เพื่อให้ Type ตรงกับ WaterTable
+            bankLevel: 0, 
+            diff: 0,
+            status: statusText,
+            time: timeStr,
+          };
+        });
+
+        setRealRainfallData(formattedData);
+      }
+    } catch (error) {
+      console.error("Error fetching rain data for table:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchRainData();
+  }, []);
+
+  // กำหนด Type Return ให้ชัดเจน
+  const getCurrentData = (): WaterData[] => {
     switch (activeView) {
       case "rainfall":
-        return dataByView.rainfall;
+        return realRainfallData;
       case "ponds":
-        return dataByView.ponds;
+        return dataByView.ponds || [];
       case "drainage":
-        return dataByView.drainage;
+        return dataByView.drainage || [];
       case "roads":
-        return dataByView.roads;
+        return dataByView.roads || [];
       default:
         return [];
     }
   };
 
-  // กำหนด MapComponent ที่จะใช้ตาม activeView
   const getMapComponent = () => {
     switch (activeView) {
-      case "rainfall":
-        return <MapComponent />; // แสดงเฉพาะสถานีฝน (RF)
-      case "ponds":
-        return <MapComponentSwamp />; // แสดงเฉพาะบึง/หนอง (PW)
-      case "drainage":
-        return <MapComponentDrainage />; // แสดงเฉพาะท่อระบาย (WP)
-      case "roads":
-        return <MapComponentRoads />; // แสดงเฉพาะถนน (WR)
-      case "analysis":
-        return <MapComponentAnalytics />;
-      default:
-        return <MapComponent />; // default component
+      case "rainfall": return <MapComponent />;
+      case "ponds": return <MapComponentSwamp />;
+      case "drainage": return <MapComponentDrainage />;
+      case "roads": return <MapComponentRoads />;
+      case "analysis": return <MapComponentAnalytics />;
+      case "mapflood": return <MapComponentFlood />;
+      case "alertanoncement": return <FloodDashboard />
+      default: return <MapComponent />;
     }
   };
 
@@ -301,37 +311,40 @@ const MapView = () => {
                   }
                 />
               </div>
-            ) : activeView === "analysis" ? (
-              <main className="flex h-full w-full flex-row gap-4 overflow-hidden bg-white p-4">
+            ) : activeView === "analysis" || activeView === "mapflood" || activeView === "alertanoncement" ? (
+              <main className="flex h-full w-full flex-col overflow-hidden bg-white p-2 sm:p-4">
                 <div className="h-full w-full rounded-xl border border-[#ead0c7] bg-slate-900 shadow-inner">
                   {getMapComponent()}
                 </div>
               </main>
             ) : (
-              <main className="flex h-full w-full flex-row gap-4 overflow-hidden bg-white p-4">
-                <div className="h-full w-1/2 rounded-xl border border-[#ead0c7] bg-slate-900 shadow-inner">
+              <main className="flex h-full w-full flex-col overflow-hidden bg-white p-2 sm:p-4 lg:flex-row lg:gap-4">
+                <div className="mb-2 flex gap-2 lg:hidden">
+                  <button
+                    onClick={() => setShowTable(false)}
+                    className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${!showTable ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700"}`}
+                  >
+                    แผนที่
+                  </button>
+                  <button
+                    onClick={() => setShowTable(true)}
+                    className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${showTable ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700"}`}
+                  >
+                    ตารางข้อมูล
+                  </button>
+                </div>
+
+                <div className={`h-[50vh] w-full rounded-xl border border-[#ead0c7] bg-slate-900 shadow-inner lg:h-full lg:w-1/2 ${showTable ? "hidden lg:block" : "block"}`}>
                   {getMapComponent()}
                 </div>
-                <div className="h-full w-1/2 rounded-xl border border-[#ead0c7] bg-white shadow-sm">
+
+                <div className={`h-[50vh] w-full rounded-xl border border-[#ead0c7] bg-white shadow-sm lg:h-full lg:w-1/2 ${!showTable ? "hidden lg:block" : "block"}`}>
                   <WaterTable data={getCurrentData()} />
                 </div>
               </main>
             )}
           </div>
         </div>
-
-        {process.env.NODE_ENV === "development" &&
-          typeof window !== "undefined" && (
-            <div className="fixed bottom-4 right-4 z-50 rounded-full bg-black/70 px-3 py-1 font-mono text-xs text-white">
-              <span className="sm:hidden">XS</span>
-              <span className="hidden sm:inline md:hidden">SM</span>
-              <span className="hidden md:inline lg:hidden">MD</span>
-              <span className="hidden lg:inline xl:hidden">LG</span>
-              <span className="hidden xl:inline 2xl:hidden">XL</span>
-              <span className="hidden 2xl:inline">2XL</span>
-              <span className="ml-2">{window.innerWidth}px</span>
-            </div>
-          )}
       </div>
     </StationProvider>
   );

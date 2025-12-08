@@ -1,48 +1,165 @@
-import React from 'react';
-// นำเข้าไอคอน CloudRainFill จาก Bootstrap Icons ใน React Icons
+import React, { useEffect, useState, useMemo } from 'react';
 import { BsCloudRainFill } from 'react-icons/bs';
 
+// Types for API response
+interface StationData {
+  [key: string]: number;
+}
+
+interface RainData {
+  file: string;
+  datetime: string;
+  datetime_ts: number;
+  stations: StationData;
+}
+
+interface ApiResponse {
+  status: string;
+  total: number;
+  limit: number;
+  offset: number;
+  returned: number;
+  data: RainData[];
+}
+
+interface RainfallItem {
+  name: string;
+  value: string;
+  rawValue: number;
+}
+
 const RainfallWidget = () => {
-  // ข้อมูลจำลองสำหรับแสดงผล
-  const data = [
-    { name: 'เทศบาลนคร', value: '2' },
-    { name: 'บึงแก่นนคร', value: '1.6' },
-    { name: 'บึงทุ่งสร้าง', value: '0.8' },
-  ];
+  const [rainData, setRainData] = useState<RainData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Station name mapping - memoized
+  const stationNames = useMemo((): Record<string, string> => ({
+    "SNK_HOSP": "โรงพยาบาลศรีนครินทร์",
+    "KKC_MUN": "เทศบาลนครขอนแก่น",
+    "BKN": "บึงแก่นนคร",
+    "BTS": "บึงทุ่งสร้าง",
+    "NLP": "หนองเล็งเปีย",
+    "BNK": "บึงหนองโคตร",
+    "SIL_MUN": "เทศบาลเมืองศิลา",
+    "UNE_MC": "ศูนย์อุตุฯ ภาคตะวันออกเฉียงเหนือตอนบน",
+    "MKO_MUN": "เทศบาลเมืองเก่า",
+    "NEU": "มหาวิทยาลัยภาคตะวันออกเฉียงเหนือ",
+    "UNE_SH": "บ้านพักพนักงานอุตุฯ",
+    "KKC_SP": "อุทยานวิทยาศาสตร์ มข.",
+    "BSV": "หมู่บ้านสีวลี",
+    "RMUTI": "มหาวิทยาลัยเทคโนโลยีราชมงคลอีสาน",
+    "KKC_BL": "โรงเรียนสอนคนตาบอด"
+  }), []);
+
+  // Calculate top 3 rainfall stations - memoized
+  const topRainfall = useMemo((): RainfallItem[] => {
+    if (!rainData) {
+      return [];
+    }
+
+    const stations = rainData.stations;
+    const rainfallArray: RainfallItem[] = [];
+
+    Object.entries(stations).forEach(([station, value]) => {
+      // Clean station name (remove \r if exists)
+      const cleanStation = station.replace(/\r/g, "");
+      const stationName = stationNames[cleanStation] || cleanStation;
+      
+      rainfallArray.push({
+        name: stationName,
+        value: value.toFixed(1),
+        rawValue: value
+      });
+    });
+
+    // Sort by rainfall amount (descending) and take top 3
+    return rainfallArray
+      .sort((a, b) => b.rawValue - a.rawValue)
+      .slice(0, 3);
+  }, [rainData, stationNames]);
+
+  // Check if there's any rain
+  const hasRain = useMemo(() => {
+    return topRainfall.length > 0 && topRainfall[0].rawValue > 0;
+  }, [topRainfall]);
+
+  // Fetch data from API
+  useEffect(() => {
+    const fetchRainData = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch("http://localhost:3000/api/rain_1hr_2km?limit=1");
+        const data: ApiResponse = await response.json();
+
+        if (data.status === "success" && data.data.length > 0) {
+          setRainData(data.data[0]);
+        } else {
+          setRainData(null);
+        }
+      } catch (error) {
+        console.error("Error fetching rain data:", error);
+        setRainData(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRainData();
+    
+    // Refresh every 5 minutes
+    const interval = setInterval(fetchRainData, 5 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    // ลด p-2 เป็น p-1 และปรับ h-full เป็น h-auto เพื่อความกะทัดรัด 
-    <div className="flex w-full h-auto items-center justify-center rounded-lg border border-none p-1 bg-white">
+    <div className="flex w-full h-auto items-center justify-center rounded-lg border border-none p-0.5 lg:p-1 bg-white">
       <div className="flex flex-col w-full text-xs">
         
         {/* ส่วนหัว: ไอคอนและข้อความ */}
-        <div className="flex flex-row items-start mb-1 pt-1"> 
-          {/* ใช้ React Icon และลดขนาดจาก w-8 h-8 เป็น w-7 h-7 */}
+        <div className="flex flex-row items-start mb-0.5 pt-0.5 lg:mb-1 lg:pt-1"> 
           <BsCloudRainFill 
-            className="w-7 h-7 mr-2" // ใช้สีน้ำเงินเข้มแทน #1d4ed8
+            className="w-4 h-4 lg:w-7 lg:h-7 mr-1 lg:mr-2"
           />
-          <div className="flex flex-col text-sm font-semibold text-black leading-tight">
+          <div className="flex flex-col text-[0.6rem] lg:text-sm font-semibold text-black leading-tight">
             <div className="whitespace-nowrap">ฝนสะสม 1 ชม. ที่ผ่านมา</div>
           </div>
         </div>
         
-        <hr className="border-t border-[#f0f0f0] my-1" /> {/* ลด my-2 เป็น my-1 */}
+        <hr className="border-t border-[#f0f0f0] my-0.5 lg:my-1" />
         
-        {/* ข้อมูลปริมาณฝน */}
-        {data.map((item, index) => (
+        {/* Loading state */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-4">
+            <div className="text-gray-500 text-[0.55rem] lg:text-xs">
+              กำลังโหลดข้อมูล...
+            </div>
+          </div>
+        )}
+
+        {/* No rain message */}
+        {!isLoading && !hasRain && (
+          <div className="flex items-center justify-center py-4">
+            <div className="text-gray-600 text-[0.55rem] lg:text-xs font-medium">
+              ยังไม่มีฝนตกขณะนี้
+            </div>
+          </div>
+        )}
+
+        {/* ข้อมูลปริมาณฝน - Top 3 */}
+        {!isLoading && hasRain && topRainfall.map((item, index) => (
           <React.Fragment key={index}>
-            {/* ลด py-1 เป็น py-0.5 */}
-            <div className="flex flex-row items-center justify-between py-0.5"> 
-              {/* ลด text-sm เป็น text-xs เพื่อลดความสูง */}
-              <div className="text-black font-medium text-xs">{item.name}</div>
-              {/* ปรับขนาดตัวอักษรและ padding ของค่าฝน */}
-              <div className="bg-[#e0f2fe] text-[#0369a1] text-[0.65rem] font-bold px-1.5 py-[1px] rounded-md">
-                {item.value}
+            <div className="flex flex-row items-center justify-between py-0 lg:py-0.5"> 
+              <div className="text-black font-medium text-[0.55rem] lg:text-xs">
+                {item.name}
+              </div>
+              <div className="bg-[#e0f2fe] text-[#0369a1] text-[0.5rem] lg:text-[0.65rem] font-bold px-1 lg:px-1.5 py-[0.5px] lg:py-[1px] rounded-md">
+                {item.value} มม.
               </div>
             </div>
             {/* Divider ระหว่างรายการ ยกเว้นรายการสุดท้าย */}
-            {index < data.length - 1 && (
-              <hr className="border-t border-[#f0f0f0] my-1" />
+            {index < topRainfall.length - 1 && (
+              <hr className="border-t border-[#f0f0f0] my-0.5 lg:my-1" />
             )}
           </React.Fragment>
         ))}

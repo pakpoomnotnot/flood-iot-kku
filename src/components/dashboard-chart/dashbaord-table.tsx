@@ -29,10 +29,12 @@ export default function WaterTable({ data }: Props) {
   });
 
   return (
-    <div className="w-full overflow-hidden rounded-lg border bg-white shadow-sm">
-      <div className="overflow-auto">
-        <table className="w-full text-xs border-collapse">
-          
+    <div className="w-full rounded-lg border bg-white shadow-sm">
+
+      {/* wrapper ทำให้ overflow ได้ */}
+      <div className="overflow-auto max-h-[530px]"> 
+        <table className="min-w-max w-full text-xs border-collapse">
+
           {/* Header */}
           <thead className="bg-gray-50 border-b">
             {table.getHeaderGroups().map(headerGroup => (
@@ -40,7 +42,7 @@ export default function WaterTable({ data }: Props) {
                 {headerGroup.headers.map(header => (
                   <th
                     key={header.id}
-                    className="px-3 py-2 text-left font-semibold text-gray-700"
+                    className="px-3 py-2 text-left font-semibold text-gray-700 whitespace-nowrap"
                   >
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </th>
@@ -52,12 +54,12 @@ export default function WaterTable({ data }: Props) {
           {/* Body */}
           <tbody className="divide-y divide-gray-100">
             {table.getRowModel().rows.map(row => (
-              <tr
-                key={row.id}
-                className="hover:bg-gray-50 transition-colors"
-              >
+              <tr key={row.id} className="hover:bg-gray-50 transition-colors">
                 {row.getVisibleCells().map(cell => (
-                  <td key={cell.id} className="px-3 py-[11.4px] text-gray-700">
+                  <td
+                    key={cell.id}
+                    className="px-3 py-[11.4px] text-gray-700 whitespace-nowrap"
+                  >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}
@@ -67,6 +69,7 @@ export default function WaterTable({ data }: Props) {
 
         </table>
       </div>
+
     </div>
   );
 }

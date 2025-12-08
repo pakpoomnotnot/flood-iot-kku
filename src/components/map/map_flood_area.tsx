@@ -23,7 +23,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import stationsData from "./stations_complete.json";
 import { useStation, generateMockStationData } from "@/contexts/station-context";
 
-// --- SVG Icons ---
+// --- SVG Icons (เพื่อใช้ใน HTML String) ---
 const ICONS = {
   droplets: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`,
   shieldAlert: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>`,
@@ -64,16 +64,9 @@ const MapComponentAnalytics: FC = () => {
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const map = useRef<Map | null>(null);
   const markersRef = useRef<Marker[]>([]);
-  
-  // States
   const [currentStyle, setCurrentStyle] = useState<BasemapStyleKey>("topo");
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [isSwitcherOpen, setSwitcherOpen] = useState<boolean>(false);
-  
-  // --- NEW STATES FOR TABS ---
-  const [activeTab, setActiveTab] = useState<"HEC-HMS" | "HEC-RAS">("HEC-RAS");
-  const [activeScenario, setActiveScenario] = useState<number>(1);
-  
   // Use station context
   const { setSelectedStationData } = useStation();
 
@@ -92,6 +85,7 @@ const MapComponentAnalytics: FC = () => {
     },
   };
 
+  // Station type configurations
   const stationTypeConfig = {
     WP: { color: "#3B82F6", label: "ท่อระบายน้ำ", icon: ICONS.droplets },
     WR: { color: "#EF4444", label: "ระดับน้ำบนถนน", icon: ICONS.shieldAlert },
@@ -99,6 +93,7 @@ const MapComponentAnalytics: FC = () => {
     RF: { color: "#8B5CF6", label: "ปริมาณฝน", icon: ICONS.cloudRain },
   };
 
+  // ฟังก์ชันสร้าง custom marker element
   const createMarkerElement = (stationId: string): HTMLDivElement => {
     const el = document.createElement("div");
     el.className = "custom-marker-wrapper";
@@ -117,6 +112,7 @@ const MapComponentAnalytics: FC = () => {
     return el;
   };
 
+  // ฟังก์ชันสร้าง popup content
   const createPopupContent = (station: Station): string => {
     const prefix = station.id.substring(0, 2) as keyof typeof stationTypeConfig;
     const typeInfo = stationTypeConfig[prefix] || {
@@ -125,27 +121,28 @@ const MapComponentAnalytics: FC = () => {
       icon: ICONS.tag,
     };
 
+    // Mock data based on station type
     let mockValue: string;
     let mockUnit: string;
     let mockLabel: string;
     
     switch (prefix) {
-      case "RF": 
+      case "RF": // ปริมาณฝน
         mockValue = (Math.random() * 50).toFixed(1);
         mockUnit = "มม.";
         mockLabel = "ปริมาณฝนสะสม";
         break;
-      case "WP": 
+      case "WP": // ท่อระบายน้ำ
         mockValue = (Math.random() * 2 + 0.5).toFixed(2);
         mockUnit = "ม.";
         mockLabel = "ระดับน้ำในท่อ";
         break;
-      case "WR": 
+      case "WR": // ระดับน้ำบนถนน
         mockValue = (Math.random() * 0.8).toFixed(2);
         mockUnit = "ม.";
         mockLabel = "ระดับน้ำท่วมถนน";
         break;
-      case "PW": 
+      case "PW": // บึง/หนองน้ำ
         mockValue = (Math.random() * 5 + 1).toFixed(2);
         mockUnit = "ม.";
         mockLabel = "ระดับน้ำในบึง";
@@ -166,6 +163,7 @@ const MapComponentAnalytics: FC = () => {
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </div>
+        
         <div class="popup-location-header" style="background: linear-gradient(135deg, ${typeInfo.color}15 0%, ${typeInfo.color}05 100%);">
           <div class="station-type-badge" style="background: ${typeInfo.color};">
             ${typeInfo.icon}
@@ -174,12 +172,15 @@ const MapComponentAnalytics: FC = () => {
           <h3 class="location-name">${station.name}</h3>
           <div class="location-area">${station.location.area}</div>
         </div>
+        
         <div class="popup-content-body">
           <div class="data-label">${mockLabel}</div>
+          
           <div class="data-value-box">
             <span class="data-number">${mockValue}</span>
             <span class="data-unit">${mockUnit}</span>
           </div>
+          
           <div class="data-timestamp">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10"></circle>
@@ -187,6 +188,7 @@ const MapComponentAnalytics: FC = () => {
             </svg>
             <span>อัพเดท: ${mockDate}</span>
           </div>
+          
           <div class="detail-link">
             <span>ดูรายละเอียดเพิ่มเติม</span>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -200,20 +202,15 @@ const MapComponentAnalytics: FC = () => {
 
   const addStationMarkers = () => {
     if (!map.current) return;
-    
-    // Clear existing
     markersRef.current.forEach((marker) => marker.remove());
     markersRef.current = [];
 
-    // Optional: ถ้าเลือก HEC-RAS อาจจะแสดงข้อมูลคนละแบบ
-    // ในที่นี้ผมให้แสดงเหมือนเดิมไปก่อน หรือคุณสามารถใส่เงื่อนไข if (activeTab === 'HEC-HMS') {...} ได้
-    
     const data = stationsData as StationsData;
     data.stationTypes.forEach((stationType) => {
       stationType.stations.forEach((station) => {
+        // แสดงเฉพาะสถานีบึง/หนองน้ำ (PW)
         const prefix = station.id.substring(0, 2);
-        // กรองเฉพาะบางประเภทถ้าต้องการ
-        if (prefix !== "") return; 
+        if (prefix !== "") return;
 
         const el = createMarkerElement(station.id);
         const popup = new Popup({ offset: 35, closeButton: false }).setHTML(
@@ -230,17 +227,13 @@ const MapComponentAnalytics: FC = () => {
         }
 
         el.addEventListener("click", () => {
+          // Generate mock data and pass to sidebar
           const mockData = generateMockStationData(station);
           setSelectedStationData(mockData);
         });
       });
     });
   };
-
-  // Re-add markers when tab changes (if logic differs per tab)
-  useEffect(() => {
-     if (isLoaded) addStationMarkers();
-  }, [activeTab, isLoaded]);
 
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
@@ -275,65 +268,17 @@ const MapComponentAnalytics: FC = () => {
 
   const switchBasemap = (styleKey: BasemapStyleKey) => {
     if (!map.current || !isLoaded) return;
+
     setCurrentStyle(styleKey);
     map.current.setStyle(basemaps[styleKey].style);
+
     map.current.once("style.load", () => addStationMarkers());
     setSwitcherOpen(false);
   };
 
   return (
-    <div className="relative w-full h-full bg-gray-900 font-sans rounded-xl overflow-hidden">
+    <div className="relative w-full h-full bg-gray-900 font-sans rounded-xl">
       <div ref={mapContainer} className="w-full h-full rounded-lg"/>
-
-      {/* --- NEW: TAB OVERLAY (HEC-HMS / HEC-RAS) --- */}
-      <div className="absolute top-0 left-0 p-4 z-40 flex flex-col gap-3">
-        {/* Main Tabs */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setActiveTab("HEC-HMS")}
-            className={`text-3xl font-black tracking-tight transition-all duration-200 px-2 py-1 rounded-md ${
-              activeTab === "HEC-HMS"
-                ? "bg-[#0090D4] text-white shadow-md"
-                : "text-black bg-white/50 hover:bg-white/80"
-            }`}
-          >
-            HEC-HMS
-          </button>
-          <button
-            onClick={() => setActiveTab("HEC-RAS")}
-            className={`text-3xl font-black tracking-tight transition-all duration-200 px-2 py-1 rounded-md ${
-              activeTab === "HEC-RAS"
-                ? "bg-[#0090D4] text-white shadow-md"
-                : "text-black bg-white/50 hover:bg-white/80"
-            }`}
-          >
-            HEC-RAS
-          </button>
-        </div>
-
-        {/* Scenario Tabs (Sub-options) - แสดงเมื่อเลือก HEC-RAS หรือตามต้องการ */}
-        {activeTab === "HEC-RAS" && (
-          <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
-            {[1, 2, 3].map((num) => (
-              <button
-                key={num}
-                onClick={() => setActiveScenario(num)}
-                className={`
-                  relative px-4 py-1 rounded-lg border-2 font-bold text-xl transition-all shadow-sm
-                  ${
-                    activeScenario === num
-                      ? "bg-pink-200 border-gray-600 text-black" // Active style (Pinkish based on image)
-                      : "bg-white border-gray-300 text-gray-700 hover:border-gray-400"
-                  }
-                `}
-              >
-                กรณีจำลองที่
-                <div className="text-3xl font-black text-center -mt-1 leading-none">{num}</div>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
 
       {/* Loading Overlay */}
       {!isLoaded && (
@@ -359,6 +304,7 @@ const MapComponentAnalytics: FC = () => {
               focus:ring-blue-500 focus:ring-opacity-50
               ${!isLoaded ? "opacity-50 cursor-not-allowed" : ""}
             `}
+            aria-label="Select Basemap"
           >
             <Layers className="h-6 w-6 text-gray-700" />
           </button>
@@ -373,7 +319,9 @@ const MapComponentAnalytics: FC = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                {(Object.entries(basemaps) as [BasemapStyleKey, BasemapConfig][]).map(([key, basemap]) => (
+                {(
+                  Object.entries(basemaps) as [BasemapStyleKey, BasemapConfig][]
+                ).map(([key, basemap]) => (
                   <button
                     key={key}
                     onClick={() => switchBasemap(key)}
@@ -398,50 +346,11 @@ const MapComponentAnalytics: FC = () => {
           )}
         </div>
       </div>
+    
 
-      {/* Legend (Bottom Right) */}
-      <div className="absolute bottom-4 right-4 z-40 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-3 max-w-xs border border-gray-200">
-        <div className="border-t border-gray-200 pt-3 first:border-0 first:pt-0">
-          <h3 className="text-xs font-bold text-gray-800 mb-2 flex items-center gap-1">
-            <Droplets className="h-3.5 w-3.5" />
-            ระดับน้ำในบึง (ม.)
-          </h3>
-          
-          <div className="flex gap-0.5 mb-1.5 rounded overflow-hidden shadow-sm">
-            {[
-              { range: "0-1", display: "0-1", color: "#BFDBFE" },
-              { range: "1-2", display: ">1-2", color: "#86EFAC" },
-              { range: "2-3", display: ">2-3", color: "#BEF264" },
-              { range: "3-4", display: ">3-4", color: "#FDE047" },
-              { range: "4-5", display: ">4-5", color: "#FB923C" },
-              { range: "5-6", display: ">5-6", color: "#F87171" },
-              { range: ">6", display: ">6", color: "#DC2626" },
-            ].map((item, idx) => (
-              <div
-                key={idx}
-                className="flex-1 h-7 flex items-center justify-center"
-                style={{ backgroundColor: item.color }}
-                title={item.range + " ม."}
-              >
-                <span className="text-[8px] font-bold text-gray-800 leading-tight text-center">
-                  {item.display}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex justify-between text-[9px] text-gray-600 px-0.5 mt-1">
-            <span>ต่ำ</span>
-            <span>ปานกลาง</span>
-            <span>สูง</span>
-            <span>สูงมาก</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Styles */}
+      {/* Custom Styles */}
       <style jsx global>{`
-        /* ... existing styles ... */
+        /* Modern Popup Styles */
         .modern-popup {
           font-family: system-ui, -apple-system, sans-serif;
           width: 260px;
@@ -451,8 +360,8 @@ const MapComponentAnalytics: FC = () => {
           box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
           position: relative;
         }
-        /* ... (Copy rest of your previous CSS styles here) ... */
-         .popup-close-btn {
+        
+        .popup-close-btn {
           position: absolute;
           top: 10px;
           right: 10px;

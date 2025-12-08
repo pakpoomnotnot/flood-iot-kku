@@ -43,26 +43,26 @@ export const PredictionChart: React.FC<PredictionChartProps> = ({
   const risk = getRiskLevel(currentValue);
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-lg font-bold">{stationName}</CardTitle>
-            <p className="text-sm text-gray-500 mt-1">รหัสสถานี: {stationId}</p>
+    <Card className="border-0 shadow-none">
+      <CardHeader className="px-2 sm:px-6 py-3 sm:py-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-base sm:text-lg font-bold truncate">{stationName}</CardTitle>
+            <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1 truncate">รหัสสถานี: {stationId}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-blue-600" />
-            <span className="text-sm font-semibold text-gray-700">การคาดการณ์</span>
+          <div className="flex items-center gap-2 shrink-0">
+            <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+            <span className="text-xs sm:text-sm font-semibold text-gray-700">การคาดการณ์</span>
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-2 sm:px-6 py-0 sm:py-6">
         {/* Statistics */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="text-center p-3 bg-blue-50 rounded-lg">
-            <p className="text-xs text-gray-500 mb-1">ค่าปัจจุบัน</p>
-            <p className="text-xl font-bold text-blue-600">{currentValue.toFixed(1)} {unit}</p>
-            <span className={`text-xs px-2 py-0.5 rounded-full mt-1 inline-block ${
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
+          <div className="text-center p-2 sm:p-3 bg-blue-50 rounded-lg">
+            <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">ค่าปัจจุบัน</p>
+            <p className="text-base sm:text-xl font-bold text-blue-600">{currentValue.toFixed(1)} {unit}</p>
+            <span className={`text-[9px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full mt-0.5 sm:mt-1 inline-block ${
               risk.level === 'วิกฤต' ? 'bg-red-100 text-red-700' :
               risk.level === 'เฝ้าระวัง' ? 'bg-amber-100 text-amber-700' :
               'bg-green-100 text-green-700'
@@ -70,24 +70,24 @@ export const PredictionChart: React.FC<PredictionChartProps> = ({
               {risk.level}
             </span>
           </div>
-          <div className="text-center p-3 bg-gray-50 rounded-lg">
-            <p className="text-xs text-gray-500 mb-1">ค่าเฉลี่ย</p>
-            <p className="text-xl font-bold text-gray-700">{avgPredicted.toFixed(1)} {unit}</p>
+          <div className="text-center p-2 sm:p-3 bg-gray-50 rounded-lg">
+            <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">ค่าเฉลี่ย</p>
+            <p className="text-base sm:text-xl font-bold text-gray-700">{avgPredicted.toFixed(1)} {unit}</p>
           </div>
-          <div className="text-center p-3 bg-red-50 rounded-lg">
-            <p className="text-xs text-gray-500 mb-1">สูงสุด</p>
-            <p className="text-xl font-bold text-red-600">{maxPredicted.toFixed(1)} {unit}</p>
+          <div className="text-center p-2 sm:p-3 bg-red-50 rounded-lg">
+            <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">สูงสุด</p>
+            <p className="text-base sm:text-xl font-bold text-red-600">{maxPredicted.toFixed(1)} {unit}</p>
           </div>
-          <div className="text-center p-3 bg-green-50 rounded-lg">
-            <p className="text-xs text-gray-500 mb-1">ต่ำสุด</p>
-            <p className="text-xl font-bold text-green-600">{minPredicted.toFixed(1)} {unit}</p>
+          <div className="text-center p-2 sm:p-3 bg-green-50 rounded-lg">
+            <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">ต่ำสุด</p>
+            <p className="text-base sm:text-xl font-bold text-green-600">{minPredicted.toFixed(1)} {unit}</p>
           </div>
         </div>
 
         {/* Chart */}
-        <div style={{ width: '100%', height: `${height}px` }}>
-          <ResponsiveContainer>
-            <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+        <div className="w-full" style={{ height: `${height}px` }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
               <defs>
                 <linearGradient id="predictionGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
@@ -102,33 +102,37 @@ export const PredictionChart: React.FC<PredictionChartProps> = ({
               <XAxis 
                 dataKey="time" 
                 stroke="#94a3b8" 
-                fontSize={12}
+                fontSize={10}
                 tickLine={false}
                 axisLine={false}
+                interval="preserveStartEnd"
+                minTickGap={30}
               />
               <YAxis 
                 stroke="#94a3b8" 
-                fontSize={12}
+                fontSize={10}
                 tickLine={false}
                 axisLine={false}
                 domain={['dataMin - 10', 'dataMax + 10']}
-                tickFormatter={(value) => `${value} ${unit}`}
+                tickFormatter={(value) => `${value}`}
+                width={35}
               />
               <Tooltip
                 contentStyle={{ 
                   backgroundColor: 'white', 
                   borderColor: '#e5e7eb', 
-                  borderRadius: '0.75rem',
+                  borderRadius: '0.5rem',
                   boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                   border: '1px solid #e5e7eb',
-                  padding: '12px'
+                  padding: '8px',
+                  fontSize: '12px'
                 }}
-                labelStyle={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '8px' }}
+                labelStyle={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '4px', fontSize: '11px' }}
                 formatter={(value: number, name: string) => {
-                  if (name === 'predicted') return [`${value.toFixed(1)} ${unit}`, 'ค่าคาดการณ์'];
-                  if (name === 'upperBound') return [`${value.toFixed(1)} ${unit}`, 'ขอบเขตบน'];
-                  if (name === 'lowerBound') return [`${value.toFixed(1)} ${unit}`, 'ขอบเขตล่าง'];
-                  if (name === 'actual') return [`${value.toFixed(1)} ${unit}`, 'ค่าจริง'];
+                  if (name === 'predicted') return [`${value.toFixed(1)} ${unit}`, 'คาดการณ์'];
+                  if (name === 'upperBound') return [`${value.toFixed(1)} ${unit}`, 'บน'];
+                  if (name === 'lowerBound') return [`${value.toFixed(1)} ${unit}`, 'ล่าง'];
+                  if (name === 'actual') return [`${value.toFixed(1)} ${unit}`, 'จริง'];
                   return [value, name];
                 }}
               />
@@ -160,7 +164,7 @@ export const PredictionChart: React.FC<PredictionChartProps> = ({
                   dataKey="actual"
                   stroke="#10B981"
                   strokeWidth={2}
-                  dot={{ fill: '#10B981', r: 4 }}
+                  dot={{ fill: '#10B981', r: 3 }}
                   strokeDasharray="5 5"
                 />
               )}
@@ -170,44 +174,44 @@ export const PredictionChart: React.FC<PredictionChartProps> = ({
                 type="monotone"
                 dataKey="predicted"
                 stroke="#3B82F6"
-                strokeWidth={3}
+                strokeWidth={2}
                 fill="url(#predictionGradient)"
-                dot={{ fill: '#3B82F6', r: 4 }}
-                activeDot={{ r: 6, fill: '#2563eb' }}
+                dot={{ fill: '#3B82F6', r: 3 }}
+                activeDot={{ r: 5, fill: '#2563eb' }}
               />
               
               {/* Threshold lines */}
-              <ReferenceLine y={80} stroke="#EF4444" strokeDasharray="3 3" strokeWidth={2} />
-              <ReferenceLine y={50} stroke="#F59E0B" strokeDasharray="3 3" strokeWidth={2} />
+              <ReferenceLine y={80} stroke="#EF4444" strokeDasharray="3 3" strokeWidth={1.5} />
+              <ReferenceLine y={50} stroke="#F59E0B" strokeDasharray="3 3" strokeWidth={1.5} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
         {/* Legend */}
-        <div className="flex items-center justify-center gap-6 mt-4 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-0.5 bg-blue-600"></div>
-            <span className="text-gray-600">ค่าคาดการณ์</span>
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-6 mt-3 sm:mt-4 text-[10px] sm:text-xs">
+          <div className="flex items-center gap-1 sm:gap-2">
+            <div className="w-3 sm:w-4 h-0.5 bg-blue-600"></div>
+            <span className="text-gray-600">คาดการณ์</span>
           </div>
           {data[0]?.actual !== undefined && (
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-0.5 bg-green-600 border-dashed"></div>
-              <span className="text-gray-600">ค่าจริง</span>
+            <div className="flex items-center gap-1 sm:gap-2">
+              <div className="w-3 sm:w-4 h-0.5 bg-green-600 border-dashed"></div>
+              <span className="text-gray-600">จริง</span>
             </div>
           )}
           {data[0]?.upperBound && (
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-2 bg-purple-200 rounded"></div>
+            <div className="flex items-center gap-1 sm:gap-2">
+              <div className="w-3 sm:w-4 h-2 bg-purple-200 rounded"></div>
               <span className="text-gray-600">ช่วงความเชื่อมั่น</span>
             </div>
           )}
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-0.5 bg-red-500 border-dashed"></div>
-            <span className="text-gray-600">ระดับวิกฤต (80{unit})</span>
+          <div className="flex items-center gap-1 sm:gap-2">
+            <div className="w-3 sm:w-4 h-0.5 bg-red-500 border-dashed"></div>
+            <span className="text-gray-600 whitespace-nowrap">วิกฤต (80{unit})</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-0.5 bg-amber-500 border-dashed"></div>
-            <span className="text-gray-600">ระดับเฝ้าระวัง (50{unit})</span>
+          <div className="flex items-center gap-1 sm:gap-2">
+            <div className="w-3 sm:w-4 h-0.5 bg-amber-500 border-dashed"></div>
+            <span className="text-gray-600 whitespace-nowrap">เฝ้าระวัง (50{unit})</span>
           </div>
         </div>
       </CardContent>
@@ -253,5 +257,4 @@ export const generatePredictionData = (stationId: string, hours: number = 48): P
   }
   
   return data;
-};
-
+}
