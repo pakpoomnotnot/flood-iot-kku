@@ -281,7 +281,7 @@ export const DashboardHeader = () => {
             {/* Title */}
             <div className="flex flex-col items-center px-2 text-center">
               <h1 className="text-base font-bold leading-tight text-[#2c120c] sm:text-xl lg:text-2xl">
-                ระบบการเตือนภัยและแนวทางการป้องกันน้ำท่วมในเขตเมืองขอนแก่น
+                ระบบสนับสนุนการเตือนภัยและแนวทางการป้องกันน้ำท่วมในเขตเมืองขอนแก่น
               </h1>
               <h2 className="text-xs text-[#6f4a41] sm:text-sm">
                 Flood Warning System and Prevention Measures in Khon Kaen City

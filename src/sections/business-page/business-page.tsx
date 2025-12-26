@@ -205,8 +205,8 @@ const BusinessPage = () => {
 
               {/* Main Heading */}
               <div className="space-y-4">
-                <h1 className="text-5xl lg:text-6xl xl:text-7xl font-bold text-[#2c120c] leading-tight tracking-tight">
-                  ระบบการเตือนภัยและแนวทางการ
+                <h1 className="text-5xl lg:text-6xl xl:text-6xl font-bold text-[#2c120c] leading-tight tracking-tight">
+                  ระบบสนับสนุนการเตือนภัยและแนวทางการ
                   <br />
                   <span
                     className={`${brandGradientText} bg-clip-text text-transparent`}

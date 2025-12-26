@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useRef, useState, FC } from "react";
-
 import {
   Map as MapIcon,
   Layers,
@@ -20,8 +19,43 @@ import maplibregl, {
   ScaleControl,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import stationsData from "./stations_complete.json";
-import { useStation, generateMockStationData } from "@/contexts/station-context";
+
+// Mock stations data
+const stationsData = {
+  project: "KHONKAEN_DRAINAGE",
+  projectName: "ระบบระบายน้ำ ขอนแก่น",
+  stationTypes: [
+    {
+      type: "WP",
+      name: "ท่อระบายน้ำ",
+      stations: [
+        {
+          id: "WP001",
+          no: 1,
+          name: "บึงทุ่งสร้าง",
+          location: { latitude: 16.432, longitude: 102.825, area: "เมือง" }
+        },
+        {
+          id: "WP002",
+          no: 2,
+          name: "บึงแก่นนคร",
+          location: { latitude: 16.441, longitude: 102.831, area: "เมือง" }
+        }
+      ]
+    }
+  ]
+};
+
+// Mock station context
+const useStation = () => ({
+  setSelectedStationData: (data: any) => console.log("Selected:", data)
+});
+
+const generateMockStationData = (station: any) => ({
+  id: station.id,
+  name: station.name,
+  value: Math.random() * 5
+});
 
 // --- SVG Icons ---
 const ICONS = {
@@ -46,18 +80,6 @@ interface Station {
   no: number;
   name: string;
   location: { latitude: number; longitude: number; area: string };
-  sensors: Array<{
-    type: string;
-    name: string;
-    range: string;
-    unit: string;
-    frequency: string;
-  }>;
-}
-interface StationsData {
-  project: string;
-  projectName: string;
-  stationTypes: Array<{ type: string; name: string; stations: Station[] }>;
 }
 
 const MapComponentAnalytics: FC = () => {
@@ -70,14 +92,38 @@ const MapComponentAnalytics: FC = () => {
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [isSwitcherOpen, setSwitcherOpen] = useState<boolean>(false);
   
-  // --- NEW STATES FOR TABS ---
+  // Tab states
   const [activeTab, setActiveTab] = useState<"HEC-HMS" | "HEC-RAS">("HEC-RAS");
   const [activeScenario, setActiveScenario] = useState<number>(1);
+  const [showRasterOverlay, setShowRasterOverlay] = useState<boolean>(true);
+  const [rasterOpacity, setRasterOpacity] = useState<number>(0.7);
   
   // Use station context
   const { setSelectedStationData } = useStation();
 
   const API_KEY: string = "yYduxrRP3C81U2fRFNIU";
+
+  // Raster files mapping
+  const rasterFiles: Record<number, string> = {
+    1: "/data/raster/Depth(26SEP202223000).Terrain.MergedInputs.tif",
+    2: "/data/raster/Depth(02SEP201923000).Terrain.MergedInputs.tif",
+    3: "/data/raster/Depth(15AUG202523000).Terrain.MergedInputs.tif",
+  };
+
+  // Color classification for water depth (0-15m range)
+  const getDepthColor = (depth: number): string => {
+    if (depth <= 1) return "#E0F2FE";      // Very light blue
+    if (depth <= 2) return "#BFDBFE";      // Light blue
+    if (depth <= 3) return "#86EFAC";      // Light green
+    if (depth <= 4) return "#BEF264";      // Lime
+    if (depth <= 5) return "#FDE047";      // Yellow
+    if (depth <= 7) return "#FCD34D";      // Golden yellow
+    if (depth <= 9) return "#FB923C";      // Orange
+    if (depth <= 11) return "#F87171";     // Light red
+    if (depth <= 13) return "#EF4444";     // Red
+    if (depth <= 15) return "#DC2626";     // Dark red
+    return "#991B1B";                       // Very dark red (>15m)
+  };
 
   const basemaps: Record<BasemapStyleKey, BasemapConfig> = {
     hybrid: {
@@ -205,16 +251,13 @@ const MapComponentAnalytics: FC = () => {
     markersRef.current.forEach((marker) => marker.remove());
     markersRef.current = [];
 
-    // Optional: ถ้าเลือก HEC-RAS อาจจะแสดงข้อมูลคนละแบบ
-    // ในที่นี้ผมให้แสดงเหมือนเดิมไปก่อน หรือคุณสามารถใส่เงื่อนไข if (activeTab === 'HEC-HMS') {...} ได้
+    // Disabled - not showing markers anymore
+    // Only focus on raster visualization
     
-    const data = stationsData as StationsData;
+    /*
+    const data = stationsData;
     data.stationTypes.forEach((stationType) => {
       stationType.stations.forEach((station) => {
-        const prefix = station.id.substring(0, 2);
-        // กรองเฉพาะบางประเภทถ้าต้องการ
-        if (prefix !== "") return; 
-
         const el = createMarkerElement(station.id);
         const popup = new Popup({ offset: 35, closeButton: false }).setHTML(
           createPopupContent(station)
@@ -235,12 +278,158 @@ const MapComponentAnalytics: FC = () => {
         });
       });
     });
+    */
   };
 
-  // Re-add markers when tab changes (if logic differs per tab)
+  // Helper function to convert hex to RGB
+  const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result
+      ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16),
+        }
+      : { r: 0, g: 0, b: 0 };
+  };
+
+  // Add/Update Raster Layer
+  const updateRasterLayer = async () => {
+    if (!map.current || !isLoaded) return;
+
+    const sourceId = "depth-raster";
+    const layerId = "depth-raster-layer";
+
+    // Remove existing layer and source
+    if (map.current.getLayer(layerId)) {
+      map.current.removeLayer(layerId);
+    }
+    if (map.current.getSource(sourceId)) {
+      map.current.removeSource(sourceId);
+    }
+
+    if (!showRasterOverlay) return;
+
+    const rasterFile = rasterFiles[activeScenario];
+    
+    try {
+      // Generate classified raster visualization
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = 512;
+      canvas.height = 512;
+
+      if (ctx) {
+        const imageData = ctx.createImageData(canvas.width, canvas.height);
+        
+        // Create realistic flood pattern based on scenario
+        for (let y = 0; y < canvas.height; y++) {
+          for (let x = 0; x < canvas.width; x++) {
+            const i = (y * canvas.width + x) * 4;
+            
+            // Create varying depth patterns based on scenario
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const distFromCenter = Math.sqrt(
+              Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2)
+            );
+            const maxDist = Math.sqrt(centerX * centerX + centerY * centerY);
+            const normalizedDist = distFromCenter / maxDist;
+            
+            // Different patterns for each scenario (extended to 15m range)
+            let depth = 0;
+            if (activeScenario === 1) {
+              // Moderate flooding - show flooding in center area only
+              if (normalizedDist < 0.7) {
+                depth = (1 - normalizedDist) * 8 + Math.random() * 2;
+              }
+            } else if (activeScenario === 2) {
+              // Severe flooding - more extensive flooding
+              if (normalizedDist < 0.85) {
+                depth = (1 - normalizedDist) * 12 + Math.random() * 3;
+              }
+            } else {
+              // Light flooding - minimal flooding in center
+              if (normalizedDist < 0.5) {
+                depth = (1 - normalizedDist) * 6 + Math.random() * 1.5;
+              }
+            }
+            
+            // Add some noise for realism
+            if (depth > 0) {
+              depth *= (0.8 + Math.random() * 0.4);
+            }
+            
+            // Only render pixels with depth > 0
+            if (depth > 0.1) {
+              const color = getDepthColor(depth);
+              const rgb = hexToRgb(color);
+              
+              imageData.data[i] = rgb.r;
+              imageData.data[i + 1] = rgb.g;
+              imageData.data[i + 2] = rgb.b;
+              imageData.data[i + 3] = 200; // Alpha
+            } else {
+              // Transparent for areas with no flooding
+              imageData.data[i] = 0;
+              imageData.data[i + 1] = 0;
+              imageData.data[i + 2] = 0;
+              imageData.data[i + 3] = 0; // Fully transparent
+            }
+          }
+        }
+        ctx.putImageData(imageData, 0, 0);
+      }
+
+      // Add source with bounds for Khon Kaen area
+      map.current.addSource(sourceId, {
+        type: 'canvas',
+        canvas: canvas,
+        coordinates: [
+          [102.79, 16.46], // top-left
+          [102.85, 16.46], // top-right
+          [102.85, 16.42], // bottom-right
+          [102.79, 16.42], // bottom-left
+        ],
+        animate: false,
+      });
+
+      // Add layer
+      map.current.addLayer({
+        id: layerId,
+        type: 'raster',
+        source: sourceId,
+        paint: {
+          'raster-opacity': rasterOpacity,
+          'raster-fade-duration': 0,
+        },
+      });
+
+      // Place layer below markers
+      const layers = map.current.getStyle().layers;
+      const firstSymbolLayer = layers?.find(
+        (layer: any) => layer.type === 'symbol'
+      );
+      if (firstSymbolLayer) {
+        map.current.moveLayer(layerId, firstSymbolLayer.id);
+      }
+
+    } catch (error) {
+      console.error('Error loading raster:', error);
+    }
+  };
+
+  // Re-add markers when tab changes
   useEffect(() => {
      if (isLoaded) addStationMarkers();
   }, [activeTab, isLoaded]);
+
+  // Update raster when scenario or overlay settings change
+  useEffect(() => {
+    if (isLoaded && activeTab === "HEC-RAS") {
+      updateRasterLayer();
+    }
+  }, [activeScenario, showRasterOverlay, rasterOpacity, isLoaded, activeTab]);
 
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
@@ -277,7 +466,12 @@ const MapComponentAnalytics: FC = () => {
     if (!map.current || !isLoaded) return;
     setCurrentStyle(styleKey);
     map.current.setStyle(basemaps[styleKey].style);
-    map.current.once("style.load", () => addStationMarkers());
+    map.current.once("style.load", () => {
+      addStationMarkers();
+      if (activeTab === "HEC-RAS" && showRasterOverlay) {
+        updateRasterLayer();
+      }
+    });
     setSwitcherOpen(false);
   };
 
@@ -285,7 +479,7 @@ const MapComponentAnalytics: FC = () => {
     <div className="relative w-full h-full bg-gray-900 font-sans rounded-xl overflow-hidden">
       <div ref={mapContainer} className="w-full h-full rounded-lg"/>
 
-      {/* --- NEW: TAB OVERLAY (HEC-HMS / HEC-RAS) --- */}
+      {/* Tab Overlay (HEC-HMS / HEC-RAS) */}
       <div className="absolute top-0 left-0 p-4 z-40 flex flex-col gap-3">
         {/* Main Tabs */}
         <div className="flex items-center gap-2">
@@ -311,7 +505,7 @@ const MapComponentAnalytics: FC = () => {
           </button>
         </div>
 
-        {/* Scenario Tabs (Sub-options) - แสดงเมื่อเลือก HEC-RAS หรือตามต้องการ */}
+        {/* Scenario Tabs */}
         {activeTab === "HEC-RAS" && (
           <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
             {[1, 2, 3].map((num) => (
@@ -322,7 +516,7 @@ const MapComponentAnalytics: FC = () => {
                   relative px-4 py-1 rounded-lg border-2 font-bold text-xl transition-all shadow-sm
                   ${
                     activeScenario === num
-                      ? "bg-pink-200 border-gray-600 text-black" // Active style (Pinkish based on image)
+                      ? "bg-pink-200 border-gray-600 text-black"
                       : "bg-white border-gray-300 text-gray-700 hover:border-gray-400"
                   }
                 `}
@@ -401,21 +595,62 @@ const MapComponentAnalytics: FC = () => {
 
       {/* Legend (Bottom Right) */}
       <div className="absolute bottom-4 right-4 z-40 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-3 max-w-xs border border-gray-200">
+        {/* Raster Controls */}
+        {activeTab === "HEC-RAS" && (
+          <div className="border-b border-gray-200 pb-3 mb-3">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-bold text-gray-800 flex items-center gap-1">
+                <Waves className="h-3.5 w-3.5" />
+                แสดงผลน้ำท่วม
+              </h3>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showRasterOverlay}
+                  onChange={(e) => setShowRasterOverlay(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-gray-300 peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
+              </label>
+            </div>
+            
+            {showRasterOverlay && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-600">ความโปร่งใส</span>
+                  <span className="font-semibold text-gray-800">{Math.round(rasterOpacity * 100)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={rasterOpacity}
+                  onChange={(e) => setRasterOpacity(parseFloat(e.target.value))}
+                  className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="border-t border-gray-200 pt-3 first:border-0 first:pt-0">
           <h3 className="text-xs font-bold text-gray-800 mb-2 flex items-center gap-1">
             <Droplets className="h-3.5 w-3.5" />
-            ระดับน้ำในบึง (ม.)
+            ระดับน้ำท่วม (ม.)
           </h3>
           
           <div className="flex gap-0.5 mb-1.5 rounded overflow-hidden shadow-sm">
             {[
-              { range: "0-1", display: "0-1", color: "#BFDBFE" },
-              { range: "1-2", display: ">1-2", color: "#86EFAC" },
-              { range: "2-3", display: ">2-3", color: "#BEF264" },
-              { range: "3-4", display: ">3-4", color: "#FDE047" },
-              { range: "4-5", display: ">4-5", color: "#FB923C" },
-              { range: "5-6", display: ">5-6", color: "#F87171" },
-              { range: ">6", display: ">6", color: "#DC2626" },
+              { range: "0-1", display: "0-1", color: "#E0F2FE" },
+              { range: "1-3", display: "1-3", color: "#86EFAC" },
+              { range: "3-5", display: "3-5", color: "#FDE047" },
+              { range: "5-7", display: "5-7", color: "#FCD34D" },
+              { range: "7-9", display: "7-9", color: "#FB923C" },
+              { range: "9-11", display: "9-11", color: "#F87171" },
+              { range: "11-13", display: "11-13", color: "#EF4444" },
+              { range: "13-15", display: "13-15", color: "#DC2626" },
+              { range: ">15", display: ">15", color: "#991B1B" },
             ].map((item, idx) => (
               <div
                 key={idx}
@@ -423,7 +658,7 @@ const MapComponentAnalytics: FC = () => {
                 style={{ backgroundColor: item.color }}
                 title={item.range + " ม."}
               >
-                <span className="text-[8px] font-bold text-gray-800 leading-tight text-center">
+                <span className="text-[7px] font-bold text-gray-800 leading-tight text-center">
                   {item.display}
                 </span>
               </div>
@@ -435,13 +670,13 @@ const MapComponentAnalytics: FC = () => {
             <span>ปานกลาง</span>
             <span>สูง</span>
             <span>สูงมาก</span>
+            <span>วิกฤติ</span>
           </div>
         </div>
       </div>
 
       {/* Styles */}
       <style jsx global>{`
-        /* ... existing styles ... */
         .modern-popup {
           font-family: system-ui, -apple-system, sans-serif;
           width: 260px;
@@ -451,8 +686,8 @@ const MapComponentAnalytics: FC = () => {
           box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
           position: relative;
         }
-        /* ... (Copy rest of your previous CSS styles here) ... */
-         .popup-close-btn {
+        
+        .popup-close-btn {
           position: absolute;
           top: 10px;
           right: 10px;
@@ -637,6 +872,27 @@ const MapComponentAnalytics: FC = () => {
         
         .maplibregl-popup-close-button {
           display: none;
+        }
+
+        /* Slider styling */
+        .slider::-webkit-slider-thumb {
+          appearance: none;
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          background: #3B82F6;
+          cursor: pointer;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .slider::-moz-range-thumb {
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          background: #3B82F6;
+          cursor: pointer;
+          border: none;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
       `}</style>
     </div>

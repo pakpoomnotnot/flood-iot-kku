@@ -17,6 +17,8 @@
     "@types/maplibre-gl": "^1.14.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "georaster": "^1.6.0",
+    "geotiff": "^2.1.4-beta.1",
     "lucide-react": "^0.545.0",
     "maplibre-gl": "^5.9.0",
     "next": "15.5.5",
