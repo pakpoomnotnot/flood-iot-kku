@@ -64,13 +64,15 @@ const MapComponentAnalytics: FC = () => {
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const map = useRef<Map | null>(null);
   const markersRef = useRef<Marker[]>([]);
+  const tilePopupRef = useRef<Popup | null>(null);
   const [currentStyle, setCurrentStyle] = useState<BasemapStyleKey>("topo");
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [isSwitcherOpen, setSwitcherOpen] = useState<boolean>(false);
-  // Use station context
   const { setSelectedStationData } = useStation();
 
   const API_KEY: string = "yYduxrRP3C81U2fRFNIU";
+  const TILE_API_KEY: string = "4EQdBsRp0yXvq5SIE4kf1mFOI3cAl6GFZBkLI5upxceF2huIDSOTpCRdIIyU3v84";
+  const TILE_MAP_ID: string = "696656d2377df7824d3f7247";
 
   const basemaps: Record<BasemapStyleKey, BasemapConfig> = {
     hybrid: {
@@ -85,7 +87,6 @@ const MapComponentAnalytics: FC = () => {
     },
   };
 
-  // Station type configurations
   const stationTypeConfig = {
     WP: { color: "#3B82F6", label: "ท่อระบายน้ำ", icon: ICONS.droplets },
     WR: { color: "#EF4444", label: "ระดับน้ำบนถนน", icon: ICONS.shieldAlert },
@@ -93,7 +94,6 @@ const MapComponentAnalytics: FC = () => {
     RF: { color: "#8B5CF6", label: "ปริมาณฝน", icon: ICONS.cloudRain },
   };
 
-  // ฟังก์ชันสร้าง custom marker element
   const createMarkerElement = (stationId: string): HTMLDivElement => {
     const el = document.createElement("div");
     el.className = "custom-marker-wrapper";
@@ -112,7 +112,6 @@ const MapComponentAnalytics: FC = () => {
     return el;
   };
 
-  // ฟังก์ชันสร้าง popup content
   const createPopupContent = (station: Station): string => {
     const prefix = station.id.substring(0, 2) as keyof typeof stationTypeConfig;
     const typeInfo = stationTypeConfig[prefix] || {
@@ -121,28 +120,27 @@ const MapComponentAnalytics: FC = () => {
       icon: ICONS.tag,
     };
 
-    // Mock data based on station type
     let mockValue: string;
     let mockUnit: string;
     let mockLabel: string;
     
     switch (prefix) {
-      case "RF": // ปริมาณฝน
+      case "RF":
         mockValue = (Math.random() * 50).toFixed(1);
         mockUnit = "มม.";
         mockLabel = "ปริมาณฝนสะสม";
         break;
-      case "WP": // ท่อระบายน้ำ
+      case "WP":
         mockValue = (Math.random() * 2 + 0.5).toFixed(2);
         mockUnit = "ม.";
         mockLabel = "ระดับน้ำในท่อ";
         break;
-      case "WR": // ระดับน้ำบนถนน
+      case "WR":
         mockValue = (Math.random() * 0.8).toFixed(2);
         mockUnit = "ม.";
         mockLabel = "ระดับน้ำท่วมถนน";
         break;
-      case "PW": // บึง/หนองน้ำ
+      case "PW":
         mockValue = (Math.random() * 5 + 1).toFixed(2);
         mockUnit = "ม.";
         mockLabel = "ระดับน้ำในบึง";
@@ -200,6 +198,121 @@ const MapComponentAnalytics: FC = () => {
     `;
   };
 
+  // ฟังก์ชันสร้าง popup content สำหรับ tile layer
+  const createTilePopupContent = (lng: number, lat: number, data?: any): string => {
+    const value = data?.value || (Math.random() * 100).toFixed(2);
+    const label = data?.label || 'Coverage Value';
+    
+    return `
+      <div class="modern-popup">
+        <div class="popup-close-btn" onclick="this.closest('.maplibregl-popup').remove()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </div>
+        
+        <div class="popup-location-header" style="background: linear-gradient(135deg, #3B82F615 0%, #3B82F605 100%);">
+          <div class="station-type-badge" style="background: #3B82F6;">
+            ${ICONS.waves}
+            <span>Coverage Data</span>
+          </div>
+          <h3 class="location-name">${label}</h3>
+          <div class="location-area">พิกัด: ${lat.toFixed(4)}°, ${lng.toFixed(4)}°</div>
+        </div>
+        
+        <div class="popup-content-body">
+          <div class="data-label">ค่าที่วัดได้</div>
+          
+          <div class="data-value-box">
+            <span class="data-number">${value}</span>
+          </div>
+          
+          <div class="data-timestamp">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span>อัพเดท: ${new Date().toLocaleString('th-TH')}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  };
+
+  // ฟังก์ชันดึงข้อมูลจาก tile
+  const getTileData = async (lng: number, lat: number, zoom: number) => {
+    try {
+      const tileX = Math.floor((lng + 180) / 360 * Math.pow(2, zoom));
+      const tileY = Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom));
+      
+      const tileDataUrl = `https://vallaris.kku.ac.th/core/api/maps/coverage/1.0-beta/maps/${TILE_MAP_ID}/${zoom}/${tileX}/${tileY}.json?api_key=${TILE_API_KEY}`;
+      
+      const response = await fetch(tileDataUrl);
+      if (response.ok) {
+        return await response.json();
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching tile data:", error);
+      return null;
+    }
+  };
+
+  // เพิ่ม tile layer และ click event
+  const addTileLayer = () => {
+    if (!map.current) return;
+
+    // ลบ layer และ source เดิมถ้ามี
+    if (map.current.getLayer('coverage-layer')) {
+      map.current.removeLayer('coverage-layer');
+    }
+    if (map.current.getSource('coverage-tiles')) {
+      map.current.removeSource('coverage-tiles');
+    }
+
+    const tileUrl = `https://vallaris.kku.ac.th/core/api/maps/coverage/1.0-beta/maps/${TILE_MAP_ID}/{z}/{x}/{y}.png?api_key=${TILE_API_KEY}`;
+
+    map.current.addSource('coverage-tiles', {
+      type: 'raster',
+      tiles: [tileUrl],
+      tileSize: 256,
+    });
+
+    map.current.addLayer({
+      id: 'coverage-layer',
+      type: 'raster',
+      source: 'coverage-tiles',
+      paint: {
+        'raster-opacity': 0.7
+      }
+    });
+
+    // เพิ่ม click event สำหรับแสดง popup
+    map.current.on('click', async (e) => {
+      const { lng, lat } = e.lngLat;
+      const zoom = Math.floor(map.current!.getZoom());
+      
+      // ดึงข้อมูลจาก tile
+      const tileData = await getTileData(lng, lat, zoom);
+      
+      // ลบ popup เดิม
+      if (tilePopupRef.current) {
+        tilePopupRef.current.remove();
+      }
+      
+      // สร้าง popup ใหม่
+      tilePopupRef.current = new Popup({ 
+        offset: 25, 
+        closeButton: false,
+        maxWidth: '300px'
+      })
+        .setLngLat([lng, lat])
+        .setHTML(createTilePopupContent(lng, lat, tileData))
+        .addTo(map.current!);
+    });
+  };
+
   const addStationMarkers = () => {
     if (!map.current) return;
     markersRef.current.forEach((marker) => marker.remove());
@@ -208,7 +321,6 @@ const MapComponentAnalytics: FC = () => {
     const data = stationsData as StationsData;
     data.stationTypes.forEach((stationType) => {
       stationType.stations.forEach((station) => {
-        // แสดงเฉพาะสถานีบึง/หนองน้ำ (PW)
         const prefix = station.id.substring(0, 2);
         if (prefix !== "") return;
 
@@ -227,7 +339,6 @@ const MapComponentAnalytics: FC = () => {
         }
 
         el.addEventListener("click", () => {
-          // Generate mock data and pass to sidebar
           const mockData = generateMockStationData(station);
           setSelectedStationData(mockData);
         });
@@ -251,6 +362,7 @@ const MapComponentAnalytics: FC = () => {
     map.current.on("load", () => {
       setIsLoaded(true);
       if (!map.current) return;
+      addTileLayer();
       addStationMarkers();
     });
 
@@ -259,6 +371,9 @@ const MapComponentAnalytics: FC = () => {
     });
 
     return () => {
+      if (tilePopupRef.current) {
+        tilePopupRef.current.remove();
+      }
       markersRef.current.forEach((marker) => marker.remove());
       markersRef.current = [];
       map.current?.remove();
@@ -272,7 +387,10 @@ const MapComponentAnalytics: FC = () => {
     setCurrentStyle(styleKey);
     map.current.setStyle(basemaps[styleKey].style);
 
-    map.current.once("style.load", () => addStationMarkers());
+    map.current.once("style.load", () => {
+      addTileLayer();
+      addStationMarkers();
+    });
     setSwitcherOpen(false);
   };
 
@@ -280,7 +398,6 @@ const MapComponentAnalytics: FC = () => {
     <div className="relative w-full h-full bg-gray-900 font-sans rounded-xl">
       <div ref={mapContainer} className="w-full h-full rounded-lg"/>
 
-      {/* Loading Overlay */}
       {!isLoaded && (
         <div className="absolute inset-0 bg-slate-800 bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="text-center">
@@ -292,7 +409,6 @@ const MapComponentAnalytics: FC = () => {
         </div>
       )}
 
-      {/* Basemap Switcher */}
       <div className="absolute top-4 right-4 z-40">
         <div className="relative">
           <button
@@ -346,11 +462,8 @@ const MapComponentAnalytics: FC = () => {
           )}
         </div>
       </div>
-    
 
-      {/* Custom Styles */}
       <style jsx global>{`
-        /* Modern Popup Styles */
         .modern-popup {
           font-family: system-ui, -apple-system, sans-serif;
           width: 260px;

@@ -33,6 +33,7 @@ interface RainStats {
 export const DashboardHeader = () => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [rainData1hr, setRainData1hr] = useState<RainData | null>(null);
+  console.log("ข้อมูลน้ำฝน", rainData1hr);
   const [rainData3hr, setRainData3hr] = useState<RainData | null>(null);
   const [rainData24hr, setRainData24hr] = useState<RainData | null>(null);
   const [tempMax, setTempMax] = useState<number | null>(null);
@@ -185,40 +186,68 @@ export const DashboardHeader = () => {
       try {
         setIsLoading(true);
 
-        // Fetch all three APIs in parallel
-        const [response1hr, response3hr, response24hr] = await Promise.all([
-          fetch("http://10.198.110.39:3000/api/rain_1hr_2km?limit=1"),
-          fetch("http://10.198.110.39:3000/api/rain_3hr_2km?limit=1"),
-          fetch("http://10.198.110.39:3000/api/rain_24hr_2km?limit=1"),
-        ]);
+        // Fetch from /api/rain endpoint
+        const response = await fetch("/api/rain");
+        const data = await response.json();
 
-        const [data1hr, data3hr, data24hr]: [
-          ApiResponse,
-          ApiResponse,
-          ApiResponse
-        ] = await Promise.all([
-          response1hr.json(),
-          response3hr.json(),
-          response24hr.json(),
-        ]);
+        // Process max_1h data
+        if (data.max_1h && data.max_1h.length > 0) {
+          // Find station with max value
+          const maxStation = data.max_1h.reduce(
+            (max: any, station: any) =>
+              station.value > max.value ? station : max,
+            data.max_1h[0]
+          );
 
-        // Set 1hr data
-        if (data1hr.status === "success" && data1hr.data.length > 0) {
-          setRainData1hr(data1hr.data[0]);
+          // ใช้ station_name จาก API โดยตรง
+          setRainData1hr({
+            file: "",
+            datetime: "",
+            datetime_ts: Date.now(),
+            stations: {
+              [maxStation.station_name]: maxStation.value, // เปลี่ยนจาก station_code เป็น station_name
+            },
+          });
         } else {
           setRainData1hr(null);
         }
 
-        // Set 3hr data
-        if (data3hr.status === "success" && data3hr.data.length > 0) {
-          setRainData3hr(data3hr.data[0]);
+        // Process max_3h data
+        if (data.max_3h && data.max_3h.length > 0) {
+          const maxStation = data.max_3h.reduce(
+            (max: any, station: any) =>
+              station.value > max.value ? station : max,
+            data.max_3h[0]
+          );
+
+          setRainData3hr({
+            file: "",
+            datetime: "",
+            datetime_ts: Date.now(),
+            stations: {
+              [maxStation.station_name]: maxStation.value, // เปลี่ยนจาก station_code เป็น station_name
+            },
+          });
         } else {
           setRainData3hr(null);
         }
 
-        // Set 24hr data
-        if (data24hr.status === "success" && data24hr.data.length > 0) {
-          setRainData24hr(data24hr.data[0]);
+        // Process max_24h data
+        if (data.max_24h && data.max_24h.length > 0) {
+          const maxStation = data.max_24h.reduce(
+            (max: any, station: any) =>
+              station.value > max.value ? station : max,
+            data.max_24h[0]
+          );
+
+          setRainData24hr({
+            file: "",
+            datetime: "",
+            datetime_ts: Date.now(),
+            stations: {
+              [maxStation.station_name]: maxStation.value,
+            },
+          });
         } else {
           setRainData24hr(null);
         }

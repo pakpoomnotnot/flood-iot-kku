@@ -30,6 +30,7 @@ interface RainfallItem {
 
 const RainfallWidget = () => {
   const [rainData, setRainData] = useState<RainData | null>(null);
+  console.log("raindata", rainData)
   const [isLoading, setIsLoading] = useState(true);
 
   // Station name mapping - memoized
@@ -88,11 +89,23 @@ const RainfallWidget = () => {
     const fetchRainData = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch("http://10.198.110.39:3000/api/rain_1hr_2km?limit=1");
-        const data: ApiResponse = await response.json();
+        const response = await fetch("/api/rain");
+        const data = await response.json();
 
-        if (data.status === "success" && data.data.length > 0) {
-          setRainData(data.data[0]);
+        if (data.max_1h && data.max_1h.length > 0) {
+          // แปลง array จาก API ให้เป็นรูปแบบ RainData
+          const stations: StationData = {};
+          data.max_1h.forEach((item: any) => {
+            // ใช้ station_name เป็น key เลย
+            stations[item.station_name] = item.value;
+          });
+
+          setRainData({
+            file: "",
+            datetime: "",
+            datetime_ts: Date.now(),
+            stations: stations
+          });
         } else {
           setRainData(null);
         }
