@@ -16,15 +16,13 @@ import {
   EyeOff,
   Calendar,
 } from "lucide-react";
-import maplibregl, {
-  Map,
-  Marker,
-  Popup,
-  ScaleControl,
-} from "maplibre-gl";
+import maplibregl, { Map, Marker, Popup, ScaleControl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import stationsData from "./stations_complete.json";
-import { useStation, generateMockStationData } from "@/contexts/station-context";
+import {
+  useStation,
+  generateMockStationData,
+} from "@/contexts/station-context";
 
 // --- SVG Icons (เพื่อใช้ใน HTML String) ---
 const ICONS = {
@@ -75,7 +73,8 @@ const MapComponentAnalytics: FC = () => {
   const { setSelectedStationData } = useStation();
 
   const API_KEY: string = "yYduxrRP3C81U2fRFNIU";
-  const TILE_API_KEY: string = "4EQdBsRp0yXvq5SIE4kf1mFOI3cAl6GFZBkLI5upxceF2huIDSOTpCRdIIyU3v84";
+  const TILE_API_KEY: string =
+    "4EQdBsRp0yXvq5SIE4kf1mFOI3cAl6GFZBkLI5upxceF2huIDSOTpCRdIIyU3v84";
   const TILE_MAP_ID: string = "696656d2377df7824d3f7247";
 
   // Mock available dates (ตอนนี้มีแค่วันเดียว แต่เตรียมไว้สำหรับในอนาคต)
@@ -133,7 +132,7 @@ const MapComponentAnalytics: FC = () => {
     let mockValue: string;
     let mockUnit: string;
     let mockLabel: string;
-    
+
     switch (prefix) {
       case "RF":
         mockValue = (Math.random() * 50).toFixed(1);
@@ -160,7 +159,7 @@ const MapComponentAnalytics: FC = () => {
         mockUnit = "";
         mockLabel = "ข้อมูล";
     }
-    
+
     const mockDate = "4 ธ.ค. 2568 14:30";
 
     return `
@@ -213,17 +212,17 @@ const MapComponentAnalytics: FC = () => {
     if (!map.current) return;
 
     // ลบ layer และ source เดิมถ้ามี
-    if (map.current.getLayer('coverage-layer')) {
-      map.current.removeLayer('coverage-layer');
+    if (map.current.getLayer("coverage-layer")) {
+      map.current.removeLayer("coverage-layer");
     }
-    if (map.current.getSource('coverage-tiles')) {
-      map.current.removeSource('coverage-tiles');
+    if (map.current.getSource("coverage-tiles")) {
+      map.current.removeSource("coverage-tiles");
     }
 
     const tileUrl = `https://vallaris.kku.ac.th/core/api/maps/coverage/1.0-beta/maps/${TILE_MAP_ID}/tms/{z}/{x}/{y}?api_key=${TILE_API_KEY}`;
 
-    map.current.addSource('coverage-tiles', {
-      type: 'raster',
+    map.current.addSource("coverage-tiles", {
+      type: "raster",
       tiles: [tileUrl],
       tileSize: 256,
       minzoom: 0,
@@ -231,26 +230,26 @@ const MapComponentAnalytics: FC = () => {
     });
 
     map.current.addLayer({
-      id: 'coverage-layer',
-      type: 'raster',
-      source: 'coverage-tiles',
+      id: "coverage-layer",
+      type: "raster",
+      source: "coverage-tiles",
       paint: {
-        'raster-opacity': 0.7
-      }
+        "raster-opacity": 0.7,
+      },
     });
 
-    console.log('✅ Coverage tile layer added');
+    console.log("✅ Coverage tile layer added");
   };
 
   // Toggle layer visibility
   const toggleCoverageLayer = () => {
-    if (!map.current || !map.current.getLayer('coverage-layer')) return;
-    
+    if (!map.current || !map.current.getLayer("coverage-layer")) return;
+
     const newVisibility = !showCoverageLayer;
     map.current.setLayoutProperty(
-      'coverage-layer',
-      'visibility',
-      newVisibility ? 'visible' : 'none'
+      "coverage-layer",
+      "visibility",
+      newVisibility ? "visible" : "none"
     );
     setShowCoverageLayer(newVisibility);
   };
@@ -302,7 +301,7 @@ const MapComponentAnalytics: FC = () => {
     map.current.addControl(new ScaleControl(), "bottom-left");
 
     map.current.on("load", () => {
-      console.log('🗺️ Map loaded');
+      console.log("🗺️ Map loaded");
       setIsLoaded(true);
       if (!map.current) return;
       addTileLayer();
@@ -328,12 +327,12 @@ const MapComponentAnalytics: FC = () => {
     map.current.setStyle(basemaps[styleKey].style);
 
     map.current.once("style.load", () => {
-      console.log('🔄 Basemap switched to:', styleKey);
+      console.log("🔄 Basemap switched to:", styleKey);
       addTileLayer();
       addStationMarkers();
       // Restore layer visibility state
-      if (!showCoverageLayer && map.current?.getLayer('coverage-layer')) {
-        map.current.setLayoutProperty('coverage-layer', 'visibility', 'none');
+      if (!showCoverageLayer && map.current?.getLayer("coverage-layer")) {
+        map.current.setLayoutProperty("coverage-layer", "visibility", "none");
       }
     });
     setSwitcherOpen(false);
@@ -343,12 +342,17 @@ const MapComponentAnalytics: FC = () => {
     const newIndex = parseInt(e.target.value);
     setDateIndex(newIndex);
     // ในอนาคตจะเปลี่ยน tile URL ตามวันที่ที่เลือก
-    console.log('Selected date index:', newIndex, 'Date:', availableDates[newIndex]);
+    console.log(
+      "Selected date index:",
+      newIndex,
+      "Date:",
+      availableDates[newIndex]
+    );
   };
 
   return (
     <div className="relative w-full h-full bg-gray-900 font-sans rounded-xl">
-      <div ref={mapContainer} className="w-full h-full rounded-lg"/>
+      <div ref={mapContainer} className="w-full h-full rounded-lg" />
 
       {!isLoaded && (
         <div className="absolute inset-0 bg-slate-800 bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50">
@@ -428,7 +432,9 @@ const MapComponentAnalytics: FC = () => {
             ${!isLoaded ? "opacity-50 cursor-not-allowed" : ""}
             ${showCoverageLayer ? "ring-2 ring-blue-400" : ""}
           `}
-          title={showCoverageLayer ? "ซ่อน Coverage Layer" : "แสดง Coverage Layer"}
+          title={
+            showCoverageLayer ? "ซ่อน Coverage Layer" : "แสดง Coverage Layer"
+          }
         >
           {showCoverageLayer ? (
             <Eye className="h-6 w-6 text-blue-600" />
@@ -439,16 +445,20 @@ const MapComponentAnalytics: FC = () => {
       </div>
 
       {/* Timeline Slider Control */}
-      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-40 w-[500px]">
+      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-40 w-[350px]">
         <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-gray-200/50 p-4">
           <div className="flex items-center gap-3 mb-2">
             <Calendar className="h-5 w-5 text-blue-600 flex-shrink-0" />
             <div className="flex-1">
-              <div className="text-xs text-gray-500 font-medium">วันที่ภาพถ่าย</div>
-              <div className="text-sm font-bold text-gray-800">{availableDates[dateIndex]}</div>
+              <div className="text-xs text-gray-500 font-medium">
+                วันที่ภาพถ่าย
+              </div>
+              <div className="text-sm font-bold text-gray-800">
+                {availableDates[dateIndex]}
+              </div>
             </div>
           </div>
-          
+
           <div className="relative">
             <input
               type="range"
@@ -464,8 +474,44 @@ const MapComponentAnalytics: FC = () => {
               <span>ล่าสุด</span>
             </div>
           </div>
-          
-          
+        </div>
+      </div>
+
+      <div className="absolute top-48 right-4 z-40 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-3 max-w-xs border border-gray-200">
+
+        <div>
+          <h3 className="text-xs font-bold text-gray-800 mb-2 flex items-center gap-1">
+            <Droplets className="h-3.5 w-3.5" />
+            ระดับน้ำท่วม (ม.)
+          </h3>
+
+          <div className="flex gap-0.5 mb-1.5 rounded overflow-hidden shadow-sm">
+            {[
+              { range: "0-0.2", display: "0-0.2", color: "#FEF3C7" },
+              { range: "0.2-0.4", display: ">0.2-0.4", color: "#FDE047" },
+              { range: "0.4-0.6", display: ">0.4-0.6", color: "#FB923C" },
+              { range: "0.6-0.8", display: ">0.6-0.8", color: "#F87171" },
+              { range: ">0.8", display: ">0.8", color: "#DC2626" },
+            ].map((item, idx) => (
+              <div
+                key={idx}
+                className="flex-1 h-7 flex items-center justify-center"
+                style={{ backgroundColor: item.color }}
+                title={item.range + " ม."}
+              >
+                <span className="text-[8px] font-bold text-gray-800 leading-tight text-center">
+                  {item.display}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-between text-[9px] text-gray-600 px-0.5 mt-1">
+            <span>ปลอดภัย</span>
+            <span>ระวัง</span>
+            <span>อันตราย</span>
+            <span>วิกฤต</span>
+          </div>
         </div>
       </div>
 
@@ -475,14 +521,14 @@ const MapComponentAnalytics: FC = () => {
           width: 20px;
           height: 20px;
           border-radius: 50%;
-          background: #3B82F6;
+          background: #3b82f6;
           cursor: pointer;
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
           transition: all 0.2s;
         }
 
         .timeline-slider::-webkit-slider-thumb:hover {
-          background: #2563EB;
+          background: #2563eb;
           transform: scale(1.1);
           box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
         }
@@ -491,7 +537,7 @@ const MapComponentAnalytics: FC = () => {
           width: 20px;
           height: 20px;
           border-radius: 50%;
-          background: #3B82F6;
+          background: #3b82f6;
           cursor: pointer;
           border: none;
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
@@ -499,18 +545,18 @@ const MapComponentAnalytics: FC = () => {
         }
 
         .timeline-slider::-moz-range-thumb:hover {
-          background: #2563EB;
+          background: #2563eb;
           transform: scale(1.1);
           box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
         }
 
         .timeline-slider:disabled::-webkit-slider-thumb {
-          background: #9CA3AF;
+          background: #9ca3af;
           cursor: not-allowed;
         }
 
         .timeline-slider:disabled::-moz-range-thumb {
-          background: #9CA3AF;
+          background: #9ca3af;
           cursor: not-allowed;
         }
 
@@ -523,7 +569,7 @@ const MapComponentAnalytics: FC = () => {
           box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
           position: relative;
         }
-        
+
         .popup-close-btn {
           position: absolute;
           top: 10px;
@@ -539,21 +585,21 @@ const MapComponentAnalytics: FC = () => {
           transition: all 0.2s;
           z-index: 10;
         }
-        
+
         .popup-close-btn:hover {
           background: rgba(0, 0, 0, 0.7);
           transform: scale(1.05);
         }
-        
+
         .popup-close-btn svg {
           color: #fff;
         }
-        
+
         .popup-location-header {
           padding: 16px 14px 12px;
-          border-bottom: 1px solid #E5E7EB;
+          border-bottom: 1px solid #e5e7eb;
         }
-        
+
         .station-type-badge {
           display: inline-flex;
           align-items: center;
@@ -566,12 +612,12 @@ const MapComponentAnalytics: FC = () => {
           margin-bottom: 8px;
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-        
+
         .station-type-badge svg {
           width: 12px;
           height: 12px;
         }
-        
+
         .location-name {
           font-size: 15px;
           font-weight: 700;
@@ -579,30 +625,30 @@ const MapComponentAnalytics: FC = () => {
           margin: 0 0 4px 0;
           line-height: 1.3;
         }
-        
+
         .location-area {
           font-size: 11px;
-          color: #6B7280;
+          color: #6b7280;
           font-weight: 500;
         }
-        
+
         .popup-content-body {
           padding: 14px;
-          background: #F9FAFB;
+          background: #f9fafb;
         }
-        
+
         .data-label {
           font-size: 10px;
-          color: #6B7280;
+          color: #6b7280;
           margin-bottom: 8px;
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.3px;
         }
-        
+
         .data-value-box {
           background: white;
-          border: 2px solid #E5E7EB;
+          border: 2px solid #e5e7eb;
           border-radius: 10px;
           padding: 12px;
           display: flex;
@@ -610,68 +656,68 @@ const MapComponentAnalytics: FC = () => {
           gap: 6px;
           margin-bottom: 10px;
         }
-        
+
         .data-number {
           font-size: 32px;
           font-weight: 800;
-          color: #1F2937;
+          color: #1f2937;
           line-height: 1;
         }
-        
+
         .data-unit {
           font-size: 14px;
           font-weight: 600;
-          color: #6B7280;
+          color: #6b7280;
         }
-        
+
         .data-timestamp {
           display: flex;
           align-items: center;
           gap: 5px;
           font-size: 10px;
-          color: #9CA3AF;
+          color: #9ca3af;
           margin-bottom: 12px;
         }
-        
+
         .data-timestamp svg {
-          color: #9CA3AF;
+          color: #9ca3af;
         }
-        
+
         .detail-link {
           display: flex;
           align-items: center;
           justify-content: space-between;
           padding: 8px 12px;
           background: white;
-          border: 1px solid #E5E7EB;
+          border: 1px solid #e5e7eb;
           border-radius: 8px;
           cursor: pointer;
           transition: all 0.2s;
         }
-        
+
         .detail-link:hover {
-          background: #3B82F6;
-          border-color: #3B82F6;
+          background: #3b82f6;
+          border-color: #3b82f6;
           transform: translateY(-1px);
           box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
         }
-        
+
         .detail-link span {
           font-size: 11px;
           font-weight: 600;
-          color: #3B82F6;
+          color: #3b82f6;
           transition: color 0.2s;
         }
-        
+
         .detail-link:hover span {
           color: white;
         }
-        
+
         .detail-link svg {
-          color: #3B82F6;
+          color: #3b82f6;
           transition: color 0.2s;
         }
-        
+
         .detail-link:hover svg {
           color: white;
         }
@@ -706,7 +752,7 @@ const MapComponentAnalytics: FC = () => {
         .maplibregl-popup-tip {
           display: none;
         }
-        
+
         .maplibregl-popup-close-button {
           display: none;
         }

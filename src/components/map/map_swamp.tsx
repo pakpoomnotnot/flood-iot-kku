@@ -93,7 +93,7 @@ const MapComponentSwamp: FC = () => {
     RF: { color: "#8B5CF6", label: "ปริมาณฝน", icon: ICONS.cloudRain },
   };
 
-  // ฟังก์ชันสร้าง custom marker element
+  // ฟังก์ชันสร้าง custom marker element with water animation
   const createMarkerElement = (stationId: string): HTMLDivElement => {
     const el = document.createElement("div");
     el.className = "custom-marker-wrapper";
@@ -104,9 +104,20 @@ const MapComponentSwamp: FC = () => {
       icon: ICONS.mapPin,
     };
 
+    // Generate random water level (1-6 meters) for animation
+    const waterLevel = Math.random() * 5 + 1;
+    const waterHeight = Math.min((waterLevel / 6) * 100, 100);
+
     el.innerHTML = `
-      <div class="custom-marker" style="background: ${config.color}; border: 3px solid white;">
-        ${config.icon}
+      <div class="custom-marker-animated" style="--marker-color: ${config.color}; --water-height: ${waterHeight}%;">
+        <div class="marker-water-container">
+          <div class="marker-water-wave"></div>
+          <div class="marker-water-fill"></div>
+        </div>
+        <div class="marker-icon">
+          ${config.icon}
+        </div>
+        <div class="marker-ring"></div>
       </div>
     `;
     return el;
@@ -122,38 +133,39 @@ const MapComponentSwamp: FC = () => {
     };
 
     // Mock data based on station type
-    let mockValue: string;
+    let mockValue: number;
     let mockUnit: string;
     let mockLabel: string;
     
     switch (prefix) {
       case "RF": // ปริมาณฝน
-        mockValue = (Math.random() * 50).toFixed(1);
+        mockValue = Math.random() * 50;
         mockUnit = "มม.";
         mockLabel = "ปริมาณฝนสะสม";
         break;
       case "WP": // ท่อระบายน้ำ
-        mockValue = (Math.random() * 2 + 0.5).toFixed(2);
+        mockValue = Math.random() * 2 + 0.5;
         mockUnit = "ม.";
         mockLabel = "ระดับน้ำในท่อ";
         break;
       case "WR": // ระดับน้ำบนถนน
-        mockValue = (Math.random() * 0.8).toFixed(2);
+        mockValue = Math.random() * 0.8;
         mockUnit = "ม.";
         mockLabel = "ระดับน้ำท่วมถนน";
         break;
       case "PW": // บึง/หนองน้ำ
-        mockValue = (Math.random() * 5 + 1).toFixed(2);
+        mockValue = Math.random() * 5 + 1;
         mockUnit = "ม.";
         mockLabel = "ระดับน้ำในบึง";
         break;
       default:
-        mockValue = "N/A";
+        mockValue = 0;
         mockUnit = "";
         mockLabel = "ข้อมูล";
     }
     
     const mockDate = "4 ธ.ค. 2568 14:30";
+    const waterHeight = prefix === "PW" ? Math.min((mockValue / 6) * 100, 100) : 50;
 
     return `
       <div class="modern-popup">
@@ -176,10 +188,34 @@ const MapComponentSwamp: FC = () => {
         <div class="popup-content-body">
           <div class="data-label">${mockLabel}</div>
           
+          ${prefix === "PW" ? `
+          <div class="water-level-container">
+            <div class="water-tank" style="--popup-water-height: ${waterHeight}%;">
+              <div class="water-fill-popup">
+                <div class="water-wave-popup"></div>
+                <div class="water-shimmer-popup"></div>
+              </div>
+              <div class="water-level-text">
+                <span class="level-number">${mockValue.toFixed(2)}</span>
+                <span class="level-unit">${mockUnit}</span>
+              </div>
+              <div class="water-scale">
+                <div class="scale-line" style="bottom: 0%;"><span>0</span></div>
+                <div class="scale-line" style="bottom: 16.67%;"><span>1</span></div>
+                <div class="scale-line" style="bottom: 33.33%;"><span>2</span></div>
+                <div class="scale-line" style="bottom: 50%;"><span>3</span></div>
+                <div class="scale-line" style="bottom: 66.67%;"><span>4</span></div>
+                <div class="scale-line" style="bottom: 83.33%;"><span>5</span></div>
+                <div class="scale-line" style="bottom: 100%;"><span>6</span></div>
+              </div>
+            </div>
+          </div>
+          ` : `
           <div class="data-value-box">
-            <span class="data-number">${mockValue}</span>
+            <span class="data-number">${mockValue.toFixed(2)}</span>
             <span class="data-unit">${mockUnit}</span>
           </div>
+          `}
           
           <div class="data-timestamp">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -187,13 +223,6 @@ const MapComponentSwamp: FC = () => {
               <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
             <span>อัพเดท: ${mockDate}</span>
-          </div>
-          
-          <div class="detail-link">
-            <span>ดูรายละเอียดเพิ่มเติม</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
           </div>
         </div>
       </div>
@@ -571,25 +600,293 @@ const MapComponentSwamp: FC = () => {
           color: white;
         }
 
+        /* Water Tank Animation in Popup */
+        .water-level-container {
+          margin-bottom: 10px;
+        }
+        
+        .water-tank {
+          position: relative;
+          width: 100%;
+          height: 200px;
+          background: linear-gradient(180deg, #E0F2FE 0%, #F0F9FF 100%);
+          border: 3px solid #0EA5E9;
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: inset 0 2px 8px rgba(14, 165, 233, 0.1);
+        }
+        
+        .water-fill-popup {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: var(--popup-water-height);
+          background: linear-gradient(180deg,
+            rgba(6, 182, 212, 0.6) 0%,
+            rgba(14, 165, 233, 0.75) 50%,
+            rgba(8, 145, 178, 0.9) 100%
+          );
+          transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .water-wave-popup {
+          position: absolute;
+          top: -15px;
+          left: -50%;
+          width: 200%;
+          height: 30px;
+          background: radial-gradient(ellipse at center, 
+            rgba(255, 255, 255, 0.5) 0%, 
+            rgba(255, 255, 255, 0.2) 50%,
+            transparent 70%
+          );
+          border-radius: 45%;
+          animation: popupWaterWave 5s ease-in-out infinite;
+        }
+        
+        .water-shimmer-popup {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: linear-gradient(
+            45deg,
+            transparent 30%,
+            rgba(255, 255, 255, 0.3) 50%,
+            transparent 70%
+          );
+          background-size: 200% 200%;
+          animation: popupShimmer 4s ease-in-out infinite;
+        }
+        
+        @keyframes popupWaterWave {
+          0%, 100% {
+            transform: translateX(0) translateY(0) rotate(0deg);
+          }
+          25% {
+            transform: translateX(-15%) translateY(-3px) rotate(-2deg);
+          }
+          50% {
+            transform: translateX(0) translateY(-5px) rotate(0deg);
+          }
+          75% {
+            transform: translateX(-15%) translateY(-3px) rotate(2deg);
+          }
+        }
+        
+        @keyframes popupShimmer {
+          0%, 100% {
+            background-position: 0% 50%;
+            opacity: 0.5;
+          }
+          50% {
+            background-position: 100% 50%;
+            opacity: 0.8;
+          }
+        }
+        
+        .water-level-text {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          z-index: 10;
+          display: flex;
+          align-items: baseline;
+          gap: 6px;
+          background: rgba(255, 255, 255, 0.95);
+          padding: 12px 20px;
+          border-radius: 12px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          border: 2px solid #0EA5E9;
+        }
+        
+        .level-number {
+          font-size: 36px;
+          font-weight: 900;
+          color: #0369A1;
+          line-height: 1;
+          text-shadow: 0 2px 4px rgba(3, 105, 161, 0.1);
+        }
+        
+        .level-unit {
+          font-size: 16px;
+          font-weight: 700;
+          color: #0284C7;
+        }
+        
+        .water-scale {
+          position: absolute;
+          right: 8px;
+          top: 0;
+          bottom: 0;
+          width: 30px;
+          z-index: 5;
+        }
+        
+        .scale-line {
+          position: absolute;
+          right: 0;
+          width: 100%;
+          height: 1px;
+          background: rgba(14, 165, 233, 0.3);
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+        }
+        
+        .scale-line::before {
+          content: '';
+          position: absolute;
+          right: 0;
+          width: 8px;
+          height: 1px;
+          background: #0EA5E9;
+        }
+        
+        .scale-line span {
+          position: absolute;
+          right: 12px;
+          font-size: 9px;
+          font-weight: 700;
+          color: #0369A1;
+          background: rgba(255, 255, 255, 0.9);
+          padding: 1px 4px;
+          border-radius: 3px;
+          transform: translateY(-50%);
+        }
+
+        /* Water Animation Marker Styles */
         .custom-marker-wrapper {
           cursor: pointer;
         }
-        .custom-marker {
-          width: 36px;
-          height: 36px;
+        
+        .custom-marker-animated {
+          width: 40px;
+          height: 40px;
           border-radius: 50%;
+          position: relative;
           display: flex;
           justify-content: center;
           align-items: center;
-          color: white;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15),
-            0 2px 4px rgba(0, 0, 0, 0.1);
-          transition: all 0.2s ease;
+          border: 3px solid white;
+          background: var(--marker-color);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15),
+            0 2px 6px rgba(0, 0, 0, 0.1);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          overflow: hidden;
         }
-        .custom-marker-wrapper:hover .custom-marker {
-          transform: scale(1.2);
-          box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2),
-            0 4px 6px rgba(0, 0, 0, 0.15);
+        
+        .marker-water-container {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: var(--water-height);
+          overflow: hidden;
+          border-radius: 0 0 50% 50%;
+        }
+        
+        .marker-water-fill {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 100%;
+          background: linear-gradient(180deg, 
+            rgba(255, 255, 255, 0.3) 0%, 
+            rgba(255, 255, 255, 0.5) 50%,
+            rgba(255, 255, 255, 0.7) 100%
+          );
+          animation: waterShimmer 3s ease-in-out infinite;
+        }
+        
+        .marker-water-wave {
+          position: absolute;
+          top: -10px;
+          left: -50%;
+          width: 200%;
+          height: 20px;
+          background: rgba(255, 255, 255, 0.4);
+          border-radius: 45%;
+          animation: waterWave 4s ease-in-out infinite;
+        }
+        
+        @keyframes waterWave {
+          0%, 100% {
+            transform: translateX(0) translateY(0);
+          }
+          25% {
+            transform: translateX(-10%) translateY(-2px);
+          }
+          50% {
+            transform: translateX(0) translateY(-3px);
+          }
+          75% {
+            transform: translateX(-10%) translateY(-2px);
+          }
+        }
+        
+        @keyframes waterShimmer {
+          0%, 100% {
+            opacity: 0.6;
+          }
+          50% {
+            opacity: 0.9;
+          }
+        }
+        
+        .marker-icon {
+          position: relative;
+          z-index: 10;
+          color: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+        }
+        
+        .marker-ring {
+          position: absolute;
+          top: -4px;
+          left: -4px;
+          right: -4px;
+          bottom: -4px;
+          border-radius: 50%;
+          border: 2px solid var(--marker-color);
+          opacity: 0;
+          animation: ringPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes ringPulse {
+          0% {
+            transform: scale(0.95);
+            opacity: 0.8;
+          }
+          50% {
+            transform: scale(1.1);
+            opacity: 0;
+          }
+          100% {
+            transform: scale(0.95);
+            opacity: 0;
+          }
+        }
+        
+        .custom-marker-wrapper:hover .custom-marker-animated {
+          transform: scale(1.15);
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25),
+            0 4px 10px rgba(0, 0, 0, 0.15);
+        }
+        
+        .custom-marker-wrapper:hover .marker-water-wave {
+          animation-duration: 2s;
+        }
+        
+        .custom-marker-wrapper:hover .marker-ring {
+          animation-duration: 1.5s;
         }
 
         .maplibregl-popup-content {

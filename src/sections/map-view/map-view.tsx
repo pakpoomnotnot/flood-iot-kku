@@ -334,7 +334,7 @@ const MapView = () => {
                   </button>
                 </div>
 
-                <div className={`h-[50vh] w-full rounded-xl border border-[#ead0c7] bg-slate-900 shadow-inner lg:h-full lg:w-1/2 ${showTable ? "hidden lg:block" : "block"}`}>
+                <div className={`h-[100vh] w-full rounded-xl border border-[#ead0c7] bg-slate-900 shadow-inner lg:h-full lg:w-1/2 ${showTable ? "hidden lg:block" : "block"}`}>
                   {getMapComponent()}
                 </div>
 

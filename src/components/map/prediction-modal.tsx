@@ -283,9 +283,8 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* 24h Stats */}
                     <div 
-                      className="rounded-xl p-4 border"
+                      className="rounded-xl p-4 border bg-white"
                       style={{ 
-                        background: `linear-gradient(to bottom right, ${THEME_COLOR_LIGHTER}, #fff)`,
                         borderColor: THEME_COLOR_LIGHT
                       }}
                     >
@@ -329,9 +328,8 @@ export const PredictionModal: React.FC<PredictionModalProps> = ({
 
                     {/* 72h Stats */}
                     <div 
-                      className="rounded-xl p-4 border"
+                      className="rounded-xl p-4 border bg-white"
                       style={{ 
-                        background: `linear-gradient(to bottom right, ${THEME_COLOR_LIGHTER}, #fff)`,
                         borderColor: THEME_COLOR_LIGHT
                       }}
                     >

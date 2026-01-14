@@ -67,7 +67,6 @@ const MapComponentRoads: FC = () => {
   const [currentStyle, setCurrentStyle] = useState<BasemapStyleKey>("topo");
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [isSwitcherOpen, setSwitcherOpen] = useState<boolean>(false);
-  // Use station context
   const { setSelectedStationData } = useStation();
 
   const API_KEY: string = "yYduxrRP3C81U2fRFNIU";
@@ -85,7 +84,6 @@ const MapComponentRoads: FC = () => {
     },
   };
 
-  // Station type configurations
   const stationTypeConfig = {
     WP: { color: "#3B82F6", label: "ท่อระบายน้ำ", icon: ICONS.droplets },
     WR: { color: "#EF4444", label: "ระดับน้ำบนถนน", icon: ICONS.shieldAlert },
@@ -93,7 +91,6 @@ const MapComponentRoads: FC = () => {
     RF: { color: "#8B5CF6", label: "ปริมาณฝน", icon: ICONS.cloudRain },
   };
 
-  // ฟังก์ชันสร้าง custom marker element
   const createMarkerElement = (stationId: string): HTMLDivElement => {
     const el = document.createElement("div");
     el.className = "custom-marker-wrapper";
@@ -104,15 +101,24 @@ const MapComponentRoads: FC = () => {
       icon: ICONS.mapPin,
     };
 
+    const waterLevel = Math.random() * 0.8;
+    const waterHeight = Math.min((waterLevel / 1) * 100, 100);
+
     el.innerHTML = `
-      <div class="custom-marker" style="background: ${config.color}; border: 3px solid white;">
-        ${config.icon}
+      <div class="custom-marker-animated" style="--marker-color: ${config.color}; --water-height: ${waterHeight}%;">
+        <div class="marker-water-container">
+          <div class="marker-water-wave"></div>
+          <div class="marker-water-fill"></div>
+        </div>
+        <div class="marker-icon">
+          ${config.icon}
+        </div>
+        <div class="marker-ring"></div>
       </div>
     `;
     return el;
   };
 
-  // ฟังก์ชันสร้าง popup content
   const createPopupContent = (station: Station): string => {
     const prefix = station.id.substring(0, 2) as keyof typeof stationTypeConfig;
     const typeInfo = stationTypeConfig[prefix] || {
@@ -121,39 +127,39 @@ const MapComponentRoads: FC = () => {
       icon: ICONS.tag,
     };
 
-    // Mock data based on station type
-    let mockValue: string;
+    let mockValue: number;
     let mockUnit: string;
     let mockLabel: string;
     
     switch (prefix) {
-      case "RF": // ปริมาณฝน
-        mockValue = (Math.random() * 50).toFixed(1);
+      case "RF":
+        mockValue = Math.random() * 50;
         mockUnit = "มม.";
         mockLabel = "ปริมาณฝนสะสม";
         break;
-      case "WP": // ท่อระบายน้ำ
-        mockValue = (Math.random() * 2 + 0.5).toFixed(2);
+      case "WP":
+        mockValue = Math.random() * 2 + 0.5;
         mockUnit = "ม.";
         mockLabel = "ระดับน้ำในท่อ";
         break;
-      case "WR": // ระดับน้ำบนถนน
-        mockValue = (Math.random() * 0.8).toFixed(2);
+      case "WR":
+        mockValue = Math.random() * 0.8;
         mockUnit = "ม.";
         mockLabel = "ระดับน้ำท่วมถนน";
         break;
-      case "PW": // บึง/หนองน้ำ
-        mockValue = (Math.random() * 5 + 1).toFixed(2);
+      case "PW":
+        mockValue = Math.random() * 5 + 1;
         mockUnit = "ม.";
         mockLabel = "ระดับน้ำในบึง";
         break;
       default:
-        mockValue = "N/A";
+        mockValue = 0;
         mockUnit = "";
         mockLabel = "ข้อมูล";
     }
     
     const mockDate = "4 ธ.ค. 2568 14:30";
+    const waterHeight = prefix === "WR" ? Math.min((mockValue / 1) * 100, 100) : 50;
 
     return `
       <div class="modern-popup">
@@ -176,10 +182,48 @@ const MapComponentRoads: FC = () => {
         <div class="popup-content-body">
           <div class="data-label">${mockLabel}</div>
           
+          ${prefix === "WR" ? `
+          <div class="road-flood-container">
+            <div class="road-visualization">
+              <div class="road-surface">
+                <div class="road-marking road-marking-1"></div>
+                <div class="road-marking road-marking-2"></div>
+                <div class="road-marking road-marking-3"></div>
+              </div>
+              <div class="flood-water" style="--flood-height: ${waterHeight}%;">
+                <div class="water-flow-road">
+                  <div class="water-wave-road wave-1"></div>
+                  <div class="water-wave-road wave-2"></div>
+                  <div class="water-ripple ripple-1"></div>
+                  <div class="water-ripple ripple-2"></div>
+                  <div class="water-ripple ripple-3"></div>
+                </div>
+                <div class="debris debris-1">🍃</div>
+                <div class="debris debris-2">🍂</div>
+                <div class="debris debris-3">📄</div>
+              </div>
+              <div class="flood-level-indicator">
+                <div class="level-bar" style="height: ${waterHeight}%;"></div>
+                <div class="level-marks">
+                  <div class="level-mark" style="bottom: 0%;"><span>0</span></div>
+                  <div class="level-mark" style="bottom: 25%;"><span>0.2</span></div>
+                  <div class="level-mark" style="bottom: 50%;"><span>0.4</span></div>
+                  <div class="level-mark" style="bottom: 75%;"><span>0.6</span></div>
+                  <div class="level-mark" style="bottom: 100%;"><span>0.8</span></div>
+                </div>
+              </div>
+              <div class="road-level-text">
+                <span class="road-level-number">${mockValue.toFixed(2)}</span>
+                <span class="road-level-unit">${mockUnit}</span>
+              </div>
+            </div>
+          </div>
+          ` : `
           <div class="data-value-box">
-            <span class="data-number">${mockValue}</span>
+            <span class="data-number">${mockValue.toFixed(2)}</span>
             <span class="data-unit">${mockUnit}</span>
           </div>
+          `}
           
           <div class="data-timestamp">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -187,13 +231,6 @@ const MapComponentRoads: FC = () => {
               <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
             <span>อัพเดท: ${mockDate}</span>
-          </div>
-          
-          <div class="detail-link">
-            <span>ดูรายละเอียดเพิ่มเติม</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
           </div>
         </div>
       </div>
@@ -208,7 +245,6 @@ const MapComponentRoads: FC = () => {
     const data = stationsData as StationsData;
     data.stationTypes.forEach((stationType) => {
       stationType.stations.forEach((station) => {
-        // แสดงเฉพาะสถานีบึง/หนองน้ำ (PW)
         const prefix = station.id.substring(0, 2);
         if (prefix !== "WR") return;
 
@@ -227,7 +263,6 @@ const MapComponentRoads: FC = () => {
         }
 
         el.addEventListener("click", () => {
-          // Generate mock data and pass to sidebar
           const mockData = generateMockStationData(station);
           setSelectedStationData(mockData);
         });
@@ -280,7 +315,6 @@ const MapComponentRoads: FC = () => {
     <div className="relative w-full h-full bg-gray-900 font-sans rounded-xl">
       <div ref={mapContainer} className="w-full h-full rounded-lg"/>
 
-      {/* Loading Overlay */}
       {!isLoaded && (
         <div className="absolute inset-0 bg-slate-800 bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="text-center">
@@ -292,7 +326,6 @@ const MapComponentRoads: FC = () => {
         </div>
       )}
 
-      {/* Basemap Switcher */}
       <div className="absolute top-4 right-4 z-40">
         <div className="relative">
           <button
@@ -347,42 +380,37 @@ const MapComponentRoads: FC = () => {
         </div>
       </div>
 
-      {/* Legend (Bottom Right) */}
       <div className="absolute bottom-4 right-4 z-40 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-3 max-w-xs border border-gray-200">
-        {/* Station Type Legend */}
-        {/* <div className="mb-3">
+        <div className="mb-3">
           <h3 className="text-xs font-bold text-gray-800 mb-2 flex items-center gap-1">
-            <Waves className="h-3.5 w-3.5" />
-            สถานีตรวจระดับบนพื้นผิวถนน
+            <ShieldAlert className="h-3.5 w-3.5" />
+            สถานีตรวจวัดน้ำท่วมถนน
           </h3>
           <div className="flex items-center gap-2">
             <div
               className="w-6 h-6 rounded-full flex items-center justify-center shadow-sm border border-white"
-              style={{ backgroundColor: "#10B981" }}
-              dangerouslySetInnerHTML={{ __html: ICONS.waves }}
+              style={{ backgroundColor: "#EF4444" }}
+              dangerouslySetInnerHTML={{ __html: ICONS.shieldAlert }}
             />
             <span className="text-xs text-gray-700 font-medium">
-              บึง/หนองน้ำ
+              ระดับน้ำบนถนน
             </span>
           </div>
-        </div> */}
+        </div>
 
-        {/* Water Level Legend */}
         <div className="border-t border-gray-200 pt-3">
           <h3 className="text-xs font-bold text-gray-800 mb-2 flex items-center gap-1">
             <Droplets className="h-3.5 w-3.5" />
-            ระดับน้ำในบึง (ม.)
+            ระดับน้ำท่วมถนน (ม.)
           </h3>
           
           <div className="flex gap-0.5 mb-1.5 rounded overflow-hidden shadow-sm">
             {[
-              { range: "0-1", display: "0-1", color: "#BFDBFE" },
-              { range: "1-2", display: ">1-2", color: "#86EFAC" },
-              { range: "2-3", display: ">2-3", color: "#BEF264" },
-              { range: "3-4", display: ">3-4", color: "#FDE047" },
-              { range: "4-5", display: ">4-5", color: "#FB923C" },
-              { range: "5-6", display: ">5-6", color: "#F87171" },
-              { range: ">6", display: ">6", color: "#DC2626" },
+              { range: "0-0.2", display: "0-0.2", color: "#FEF3C7" },
+              { range: "0.2-0.4", display: ">0.2-0.4", color: "#FDE047" },
+              { range: "0.4-0.6", display: ">0.4-0.6", color: "#FB923C" },
+              { range: "0.6-0.8", display: ">0.6-0.8", color: "#F87171" },
+              { range: ">0.8", display: ">0.8", color: "#DC2626" },
             ].map((item, idx) => (
               <div
                 key={idx}
@@ -398,17 +426,15 @@ const MapComponentRoads: FC = () => {
           </div>
 
           <div className="flex justify-between text-[9px] text-gray-600 px-0.5 mt-1">
-            <span>ต่ำ</span>
-            <span>ปานกลาง</span>
-            <span>สูง</span>
-            <span>สูงมาก</span>
+            <span>ปลอดภัย</span>
+            <span>ระวัง</span>
+            <span>อันตราย</span>
+            <span>วิกฤต</span>
           </div>
         </div>
       </div>
 
-      {/* Custom Styles */}
       <style jsx global>{`
-        /* Modern Popup Styles */
         .modern-popup {
           font-family: system-ui, -apple-system, sans-serif;
           width: 260px;
@@ -545,16 +571,16 @@ const MapComponentRoads: FC = () => {
         }
         
         .detail-link:hover {
-          background: #3B82F6;
-          border-color: #3B82F6;
+          background: #EF4444;
+          border-color: #EF4444;
           transform: translateY(-1px);
-          box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+          box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
         }
         
         .detail-link span {
           font-size: 11px;
           font-weight: 600;
-          color: #3B82F6;
+          color: #EF4444;
           transition: color 0.2s;
         }
         
@@ -563,7 +589,7 @@ const MapComponentRoads: FC = () => {
         }
         
         .detail-link svg {
-          color: #3B82F6;
+          color: #EF4444;
           transition: color 0.2s;
         }
         
@@ -571,25 +597,494 @@ const MapComponentRoads: FC = () => {
           color: white;
         }
 
+        /* Road Flood Animation */
+        .road-flood-container {
+          margin-bottom: 10px;
+        }
+        
+        .road-visualization {
+          position: relative;
+          width: 100%;
+          height: 200px;
+          background: linear-gradient(180deg, #CBD5E1 0%, #94A3B8 100%);
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .road-surface {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 100%;
+          background: linear-gradient(180deg, #3F3F46 0%, #27272A 100%);
+          display: flex;
+          justify-content: space-around;
+          align-items: center;
+          padding: 0 20px;
+        }
+        
+        .road-marking {
+          width: 6px;
+          height: 40px;
+          background: linear-gradient(180deg, #FBBF24 0%, #F59E0B 100%);
+          border-radius: 3px;
+          box-shadow: 0 0 10px rgba(251, 191, 36, 0.6);
+          animation: markingFade 1.5s ease-in-out infinite;
+        }
+        
+        .road-marking-2 {
+          animation-delay: 0.5s;
+        }
+        
+        .road-marking-3 {
+          animation-delay: 1s;
+        }
+        
+        @keyframes markingFade {
+          0%, 100% {
+            opacity: 0.3;
+            transform: scaleY(0.95);
+          }
+          50% {
+            opacity: 1;
+            transform: scaleY(1);
+          }
+        }
+        
+        .flood-water {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: var(--flood-height);
+          background: linear-gradient(180deg,
+            rgba(14, 165, 233, 0.75) 0%,
+            rgba(2, 132, 199, 0.85) 50%,
+            rgba(3, 105, 161, 0.95) 100%
+          );
+          transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: inset 0 -20px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        .water-flow-road {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+        }
+        
+        .water-wave-road {
+          position: absolute;
+          top: -12px;
+          left: -50%;
+          width: 200%;
+          height: 24px;
+          background: radial-gradient(ellipse at center,
+            rgba(224, 242, 254, 0.95) 0%,
+            rgba(186, 230, 253, 0.8) 40%,
+            rgba(125, 211, 252, 0.5) 70%,
+            transparent 100%
+          );
+          border-radius: 50%;
+        }
+        
+        .wave-1 {
+          animation: roadWave1 3s ease-in-out infinite;
+          filter: drop-shadow(0 2px 4px rgba(14, 165, 233, 0.4));
+        }
+        
+        .wave-2 {
+          animation: roadWave2 4s ease-in-out infinite;
+          top: -8px;
+          opacity: 0.8;
+          filter: drop-shadow(0 1px 3px rgba(14, 165, 233, 0.3));
+        }
+        
+        @keyframes roadWave1 {
+          0%, 100% {
+            transform: translateX(0) translateY(0) scaleY(1);
+          }
+          50% {
+            transform: translateX(-25%) translateY(-5px) scaleY(1.2);
+          }
+        }
+        
+        @keyframes roadWave2 {
+          0%, 100% {
+            transform: translateX(-10%) translateY(0) scaleY(1);
+          }
+          50% {
+            transform: translateX(15%) translateY(-4px) scaleY(1.15);
+          }
+        }
+        
+        .water-ripple {
+          position: absolute;
+          width: 50px;
+          height: 50px;
+          border: 3px solid rgba(224, 242, 254, 0.7);
+          border-radius: 50%;
+          animation: rippleExpand 2.5s ease-out infinite;
+        }
+        
+        .ripple-1 {
+          top: 15%;
+          left: 20%;
+          animation-delay: 0s;
+        }
+        
+        .ripple-2 {
+          top: 45%;
+          left: 55%;
+          animation-delay: 0.8s;
+        }
+        
+        .ripple-3 {
+          top: 70%;
+          left: 35%;
+          animation-delay: 1.6s;
+        }
+        
+        @keyframes rippleExpand {
+          0% {
+            transform: scale(0.3);
+            opacity: 1;
+            border-width: 3px;
+          }
+          70% {
+            transform: scale(1.5);
+            opacity: 0.4;
+            border-width: 1px;
+          }
+          100% {
+            transform: scale(2);
+            opacity: 0;
+            border-width: 0;
+          }
+        }
+        
+        .debris {
+          position: absolute;
+          font-size: 20px;
+          filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+          animation: debrisFloat 10s linear infinite;
+          z-index: 5;
+        }
+        
+        .debris-1 {
+          top: 25%;
+          left: -10%;
+          animation-delay: 0s;
+          animation-duration: 10s;
+        }
+        
+        .debris-2 {
+          top: 55%;
+          left: -10%;
+          animation-delay: 3.5s;
+          animation-duration: 12s;
+        }
+        
+        .debris-3 {
+          top: 75%;
+          left: -10%;
+          animation-delay: 7s;
+          animation-duration: 11s;
+        }
+        
+        @keyframes debrisFloat {
+          0% {
+            left: -10%;
+            transform: translateY(0) rotate(0deg);
+          }
+          25% {
+            transform: translateY(-15px) rotate(90deg);
+          }
+          50% {
+            transform: translateY(-5px) rotate(180deg);
+          }
+          75% {
+            transform: translateY(-12px) rotate(270deg);
+          }
+          100% {
+            left: 110%;
+            transform: translateY(0) rotate(360deg);
+          }
+        }
+        
+        .flood-level-indicator {
+          position: absolute;
+          right: 12px;
+          top: 12px;
+          bottom: 12px;
+          width: 35px;
+          background: linear-gradient(180deg, 
+            rgba(15, 23, 42, 0.85) 0%,
+            rgba(30, 41, 59, 0.9) 100%
+          );
+          border-radius: 18px;
+          overflow: hidden;
+          z-index: 10;
+          border: 2px solid rgba(255, 255, 255, 0.3);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .level-bar {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          background: linear-gradient(180deg,
+            rgba(248, 113, 113, 1) 0%,
+            rgba(239, 68, 68, 1) 50%,
+            rgba(220, 38, 38, 1) 100%
+          );
+          transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+          border-radius: 18px 18px 0 0;
+          box-shadow: 
+            inset 0 2px 8px rgba(255, 255, 255, 0.3),
+            0 -2px 10px rgba(239, 68, 68, 0.6);
+          animation: levelPulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes levelPulse {
+          0%, 100% {
+            opacity: 0.9;
+          }
+          50% {
+            opacity: 1;
+            box-shadow: 
+              inset 0 2px 8px rgba(255, 255, 255, 0.4),
+              0 -2px 15px rgba(239, 68, 68, 0.8);
+          }
+        }
+        
+        .level-marks {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          left: 0;
+          right: 0;
+        }
+        
+        .level-mark {
+          position: absolute;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background: rgba(255, 255, 255, 0.6);
+        }
+        
+        .level-mark::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          width: 10px;
+          height: 2px;
+          background: #fff;
+          box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+        }
+        
+        .level-mark span {
+          position: absolute;
+          right: -32px;
+          top: -8px;
+          font-size: 9px;
+          font-weight: 800;
+          color: #0F172A;
+          background: rgba(255, 255, 255, 0.95);
+          padding: 2px 5px;
+          border-radius: 4px;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .road-level-text {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          z-index: 15;
+          display: flex;
+          align-items: baseline;
+          gap: 8px;
+          background: linear-gradient(135deg, 
+            rgba(255, 255, 255, 0.98) 0%,
+            rgba(254, 252, 232, 0.95) 100%
+          );
+          padding: 12px 20px;
+          border-radius: 12px;
+          box-shadow: 
+            0 8px 16px rgba(0, 0, 0, 0.25),
+            0 0 0 3px rgba(239, 68, 68, 0.5),
+            inset 0 1px 0 rgba(255, 255, 255, 0.8);
+          border: 3px solid #DC2626;
+          animation: textGlow 2s ease-in-out infinite;
+        }
+        
+        @keyframes textGlow {
+          0%, 100% {
+            box-shadow: 
+              0 8px 16px rgba(0, 0, 0, 0.25),
+              0 0 0 3px rgba(239, 68, 68, 0.5),
+              inset 0 1px 0 rgba(255, 255, 255, 0.8);
+          }
+          50% {
+            box-shadow: 
+              0 8px 20px rgba(0, 0, 0, 0.3),
+              0 0 0 3px rgba(239, 68, 68, 0.8),
+              0 0 20px rgba(239, 68, 68, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
+          }
+        }
+        
+        .road-level-number {
+          font-size: 38px;
+          font-weight: 900;
+          color: #991B1B;
+          line-height: 1;
+          text-shadow: 
+            0 2px 4px rgba(153, 27, 27, 0.2),
+            0 0 8px rgba(239, 68, 68, 0.3);
+        }
+        
+        .road-level-unit {
+          font-size: 16px;
+          font-weight: 800;
+          color: #DC2626;
+        }
+
+        /* Marker Animations */
         .custom-marker-wrapper {
           cursor: pointer;
         }
-        .custom-marker {
-          width: 36px;
-          height: 36px;
+        
+        .custom-marker-animated {
+          width: 40px;
+          height: 40px;
           border-radius: 50%;
+          position: relative;
           display: flex;
           justify-content: center;
           align-items: center;
-          color: white;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15),
-            0 2px 4px rgba(0, 0, 0, 0.1);
-          transition: all 0.2s ease;
+          border: 3px solid white;
+          background: var(--marker-color);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15),
+            0 2px 6px rgba(0, 0, 0, 0.1);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          overflow: hidden;
         }
-        .custom-marker-wrapper:hover .custom-marker {
-          transform: scale(1.2);
-          box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2),
-            0 4px 6px rgba(0, 0, 0, 0.15);
+        
+        .marker-water-container {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: var(--water-height);
+          overflow: hidden;
+          border-radius: 0 0 50% 50%;
+        }
+        
+        .marker-water-fill {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 100%;
+          background: linear-gradient(180deg, 
+            rgba(255, 255, 255, 0.3) 0%, 
+            rgba(255, 255, 255, 0.5) 50%,
+            rgba(255, 255, 255, 0.7) 100%
+          );
+          animation: waterShimmer 3s ease-in-out infinite;
+        }
+        
+        .marker-water-wave {
+          position: absolute;
+          top: -10px;
+          left: -50%;
+          width: 200%;
+          height: 20px;
+          background: rgba(255, 255, 255, 0.4);
+          border-radius: 45%;
+          animation: waterWave 4s ease-in-out infinite;
+        }
+        
+        @keyframes waterWave {
+          0%, 100% {
+            transform: translateX(0) translateY(0);
+          }
+          25% {
+            transform: translateX(-10%) translateY(-2px);
+          }
+          50% {
+            transform: translateX(0) translateY(-3px);
+          }
+          75% {
+            transform: translateX(-10%) translateY(-2px);
+          }
+        }
+        
+        @keyframes waterShimmer {
+          0%, 100% {
+            opacity: 0.6;
+          }
+          50% {
+            opacity: 0.9;
+          }
+        }
+        
+        .marker-icon {
+          position: relative;
+          z-index: 10;
+          color: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+        }
+        
+        .marker-ring {
+          position: absolute;
+          top: -4px;
+          left: -4px;
+          right: -4px;
+          bottom: -4px;
+          border-radius: 50%;
+          border: 2px solid var(--marker-color);
+          opacity: 0;
+          animation: ringPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes ringPulse {
+          0% {
+            transform: scale(0.95);
+            opacity: 0.8;
+          }
+          50% {
+            transform: scale(1.1);
+            opacity: 0;
+          }
+          100% {
+            transform: scale(0.95);
+            opacity: 0;
+          }
+        }
+        
+        .custom-marker-wrapper:hover .custom-marker-animated {
+          transform: scale(1.15);
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25),
+            0 4px 10px rgba(0, 0, 0, 0.15);
+        }
+        
+        .custom-marker-wrapper:hover .marker-water-wave {
+          animation-duration: 2s;
+        }
+        
+        .custom-marker-wrapper:hover .marker-ring {
+          animation-duration: 1.5s;
         }
 
         .maplibregl-popup-content {
