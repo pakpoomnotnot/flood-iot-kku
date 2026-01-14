@@ -12,6 +12,9 @@ import {
   ShieldAlert,
   Waves,
   X,
+  Eye,
+  EyeOff,
+  Calendar,
 } from "lucide-react";
 import maplibregl, {
   Map,
@@ -64,15 +67,22 @@ const MapComponentAnalytics: FC = () => {
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const map = useRef<Map | null>(null);
   const markersRef = useRef<Marker[]>([]);
-  const tilePopupRef = useRef<Popup | null>(null);
   const [currentStyle, setCurrentStyle] = useState<BasemapStyleKey>("topo");
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [isSwitcherOpen, setSwitcherOpen] = useState<boolean>(false);
+  const [showCoverageLayer, setShowCoverageLayer] = useState<boolean>(true);
+  const [dateIndex, setDateIndex] = useState<number>(0);
   const { setSelectedStationData } = useStation();
 
   const API_KEY: string = "yYduxrRP3C81U2fRFNIU";
   const TILE_API_KEY: string = "4EQdBsRp0yXvq5SIE4kf1mFOI3cAl6GFZBkLI5upxceF2huIDSOTpCRdIIyU3v84";
   const TILE_MAP_ID: string = "696656d2377df7824d3f7247";
+
+  // Mock available dates (ตอนนี้มีแค่วันเดียว แต่เตรียมไว้สำหรับในอนาคต)
+  const availableDates = [
+    "15 สิงหาคม 2568",
+    // เพิ่มวันที่ใหม่ตรงนี้ในอนาคต
+  ];
 
   const basemaps: Record<BasemapStyleKey, BasemapConfig> = {
     hybrid: {
@@ -198,68 +208,7 @@ const MapComponentAnalytics: FC = () => {
     `;
   };
 
-  // ฟังก์ชันสร้าง popup content สำหรับ tile layer
-  const createTilePopupContent = (lng: number, lat: number, data?: any): string => {
-    const value = data?.value || (Math.random() * 100).toFixed(2);
-    const label = data?.label || 'Coverage Value';
-    
-    return `
-      <div class="modern-popup">
-        <div class="popup-close-btn" onclick="this.closest('.maplibregl-popup').remove()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </div>
-        
-        <div class="popup-location-header" style="background: linear-gradient(135deg, #3B82F615 0%, #3B82F605 100%);">
-          <div class="station-type-badge" style="background: #3B82F6;">
-            ${ICONS.waves}
-            <span>Coverage Data</span>
-          </div>
-          <h3 class="location-name">${label}</h3>
-          <div class="location-area">พิกัด: ${lat.toFixed(4)}°, ${lng.toFixed(4)}°</div>
-        </div>
-        
-        <div class="popup-content-body">
-          <div class="data-label">ค่าที่วัดได้</div>
-          
-          <div class="data-value-box">
-            <span class="data-number">${value}</span>
-          </div>
-          
-          <div class="data-timestamp">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-            <span>อัพเดท: ${new Date().toLocaleString('th-TH')}</span>
-          </div>
-        </div>
-      </div>
-    `;
-  };
-
-  // ฟังก์ชันดึงข้อมูลจาก tile
-  const getTileData = async (lng: number, lat: number, zoom: number) => {
-    try {
-      const tileX = Math.floor((lng + 180) / 360 * Math.pow(2, zoom));
-      const tileY = Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom));
-      
-      const tileDataUrl = `https://vallaris.kku.ac.th/core/api/maps/coverage/1.0-beta/maps/${TILE_MAP_ID}/${zoom}/${tileX}/${tileY}.json?api_key=${TILE_API_KEY}`;
-      
-      const response = await fetch(tileDataUrl);
-      if (response.ok) {
-        return await response.json();
-      }
-      return null;
-    } catch (error) {
-      console.error("Error fetching tile data:", error);
-      return null;
-    }
-  };
-
-  // เพิ่ม tile layer และ click event
+  // เพิ่ม tile layer
   const addTileLayer = () => {
     if (!map.current) return;
 
@@ -271,12 +220,14 @@ const MapComponentAnalytics: FC = () => {
       map.current.removeSource('coverage-tiles');
     }
 
-    const tileUrl = `https://vallaris.kku.ac.th/core/api/maps/coverage/1.0-beta/maps/${TILE_MAP_ID}/{z}/{x}/{y}.png?api_key=${TILE_API_KEY}`;
+    const tileUrl = `https://vallaris.kku.ac.th/core/api/maps/coverage/1.0-beta/maps/${TILE_MAP_ID}/tms/{z}/{x}/{y}?api_key=${TILE_API_KEY}`;
 
     map.current.addSource('coverage-tiles', {
       type: 'raster',
       tiles: [tileUrl],
       tileSize: 256,
+      minzoom: 0,
+      maxzoom: 24,
     });
 
     map.current.addLayer({
@@ -288,29 +239,20 @@ const MapComponentAnalytics: FC = () => {
       }
     });
 
-    // เพิ่ม click event สำหรับแสดง popup
-    map.current.on('click', async (e) => {
-      const { lng, lat } = e.lngLat;
-      const zoom = Math.floor(map.current!.getZoom());
-      
-      // ดึงข้อมูลจาก tile
-      const tileData = await getTileData(lng, lat, zoom);
-      
-      // ลบ popup เดิม
-      if (tilePopupRef.current) {
-        tilePopupRef.current.remove();
-      }
-      
-      // สร้าง popup ใหม่
-      tilePopupRef.current = new Popup({ 
-        offset: 25, 
-        closeButton: false,
-        maxWidth: '300px'
-      })
-        .setLngLat([lng, lat])
-        .setHTML(createTilePopupContent(lng, lat, tileData))
-        .addTo(map.current!);
-    });
+    console.log('✅ Coverage tile layer added');
+  };
+
+  // Toggle layer visibility
+  const toggleCoverageLayer = () => {
+    if (!map.current || !map.current.getLayer('coverage-layer')) return;
+    
+    const newVisibility = !showCoverageLayer;
+    map.current.setLayoutProperty(
+      'coverage-layer',
+      'visibility',
+      newVisibility ? 'visible' : 'none'
+    );
+    setShowCoverageLayer(newVisibility);
   };
 
   const addStationMarkers = () => {
@@ -360,6 +302,7 @@ const MapComponentAnalytics: FC = () => {
     map.current.addControl(new ScaleControl(), "bottom-left");
 
     map.current.on("load", () => {
+      console.log('🗺️ Map loaded');
       setIsLoaded(true);
       if (!map.current) return;
       addTileLayer();
@@ -371,9 +314,6 @@ const MapComponentAnalytics: FC = () => {
     });
 
     return () => {
-      if (tilePopupRef.current) {
-        tilePopupRef.current.remove();
-      }
       markersRef.current.forEach((marker) => marker.remove());
       markersRef.current = [];
       map.current?.remove();
@@ -388,10 +328,22 @@ const MapComponentAnalytics: FC = () => {
     map.current.setStyle(basemaps[styleKey].style);
 
     map.current.once("style.load", () => {
+      console.log('🔄 Basemap switched to:', styleKey);
       addTileLayer();
       addStationMarkers();
+      // Restore layer visibility state
+      if (!showCoverageLayer && map.current?.getLayer('coverage-layer')) {
+        map.current.setLayoutProperty('coverage-layer', 'visibility', 'none');
+      }
     });
     setSwitcherOpen(false);
+  };
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newIndex = parseInt(e.target.value);
+    setDateIndex(newIndex);
+    // ในอนาคตจะเปลี่ยน tile URL ตามวันที่ที่เลือก
+    console.log('Selected date index:', newIndex, 'Date:', availableDates[newIndex]);
   };
 
   return (
@@ -409,6 +361,7 @@ const MapComponentAnalytics: FC = () => {
         </div>
       )}
 
+      {/* Basemap Switcher */}
       <div className="absolute top-4 right-4 z-40">
         <div className="relative">
           <button
@@ -463,7 +416,104 @@ const MapComponentAnalytics: FC = () => {
         </div>
       </div>
 
+      {/* Layer Toggle Button */}
+      <div className="absolute top-20 right-4 z-40">
+        <button
+          onClick={toggleCoverageLayer}
+          disabled={!isLoaded}
+          className={`
+            flex items-center justify-center w-12 h-12 bg-white rounded-full shadow-lg 
+            hover:bg-gray-100 transition-all duration-300 focus:outline-none focus:ring-2 
+            focus:ring-blue-500 focus:ring-opacity-50
+            ${!isLoaded ? "opacity-50 cursor-not-allowed" : ""}
+            ${showCoverageLayer ? "ring-2 ring-blue-400" : ""}
+          `}
+          title={showCoverageLayer ? "ซ่อน Coverage Layer" : "แสดง Coverage Layer"}
+        >
+          {showCoverageLayer ? (
+            <Eye className="h-6 w-6 text-blue-600" />
+          ) : (
+            <EyeOff className="h-6 w-6 text-gray-500" />
+          )}
+        </button>
+      </div>
+
+      {/* Timeline Slider Control */}
+      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-40 w-[500px]">
+        <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-gray-200/50 p-4">
+          <div className="flex items-center gap-3 mb-2">
+            <Calendar className="h-5 w-5 text-blue-600 flex-shrink-0" />
+            <div className="flex-1">
+              <div className="text-xs text-gray-500 font-medium">วันที่ภาพถ่าย</div>
+              <div className="text-sm font-bold text-gray-800">{availableDates[dateIndex]}</div>
+            </div>
+          </div>
+          
+          <div className="relative">
+            <input
+              type="range"
+              min="0"
+              max={availableDates.length - 1}
+              value={dateIndex}
+              onChange={handleDateChange}
+              disabled={!isLoaded || availableDates.length <= 1}
+              className="timeline-slider w-full h-2 bg-blue-100 rounded-lg appearance-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+            />
+            <div className="flex justify-between mt-2 text-xs text-gray-400">
+              <span>เก่าสุด</span>
+              <span>ล่าสุด</span>
+            </div>
+          </div>
+          
+          
+        </div>
+      </div>
+
       <style jsx global>{`
+        .timeline-slider::-webkit-slider-thumb {
+          appearance: none;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: #3B82F6;
+          cursor: pointer;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+          transition: all 0.2s;
+        }
+
+        .timeline-slider::-webkit-slider-thumb:hover {
+          background: #2563EB;
+          transform: scale(1.1);
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .timeline-slider::-moz-range-thumb {
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: #3B82F6;
+          cursor: pointer;
+          border: none;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+          transition: all 0.2s;
+        }
+
+        .timeline-slider::-moz-range-thumb:hover {
+          background: #2563EB;
+          transform: scale(1.1);
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .timeline-slider:disabled::-webkit-slider-thumb {
+          background: #9CA3AF;
+          cursor: not-allowed;
+        }
+
+        .timeline-slider:disabled::-moz-range-thumb {
+          background: #9CA3AF;
+          cursor: not-allowed;
+        }
+
         .modern-popup {
           font-family: system-ui, -apple-system, sans-serif;
           width: 260px;

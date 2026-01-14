@@ -22,8 +22,11 @@ import maplibregl, {
   MapMouseEvent,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import stationsData from "./stations_complete.json";
-import { useStation, generateMockStationData } from "@/contexts/station-context";
+import { 
+  useStation, 
+  generateMockStationData,
+  getStationTypeFromStation 
+} from "@/contexts/station-context";
 import { PredictionModal } from "./prediction-modal";
 
 // --- SVG Icons (เพื่อใช้ใน HTML String) ---
@@ -61,11 +64,6 @@ interface Station {
     frequency: string;
   }>;
 }
-interface StationsData {
-  project: string;
-  projectName: string;
-  stationTypes: Array<{ type: string; name: string; stations: Station[] }>;
-}
 
 const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
   const mapContainer = useRef<HTMLDivElement | null>(null);
@@ -84,7 +82,7 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
   const [selectedStationForPrediction, setSelectedStationForPrediction] = useState<Station | null>(null);
   
   // Use station context
-  const { setSelectedStationData } = useStation();
+  const { setSelectedStationData, getStationTypeConfig, getStationCounts, getAllStations } = useStation();
 
   const API_KEY: string = "yYduxrRP3C81U2fRFNIU";
 
@@ -101,32 +99,30 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
     },
   };
 
+  // Map icon name to React component
+  const getIconComponent = (iconName: string) => {
+    const iconMap: { [key: string]: string } = {
+      droplets: ICONS.droplets,
+      shieldAlert: ICONS.shieldAlert,
+      waves: ICONS.waves,
+      cloudRain: ICONS.cloudRain,
+      tag: ICONS.tag
+    };
+    return iconMap[iconName] || ICONS.tag;
+  };
+
   // ฟังก์ชันสร้าง custom marker element
-  const createMarkerElement = (stationId: string): HTMLDivElement => {
+  const createMarkerElement = (station: Station): HTMLDivElement => {
     const el = document.createElement("div");
     el.className = "custom-marker-wrapper";
 
-    const prefix = stationId.substring(0, 2);
-    let config = { color: "gray", icon: ICONS.mapPin };
-
-    switch (prefix) {
-      case "WP":
-        config = { color: "blue", icon: ICONS.droplets };
-        break;
-      case "WR":
-        config = { color: "red", icon: ICONS.shieldAlert };
-        break;
-      case "PW":
-        config = { color: "green", icon: ICONS.waves };
-        break;
-      case "RF":
-        config = { color: "purple", icon: ICONS.cloudRain };
-        break;
-    }
+    // Get station type from station data
+    const stationType = getStationTypeFromStation(station);
+    const config = getStationTypeConfig(stationType);
 
     el.innerHTML = `
       <div class="custom-marker marker-color-${config.color}">
-        ${config.icon}
+        ${getIconComponent(config.icon)}
       </div>
     `;
     return el;
@@ -134,35 +130,9 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
 
   // ฟังก์ชันสร้าง popup content
   const createPopupContent = (station: Station): string => {
-    const prefix = station.id.substring(0, 2);
-    let typeInfo = { label: "อื่นๆ", color: "gray", icon: ICONS.tag };
-
-    switch (prefix) {
-      case "WP":
-        typeInfo = {
-          label: "ท่อระบายน้ำ",
-          color: "blue",
-          icon: ICONS.droplets,
-        };
-        break;
-      case "WR":
-        typeInfo = {
-          label: "ระดับน้ำบนถนน",
-          color: "red",
-          icon: ICONS.shieldAlert,
-        };
-        break;
-      case "PW":
-        typeInfo = { label: "บึง/หนองน้ำ", color: "green", icon: ICONS.waves };
-        break;
-      case "RF":
-        typeInfo = {
-          label: "ปริมาณฝน",
-          color: "purple",
-          icon: ICONS.cloudRain,
-        };
-        break;
-    }
+    // Get station type from station data
+    const stationType = getStationTypeFromStation(station);
+    const typeInfo = getStationTypeConfig(stationType);
 
     const sensorsHtml = station.sensors
       .map(
@@ -218,32 +188,31 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
     markersRef.current.forEach((marker) => marker.remove());
     markersRef.current = [];
 
-    const data = stationsData as StationsData;
-    data.stationTypes.forEach((stationType) => {
-      stationType.stations.forEach((station) => {
-        const el = createMarkerElement(station.id);
-        const popup = new Popup({ offset: 35, closeButton: false }).setHTML(
-          createPopupContent(station)
-        );
+    const stations = getAllStations();
+    
+    stations.forEach((station) => {
+      const el = createMarkerElement(station);
+      const popup = new Popup({ offset: 35, closeButton: false }).setHTML(
+        createPopupContent(station)
+      );
 
-        const marker = new Marker({ element: el })
-          .setLngLat([station.location.longitude, station.location.latitude])
-          .setPopup(popup);
+      const marker = new Marker({ element: el })
+        .setLngLat([station.location.longitude, station.location.latitude])
+        .setPopup(popup);
 
-        if (map.current) {
-          marker.addTo(map.current);
-          markersRef.current.push(marker);
-        }
+      if (map.current) {
+        marker.addTo(map.current);
+        markersRef.current.push(marker);
+      }
 
-        el.addEventListener("click", () => {
-          setSelectedStation(station);
-          // Generate mock data and pass to sidebar
-          const mockData = generateMockStationData(station);
-          setSelectedStationData(mockData);
-          // Show prediction modal
-          setSelectedStationForPrediction(station);
-          setShowPredictionModal(true);
-        });
+      el.addEventListener("click", () => {
+        setSelectedStation(station);
+        // Generate mock data and pass to sidebar
+        const mockData = generateMockStationData(station);
+        setSelectedStationData(mockData);
+        // Show prediction modal
+        setSelectedStationForPrediction(station);
+        setShowPredictionModal(true);
       });
     });
   };
@@ -322,31 +291,6 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
     }
   };
 
-  // นับจำนวนสถานีแต่ละประเภท
-  const getStationCounts = () => {
-    const data = stationsData as StationsData;
-    const counts = {
-      waterLevelPipe: 0,
-      waterLevelRoad: 0,
-      pondWaterLevel: 0,
-      rainfallMeasurement: 0,
-      total: 0,
-    };
-
-    data.stationTypes.forEach((type) => {
-      const count = type.stations.length;
-      counts.total += count;
-
-      if (type.type === "waterLevelPipe") counts.waterLevelPipe = count;
-      else if (type.type === "waterLevelRoad") counts.waterLevelRoad = count;
-      else if (type.type === "pondWaterLevel") counts.pondWaterLevel = count;
-      else if (type.type === "rainfallMeasurement")
-        counts.rainfallMeasurement = count;
-    });
-
-    return counts;
-  };
-
   useEffect(() => {
     const checkScreenSize = () => {
       const width = window.innerWidth;
@@ -395,27 +339,26 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
         </div>
       )}
 
-      {/* {!isMobile &&  ( */}
-        <div className="absolute top-4 right-4 z-40">
-          <div className="relative">
-            {/* Floating Action Button */}
-            <button
-              onClick={() => setSwitcherOpen(!isSwitcherOpen)}
-              disabled={!isLoaded}
-              className={`
+      <div className="absolute top-4 right-4 z-40">
+        <div className="relative">
+          {/* Floating Action Button */}
+          <button
+            onClick={() => setSwitcherOpen(!isSwitcherOpen)}
+            disabled={!isLoaded}
+            className={`
               flex items-center justify-center w-12 h-12 bg-white rounded-full shadow-lg 
               hover:bg-gray-100 transition-all duration-300 focus:outline-none focus:ring-2 
               focus:ring-blue-500 focus:ring-opacity-50
               ${!isLoaded ? "opacity-50 cursor-not-allowed" : ""}
             `}
-              aria-label="Select Basemap"
-            >
-              <Layers className="h-6 w-6 text-gray-700" />
-            </button>
+            aria-label="Select Basemap"
+          >
+            <Layers className="h-6 w-6 text-gray-700" />
+          </button>
 
-            {/* Basemap Options Panel */}
-            <div
-              className={`
+          {/* Basemap Options Panel */}
+          <div
+            className={`
               absolute right-0 top-full mt-2 w-64 origin-top-right transition-all duration-300 ease-in-out
               ${
                 isSwitcherOpen && isLoaded
@@ -423,26 +366,26 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
                   : "opacity-0 scale-95 pointer-events-none"
               }
             `}
-            >
-              <div className="bg-white/90 backdrop-blur-md rounded-xl shadow-2xl border border-gray-200/50 p-3">
-                <div className="flex items-center space-x-2 mb-3 px-1">
-                  <MapIcon className="h-5 w-5 text-gray-600" />
-                  <h3 className="text-sm font-semibold text-gray-800">
-                    เลือกรูปแบบแผนที่
-                  </h3>
-                </div>
+          >
+            <div className="bg-white/90 backdrop-blur-md rounded-xl shadow-2xl border border-gray-200/50 p-3">
+              <div className="flex items-center space-x-2 mb-3 px-1">
+                <MapIcon className="h-5 w-5 text-gray-600" />
+                <h3 className="text-sm font-semibold text-gray-800">
+                  เลือกรูปแบบแผนที่
+                </h3>
+              </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  {(
-                    Object.entries(basemaps) as [
-                      BasemapStyleKey,
-                      BasemapConfig
-                    ][]
-                  ).map(([key, basemap]) => (
-                    <button
-                      key={key}
-                      onClick={() => switchBasemap(key)}
-                      className={`
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  Object.entries(basemaps) as [
+                    BasemapStyleKey,
+                    BasemapConfig
+                  ][]
+                ).map(([key, basemap]) => (
+                  <button
+                    key={key}
+                    onClick={() => switchBasemap(key)}
+                    className={`
                       flex flex-col items-center justify-center p-3 rounded-lg transition-all duration-200 
                       text-xs font-medium h-20
                       ${
@@ -451,22 +394,21 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
                           : "bg-gray-50/50 hover:bg-blue-100/80 text-gray-700 hover:shadow-sm"
                       }
                     `}
-                    >
-                      <span className="text-2xl mb-1">{basemap.icon}</span>
-                      <span className="text-center leading-tight">
-                        {basemap.name}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+                  >
+                    <span className="text-2xl mb-1">{basemap.icon}</span>
+                    <span className="text-center leading-tight">
+                      {basemap.name}
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
           </div>
         </div>
-      {/* )} */}
+      </div>
 
       {/* Selected Station Info Panel */}
-      {selectedStation && (
+      {/* {selectedStation && (
         <div className="absolute bottom-4 left-4 right-4 md:right-auto md:max-w-md z-40">
           <div className="bg-white/95 backdrop-blur-md rounded-xl shadow-2xl border border-gray-200/50 p-4">
             <div className="flex items-start justify-between mb-3">
@@ -527,7 +469,7 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
             </button>
           </div>
         </div>
-      )}
+      )} */}
 
       {/* Prediction Modal */}
       <PredictionModal

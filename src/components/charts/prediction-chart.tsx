@@ -128,12 +128,17 @@ export const PredictionChart: React.FC<PredictionChartProps> = ({
                   fontSize: '12px'
                 }}
                 labelStyle={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '4px', fontSize: '11px' }}
-                formatter={(value: number, name: string) => {
+                formatter={(value: number | undefined, name: string | undefined) => {
+                  // ✅ แก้ไข: เพิ่ม type guard
+                  if (value === undefined || value === null || name === undefined) {
+                    return ['N/A', 'Unknown'];
+                  }
+                  
                   if (name === 'predicted') return [`${value.toFixed(1)} ${unit}`, 'คาดการณ์'];
                   if (name === 'upperBound') return [`${value.toFixed(1)} ${unit}`, 'บน'];
                   if (name === 'lowerBound') return [`${value.toFixed(1)} ${unit}`, 'ล่าง'];
                   if (name === 'actual') return [`${value.toFixed(1)} ${unit}`, 'จริง'];
-                  return [value, name];
+                  return [value.toString(), name];
                 }}
               />
               

@@ -24,7 +24,7 @@ const navItems: NavItem[] = [
   { id: 'ponds', label: 'ระดับน้ำในบึง', icon: Waves },
   { id: 'drainage', label: 'ระบบตรวจวัดระดับน้ำในทางระบายน้ำ', icon: Gauge },
   { id: 'roads', label: 'ระบบตรวจวัดน้ำท่วมถนน', icon: Navigation },
-  { id: 'analysis', label: 'ผลวิเคราะห์ด้วยแบบจำลอง', icon: BarChart3 },
+  // { id: 'analysis', label: 'ผลวิเคราะห์ด้วยแบบจำลอง', icon: BarChart3 },
   { id: 'mapflood', label: 'พื้นที่เสี่ยงน้ำท่วม', icon: Waves },
   { id: 'alertanoncement', label: 'แนวทางป้องกันภัยน้ำท่วม', icon: Gauge },
 ];

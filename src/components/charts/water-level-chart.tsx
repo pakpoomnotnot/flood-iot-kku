@@ -42,6 +42,32 @@ interface WaterLevelChartProps {
   showStats?: boolean;
 }
 
+// ✅ Custom Tooltip Component
+const CustomTooltip = ({ active, payload }: any) => {
+  if (!active || !payload || !payload.length) return null;
+  
+  const data = payload[0].payload;
+  const value = payload[0].value;
+  
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-3" style={{ minWidth: '180px' }}>
+      <div className="space-y-1">
+        <div className="font-semibold text-blue-600 text-sm">{`${value} ซม.`}</div>
+        <div className="text-xs text-gray-600">ระดับน้ำสูงสุด</div>
+        {data.temperature && (
+          <div className="text-xs text-gray-500">อุณหภูมิ: {data.temperature.toFixed(1)}°C</div>
+        )}
+        {data.rainfall !== undefined && (
+          <div className="text-xs text-gray-500">ฝน: {data.rainfall} มม.</div>
+        )}
+        {data.dataPoints && (
+          <div className="text-xs text-gray-500">ข้อมูล: {data.dataPoints} จุด</div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const WaterLevelChart: React.FC<WaterLevelChartProps> = ({ 
   stationId, 
   timeRange = '24h', 
@@ -275,34 +301,8 @@ const WaterLevelChart: React.FC<WaterLevelChartProps> = ({
               domain={['dataMin - 5', 'dataMax + 5']}
               tickFormatter={(value) => `${value} ซม.`}
             />
-            <Tooltip
-              contentStyle={{ 
-                backgroundColor: 'white', 
-                borderColor: '#e5e7eb', 
-                borderRadius: '0.75rem',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                border: '1px solid #e5e7eb'
-              }}
-              labelStyle={{ fontWeight: 'bold', color: '#1f2937' }}
-              formatter={(value: number, name: string, props: any) => {
-                const data = props.payload;
-                return [
-                  <div key="tooltip" className="space-y-1">
-                    <div className="font-semibold text-blue-600">{`${value} ซม.`}</div>
-                    <div className="text-xs text-gray-600">ระดับน้ำสูงสุด</div>
-                    {data.temperature && (
-                      <div className="text-xs text-gray-500">อุณหภูมิ: {data.temperature.toFixed(1)}°C</div>
-                    )}
-                    {data.rainfall !== undefined && (
-                      <div className="text-xs text-gray-500">ฝน: {data.rainfall} มม.</div>
-                    )}
-                    {data.dataPoints && (
-                      <div className="text-xs text-gray-500">ข้อมูล: {data.dataPoints} จุด</div>
-                    )}
-                  </div>
-                ];
-              }}
-            />
+            {/* ✅ ใช้ Custom Tooltip Component แทน formatter */}
+            <Tooltip content={<CustomTooltip />} />
             <Area
               type="monotone"
               dataKey="water_level"
