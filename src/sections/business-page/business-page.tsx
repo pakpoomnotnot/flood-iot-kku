@@ -29,6 +29,7 @@ import {
   Activity,
 } from "lucide-react";
 import Link from "next/link";
+import { AuthButton } from "@/components/logout/logout";
 
 const BusinessPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -111,12 +112,7 @@ const BusinessPage = () => {
                 ผลกระทบ
               </a>
               <div className="w-px h-6 bg-gray-300 mx-2"></div>
-              <Link
-                href="/login"
-                className={`ml-2 px-6 py-2.5 ${brandGradient} text-white text-sm font-semibold rounded-lg hover:shadow-xl hover:scale-105 transition-all duration-300`}
-              >
-                เข้าสู่ระบบ
-              </Link>
+              <AuthButton brandGradient={brandGradient} />
             </div>
 
             {/* Mobile Menu Button */}
@@ -162,7 +158,7 @@ const BusinessPage = () => {
                 ผลกระทบ
               </a>
               <Link
-                href="/map"
+                href="/login"
                 className={`block w-full mt-4 px-4 py-3 ${brandGradient} text-white text-sm font-semibold rounded-lg text-center`}
               >
                 เข้าสู่ระบบ
@@ -228,7 +224,7 @@ const BusinessPage = () => {
                   href="/map"
                   className={`group inline-flex items-center justify-center px-8 py-4 ${brandGradient} text-white rounded-xl font-semibold shadow-xl shadow-[rgba(167,56,36,0.35)] hover:shadow-2xl hover:shadow-[rgba(167,56,36,0.45)] hover:scale-105 transition-all duration-300`}
                 >
-                  เข้าสู่แดชบอร์ด
+                  สำหรับประชาชนทั่วไป
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
                 <button className="group inline-flex items-center justify-center px-8 py-4 bg-white border-2 border-[#edd9d4] text-[#5c3d34] rounded-xl font-semibold hover:border-[#a73824] hover:text-[#a73824] transition-all duration-300">
@@ -868,7 +864,7 @@ const BusinessPage = () => {
               href="/map"
               className="group inline-flex items-center justify-center px-10 py-5 bg-white text-[#a73824] rounded-xl font-bold text-lg shadow-2xl hover:shadow-white/50 hover:scale-105 transition-all duration-300"
             >
-              เข้าสู่แดชบอร์ด
+              สำหรับประชาชนทั่วไป
               <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
             </Link>
             <a
