@@ -2,8 +2,8 @@ import React from "react";
 
 const HecRasFinalCode = () => {
   return (
-    <div className="p-6 bg-slate-50 min-h-screen flex flex-col items-center font-sans">
-      <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-[1100px] border border-slate-200">
+    <div className="p-0 bg-slate-50 min-h-screen flex flex-col items-center font-sans">
+      <div className="bg-white p-0 rounded-xl shadow-lg w-full max-w-[1100px] border border-slate-200">
         {/* <h2 className="text-2xl font-bold text-slate-800 mb-6 text-center">
           แผนผังโครงข่ายระบายน้ำ HEC-RAS (Complete Data & Updated UI)
         </h2> */}
@@ -73,14 +73,31 @@ const HecRasFinalCode = () => {
       stroke: white;
       stroke-width: 3;
     }
+
+    .node-place {
+      fill: #c41411;
+      stroke: white;
+      stroke-width: 2;
+    }
   `}
           </style>
+          {/* --- หนองเลิงเปือย --- */}
+          <ellipse cx="950" cy="300" rx="49" ry="49" className="pond-flat" />
+          <text x="805" y="110" className="text-[12px]">
+            ไม่พบข้อมูล %
+          </text>
+          <text x="805" y="150" className="text-main">
+            บึงทุ่งสร้าง
+          </text>
+          <text x="795" y="170" className="text-[10px]">
+            ความจุ XX ล้าน ลบ.ม.
+          </text>
 
           {/* --- ห้วยพระคือ (Outlet) --- */}
-          <rect x="940" y="50" width="40" height="550" fill="#22d3ee" rx="5" />
+          <rect x="865" y="550" width="40" height="250" fill="#22d3ee" rx="5" />
           <text
-            x="965"
-            y="320"
+            x="885"
+            y="630"
             className="text-main"
             style={{ writingMode: "vertical-rl" }}
           >
@@ -180,6 +197,11 @@ const HecRasFinalCode = () => {
             />
           </path>
 
+          <path d="M 920 140 L 950 140" className="pipe-main" />
+          <path d="M 950 128 L 950 242" className="pipe-main" />
+          <path d="M 880 230 L 950 230" className="pipe-main" />
+          <path d="M 885 218 L 885 490" className="pipe-main" />
+
           {/* สายที่ 5 (มะลิวัลย์) */}
           <path d="M 50 300 L 480 300" className="pipe-main" />
           <path
@@ -210,7 +232,7 @@ const HecRasFinalCode = () => {
           </path>
 
           {/* ท่อไทยพิพัฒน์ & บ้านคำไฮ */}
-          <path d="M 210 310 L 210 560" className="pipe-main" />
+          <path d="M 210 310 L 210 589" className="pipe-main" />
           <path
             d="M 210 380 L 210 460"
             stroke="#22c55e"
@@ -225,7 +247,7 @@ const HecRasFinalCode = () => {
             />
           </path>
 
-          <path d="M 300 310 L 300 560" className="pipe-main" />
+          <path d="M 300 310 L 300 590" className="pipe-main" />
           <path
             d="M 300 380 L 300 460"
             stroke="#22c55e"
@@ -348,9 +370,27 @@ const HecRasFinalCode = () => {
           <path d="M 780 520 L 780 480" className="pipe-main" />
 
           <path d="M 318 653 L 370 653" className="pipe-main" />
+          <path
+            d="M 950 180 L 950 220"
+            fill="none"
+            stroke="#22c55e"
+            strokeWidth="3"
+            markerEnd="url(#greenArrow)"
+          >
+            <animate
+              attributeName="opacity"
+              values="1;0.2;1"
+              dur="1s"
+              repeatCount="indefinite"
+            />
+          </path>
+
+          <text x="910" y="305" className="text-sm font-semibold">
+            หนองเลิงเปือย
+          </text>
 
           {/* จุดออกไปห้วยพระคือ (Red) */}
-          <path d="M 922 140 L 940 140" stroke="#ef4444" strokeWidth="8" />
+          <path d="M 885 490 L 885 550" stroke="#ef4444" strokeWidth="8" />
 
           {/* --- ข้อความและจุด Node --- */}
           <g>
@@ -515,6 +555,22 @@ const HecRasFinalCode = () => {
             <line x1="780" y1="720" x2="780" y2="750" />
             <line x1="480" y1="410" x2="480" y2="365" />
           </g> */}
+          {/* สถานที่สำคัญ */}
+          {/* มข */}
+          <circle cx="505" cy="59" r="6" className="node-place" />
+          {/* เซ็นทรัล */}
+          <circle cx="685" cy="505" r="6" className="node-place" />
+          <text x="640" y="530" className="text-sub text-right">
+            ศูนย์การค้าเซ็นทรัล
+          </text>
+          <circle cx="580" cy="450" r="6" className="node-place" />
+          <text x="550" y="432" className="text-sub text-right">
+            ตึก TRUE
+          </text>
+          <circle cx="580" cy="680" r="6" className="node-place" />
+          <text x="558" y="662" className="text-sub text-right">
+            Makro
+          </text>
         </svg>
 
         {/* Legend */}
@@ -530,7 +586,11 @@ const HecRasFinalCode = () => {
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded-full bg-blue-600 border border-white"></div>{" "}
-            จุดเริ่มต้น 
+            จุดเริ่มต้น
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded-full bg-[#c41411] border border-white"></div>{" "}
+            สถาที่สำคัญ
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-blue-200 border border-blue-800 opacity-80 rounded-full"></div>{" "}

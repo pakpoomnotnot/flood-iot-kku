@@ -1,35 +1,132 @@
-import { floodSituation, rainStations, evacuationZones, drainagePlan, emergencyContacts } from './map_help'
+import {
+  floodSituation,
+  rainStations,
+  evacuationZones,
+  drainagePlan,
+  emergencyContacts,
+} from "./map_help";
 
 export const generateOfficialPDFReport = async (): Promise<void> => {
   try {
     const { default: jsPDF } = await import("jspdf");
     const html2canvas = (await import("html2canvas")).default;
-    
+
     const d = new Date();
-    const dateStr = d.toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" });
-    const timeStr = d.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
-    
+    const dateStr = d.toLocaleDateString("th-TH", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    const timeStr = d.toLocaleTimeString("th-TH", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
     // ข้อมูลบึง (ตัวอย่าง - ใส่ไม่มีข้อมูลไปก่อน)
     const swampData = [
-      { name: 'บึงหนองโคตร', capacity: 0, current: 0, percent: 0, status: 'ไม่มีข้อมูล' },
-      { name: 'บึงแก่นนคร', capacity: 0, current: 0, percent: 0, status: 'ไม่มีข้อมูล' },
-      { name: 'บึงทุ่งสร้าง', capacity: 0, current: 0, percent: 0, status: 'ไม่มีข้อมูล' }
+      {
+        name: "บึงหนองโคตร",
+        capacity: 0,
+        current: 0,
+        percent: 0,
+        status: "ไม่มีข้อมูล",
+      },
+      {
+        name: "บึงแก่นนคร",
+        capacity: 0,
+        current: 0,
+        percent: 0,
+        status: "ไม่มีข้อมูล",
+      },
+      {
+        name: "บึงทุ่งสร้าง",
+        capacity: 0,
+        current: 0,
+        percent: 0,
+        status: "ไม่มีข้อมูล",
+      },
     ];
 
     // ข้อมูลท่อระบายน้ำ (ตัวอย่าง - ใส่ไม่มีข้อมูลไปก่อน)
     const drainageMonitoring = [
-      { location: 'ประตูระบายน้ำที่ 5 (ในท่อก่อนเข้า ปตร.5)', subdistrict: 'ต.ในเมือง', district: 'อ.เมือง', basin: 'ลุ่มน้ำชี', level: 0, maxLevel: 0, risk: '-', remaining: 0, time: '-', status: 'ไม่มีข้อมูล' },
-      { location: 'ถนนหมอชาญอุทิศ', subdistrict: 'ต.ในเมือง', district: 'อ.เมือง', basin: 'ลุ่มน้ำชี', level: 0, maxLevel: 0, risk: '-', remaining: 0, time: '-', status: 'ไม่มีข้อมูล' },
-      { location: 'ศูนย์วิจัยและเพาะเลี้ยงสัตว์น้ำจืด', subdistrict: 'ต.บ้านค้อ', district: 'อ.เมือง', basin: 'ลุ่มน้ำชี', level: 0, maxLevel: 0, risk: '-', remaining: 0, time: '-', status: 'ไม่มีข้อมูล' }
+      {
+        location: "ประตูระบายน้ำที่ 5 (ในท่อก่อนเข้า ปตร.5)",
+        subdistrict: "ต.ในเมือง",
+        district: "อ.เมือง",
+        basin: "ลุ่มน้ำชี",
+        level: 0,
+        maxLevel: 0,
+        risk: "-",
+        remaining: 0,
+        time: "-",
+        status: "ไม่มีข้อมูล",
+      },
+      {
+        location: "ถนนหมอชาญอุทิศ",
+        subdistrict: "ต.ในเมือง",
+        district: "อ.เมือง",
+        basin: "ลุ่มน้ำชี",
+        level: 0,
+        maxLevel: 0,
+        risk: "-",
+        remaining: 0,
+        time: "-",
+        status: "ไม่มีข้อมูล",
+      },
+      {
+        location: "ศูนย์วิจัยและเพาะเลี้ยงสัตว์น้ำจืด",
+        subdistrict: "ต.บ้านค้อ",
+        district: "อ.เมือง",
+        basin: "ลุ่มน้ำชี",
+        level: 0,
+        maxLevel: 0,
+        risk: "-",
+        remaining: 0,
+        time: "-",
+        status: "ไม่มีข้อมูล",
+      },
     ];
 
     // ข้อมูลน้ำท่วมบนผิวถนน (ตัวอย่าง - ใส่ไม่มีข้อมูลไปก่อน)
     const roadFloodMonitoring = [
-      { location: 'ถนนศรีจันทร์', subdistrict: 'ต.ในเมือง', district: 'อ.เมือง', basin: 'ลุ่มน้ำชี', level: 0, threshold: 0, status: '-', remaining: 0, time: '-', dataStatus: 'ไม่มีข้อมูล' },
-      { location: 'ถนนมิตรภาพ', subdistrict: 'ต.ในเมือง', district: 'อ.เมือง', basin: 'ลุ่มน้ำชี', level: 0, threshold: 0, status: '-', remaining: 0, time: '-', dataStatus: 'ไม่มีข้อมูล' },
-      { location: 'ถนนหน้ามหาวิทยาลัย', subdistrict: 'ต.ในเมือง', district: 'อ.เมือง', basin: 'ลุ่มน้ำชี', level: 0, threshold: 0, status: '-', remaining: 0, time: '-', dataStatus: 'ไม่มีข้อมูล' }
+      {
+        location: "ถนนศรีจันทร์",
+        subdistrict: "ต.ในเมือง",
+        district: "อ.เมือง",
+        basin: "ลุ่มน้ำชี",
+        level: 0,
+        threshold: 0,
+        status: "-",
+        remaining: 0,
+        time: "-",
+        dataStatus: "ไม่มีข้อมูล",
+      },
+      {
+        location: "ถนนมิตรภาพ",
+        subdistrict: "ต.ในเมือง",
+        district: "อ.เมือง",
+        basin: "ลุ่มน้ำชี",
+        level: 0,
+        threshold: 0,
+        status: "-",
+        remaining: 0,
+        time: "-",
+        dataStatus: "ไม่มีข้อมูล",
+      },
+      {
+        location: "ถนนหน้ามหาวิทยาลัย",
+        subdistrict: "ต.ในเมือง",
+        district: "อ.เมือง",
+        basin: "ลุ่มน้ำชี",
+        level: 0,
+        threshold: 0,
+        status: "-",
+        remaining: 0,
+        time: "-",
+        dataStatus: "ไม่มีข้อมูล",
+      },
     ];
-    
+
     const el = document.createElement("div");
     el.style.cssText = `
       position: absolute;
@@ -42,7 +139,7 @@ export const generateOfficialPDFReport = async (): Promise<void> => {
       font-size: 12px;
       line-height: 1.4;
     `;
-    
+
     el.innerHTML = `
       <div style="margin-bottom: 20px;">
   <!-- Row: Logos + Title -->
@@ -95,7 +192,9 @@ export const generateOfficialPDFReport = async (): Promise<void> => {
       <div style="background: #f0f0f0; border: 1px solid #333; padding: 8px 12px; margin-bottom: 18px;">
         <table style="width: 100%;">
           <tr>
-            <td style="font-size: 11px; font-weight: bold;">รายงานฉบับที่ ${floodSituation.announcementNo}</td>
+            <td style="font-size: 11px; font-weight: bold;">รายงานฉบับที่ ${
+              floodSituation.announcementNo
+            }</td>
             <td style="font-size: 11px; font-weight: bold; text-align: right;">เวลา ${timeStr} น. วันที่ ${dateStr}</td>
           </tr>
         </table>
@@ -177,16 +276,31 @@ export const generateOfficialPDFReport = async (): Promise<void> => {
             </tr>
           </thead>
           <tbody>
-            ${rainStations.slice(0, 15).map((station, idx) => `
-              <tr style="${idx % 2 === 0 ? 'background: #f5f5f5;' : ''}">
-                <td style="border: 1px solid #999; padding: 5px; text-align: center;">${station.stationCode}</td>
-                <td style="border: 1px solid #999; padding: 5px;">${station.nameTh}</td>
-                <td style="border: 1px solid #999; padding: 5px; text-align: center;">${station.lat.toFixed(3)}</td>
-                <td style="border: 1px solid #999; padding: 5px; text-align: center;">${station.long.toFixed(3)}</td>
-                <td style="border: 1px solid #999; padding: 5px; text-align: center; font-weight: bold;">${station.past24h || '-'}</td>
+            ${rainStations
+              .slice(0, 15)
+              .map(
+                (station, idx) => `
+              <tr style="${idx % 2 === 0 ? "background: #f5f5f5;" : ""}">
+                <td style="border: 1px solid #999; padding: 5px; text-align: center;">${
+                  station.stationCode
+                }</td>
+                <td style="border: 1px solid #999; padding: 5px;">${
+                  station.nameTh
+                }</td>
+                <td style="border: 1px solid #999; padding: 5px; text-align: center;">${station.lat.toFixed(
+                  3
+                )}</td>
+                <td style="border: 1px solid #999; padding: 5px; text-align: center;">${station.long.toFixed(
+                  3
+                )}</td>
+                <td style="border: 1px solid #999; padding: 5px; text-align: center; font-weight: bold;">${
+                  station.past24h || "-"
+                }</td>
                 <td style="border: 1px solid #999; padding: 5px; text-align: center; font-weight: bold; color: #666;">ไม่พบข้อมูล</td>
               </tr>
-            `).join('')}
+            `
+              )
+              .join("")}
           </tbody>
         </table>
       </div>
@@ -207,15 +321,29 @@ export const generateOfficialPDFReport = async (): Promise<void> => {
             </tr>
           </thead>
           <tbody>
-            ${swampData.map((swamp, idx) => `
-              <tr style="${idx % 2 === 0 ? 'background: #f5f5f5;' : ''}">
-                <td style="border: 1px solid #999; padding: 5px;">${swamp.name}</td>
-                <td style="border: 1px solid #999; padding: 5px; text-align: center; color: #999;">${swamp.capacity || '-'}</td>
-                <td style="border: 1px solid #999; padding: 5px; text-align: center; color: #999;">${swamp.current || '-'}</td>
-                <td style="border: 1px solid #999; padding: 5px; text-align: center; color: #999;">${swamp.percent || '-'}</td>
-                <td style="border: 1px solid #999; padding: 5px; text-align: center; color: #999; font-style: italic;">${swamp.status}</td>
+            ${swampData
+              .map(
+                (swamp, idx) => `
+              <tr style="${idx % 2 === 0 ? "background: #f5f5f5;" : ""}">
+                <td style="border: 1px solid #999; padding: 5px;">${
+                  swamp.name
+                }</td>
+                <td style="border: 1px solid #999; padding: 5px; text-align: center; color: #999;">${
+                  swamp.capacity || "-"
+                }</td>
+                <td style="border: 1px solid #999; padding: 5px; text-align: center; color: #999;">${
+                  swamp.current || "-"
+                }</td>
+                <td style="border: 1px solid #999; padding: 5px; text-align: center; color: #999;">${
+                  swamp.percent || "-"
+                }</td>
+                <td style="border: 1px solid #999; padding: 5px; text-align: center; color: #999; font-style: italic;">${
+                  swamp.status
+                }</td>
               </tr>
-            `).join('')}
+            `
+              )
+              .join("")}
           </tbody>
         </table>
       </div>
@@ -241,20 +369,44 @@ export const generateOfficialPDFReport = async (): Promise<void> => {
             </tr>
           </thead>
           <tbody>
-            ${drainageMonitoring.map((item, idx) => `
-              <tr style="${idx % 2 === 0 ? 'background: #f5f5f5;' : ''}">
-                <td style="border: 1px solid #999; padding: 4px; font-size: 8px;">${item.location}</td>
-                <td style="border: 1px solid #999; padding: 4px; text-align: center;">${item.subdistrict}</td>
-                <td style="border: 1px solid #999; padding: 4px; text-align: center;">${item.district}</td>
-                <td style="border: 1px solid #999; padding: 4px; text-align: center;">${item.basin}</td>
-                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999;">${item.level || '-'}</td>
-                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999;">${item.maxLevel || '-'}</td>
-                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999;">${item.risk}</td>
-                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999;">${item.remaining || '-'}</td>
-                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999;">${item.time}</td>
-                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999; font-style: italic;">${item.status}</td>
+            ${drainageMonitoring
+              .map(
+                (item, idx) => `
+              <tr style="${idx % 2 === 0 ? "background: #f5f5f5;" : ""}">
+                <td style="border: 1px solid #999; padding: 4px; font-size: 8px;">${
+                  item.location
+                }</td>
+                <td style="border: 1px solid #999; padding: 4px; text-align: center;">${
+                  item.subdistrict
+                }</td>
+                <td style="border: 1px solid #999; padding: 4px; text-align: center;">${
+                  item.district
+                }</td>
+                <td style="border: 1px solid #999; padding: 4px; text-align: center;">${
+                  item.basin
+                }</td>
+                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999;">${
+                  item.level || "-"
+                }</td>
+                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999;">${
+                  item.maxLevel || "-"
+                }</td>
+                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999;">${
+                  item.risk
+                }</td>
+                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999;">${
+                  item.remaining || "-"
+                }</td>
+                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999;">${
+                  item.time
+                }</td>
+                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999; font-style: italic;">${
+                  item.status
+                }</td>
               </tr>
-            `).join('')}
+            `
+              )
+              .join("")}
           </tbody>
         </table>
       </div>
@@ -280,20 +432,44 @@ export const generateOfficialPDFReport = async (): Promise<void> => {
             </tr>
           </thead>
           <tbody>
-            ${roadFloodMonitoring.map((item, idx) => `
-              <tr style="${idx % 2 === 0 ? 'background: #f5f5f5;' : ''}">
-                <td style="border: 1px solid #999; padding: 4px;">${item.location}</td>
-                <td style="border: 1px solid #999; padding: 4px; text-align: center;">${item.subdistrict}</td>
-                <td style="border: 1px solid #999; padding: 4px; text-align: center;">${item.district}</td>
-                <td style="border: 1px solid #999; padding: 4px; text-align: center;">${item.basin}</td>
-                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999;">${item.level || '-'}</td>
-                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999;">${item.threshold || '-'}</td>
-                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999;">${item.status}</td>
-                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999;">${item.remaining || '-'}</td>
-                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999;">${item.time}</td>
-                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999; font-style: italic;">${item.dataStatus}</td>
+            ${roadFloodMonitoring
+              .map(
+                (item, idx) => `
+              <tr style="${idx % 2 === 0 ? "background: #f5f5f5;" : ""}">
+                <td style="border: 1px solid #999; padding: 4px;">${
+                  item.location
+                }</td>
+                <td style="border: 1px solid #999; padding: 4px; text-align: center;">${
+                  item.subdistrict
+                }</td>
+                <td style="border: 1px solid #999; padding: 4px; text-align: center;">${
+                  item.district
+                }</td>
+                <td style="border: 1px solid #999; padding: 4px; text-align: center;">${
+                  item.basin
+                }</td>
+                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999;">${
+                  item.level || "-"
+                }</td>
+                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999;">${
+                  item.threshold || "-"
+                }</td>
+                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999;">${
+                  item.status
+                }</td>
+                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999;">${
+                  item.remaining || "-"
+                }</td>
+                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999;">${
+                  item.time
+                }</td>
+                <td style="border: 1px solid #999; padding: 4px; text-align: center; color: #999; font-style: italic;">${
+                  item.dataStatus
+                }</td>
               </tr>
-            `).join('')}
+            `
+              )
+              .join("")}
           </tbody>
         </table>
       </div>
@@ -312,17 +488,29 @@ export const generateOfficialPDFReport = async (): Promise<void> => {
             </tr>
           </thead>
           <tbody>
-            ${evacuationZones.map((zone, idx) => `
-              <tr style="${idx % 2 === 0 ? 'background: #f5f5f5;' : ''}">
+            ${evacuationZones
+              .map(
+                (zone, idx) => `
+              <tr style="${idx % 2 === 0 ? "background: #f5f5f5;" : ""}">
                 <td style="border: 1px solid #999; padding: 5px; text-align: center;">
-                  ${zone.riskLevel === 'CRITICAL' ? 'เตือนสีแดง' : 
-                    zone.riskLevel === 'WARNING' ? 'เตือนสีเหลือง' : 
-                    'เตือนสีเขียว'}
+                  ${
+                    zone.riskLevel === "CRITICAL"
+                      ? "เตือนสีแดง"
+                      : zone.riskLevel === "WARNING"
+                      ? "เตือนสีเหลือง"
+                      : "เตือนสีเขียว"
+                  }
                 </td>
-                <td style="border: 1px solid #999; padding: 5px;">${zone.zoneName}</td>
-                <td style="border: 1px solid #999; padding: 5px;">${zone.action} - ยกของสูง ${zone.itemHeight}</td>
+                <td style="border: 1px solid #999; padding: 5px;">${
+                  zone.zoneName
+                }</td>
+                <td style="border: 1px solid #999; padding: 5px;">${
+                  zone.action
+                } - ยกของสูง ${zone.itemHeight}</td>
               </tr>
-            `).join('')}
+            `
+              )
+              .join("")}
           </tbody>
         </table>
       </div>
@@ -342,14 +530,26 @@ export const generateOfficialPDFReport = async (): Promise<void> => {
             </tr>
           </thead>
           <tbody>
-            ${drainagePlan.map((item, idx) => `
-              <tr style="${idx % 2 === 0 ? 'background: #f5f5f5;' : ''}">
-                <td style="border: 1px solid #999; padding: 4px;">${item.location}</td>
-                <td style="border: 1px solid #999; padding: 4px; text-align: center;">${item.action}</td>
-                <td style="border: 1px solid #999; padding: 4px;">${item.target}</td>
-                <td style="border: 1px solid #999; padding: 4px; text-align: center;">${item.status}</td>
+            ${drainagePlan
+              .map(
+                (item, idx) => `
+              <tr style="${idx % 2 === 0 ? "background: #f5f5f5;" : ""}">
+                <td style="border: 1px solid #999; padding: 4px;">${
+                  item.location
+                }</td>
+                <td style="border: 1px solid #999; padding: 4px; text-align: center;">${
+                  item.action
+                }</td>
+                <td style="border: 1px solid #999; padding: 4px;">${
+                  item.target
+                }</td>
+                <td style="border: 1px solid #999; padding: 4px; text-align: center;">${
+                  item.status
+                }</td>
               </tr>
-            `).join('')}
+            `
+              )
+              .join("")}
           </tbody>
         </table>
       </div>
