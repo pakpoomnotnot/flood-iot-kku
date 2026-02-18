@@ -389,6 +389,22 @@ const HecRasFinalCode = () => {
             หนองเลิงเปือย
           </text>
 
+          {/* ท่อระบายน้ำข้างเซ็นทรัล */}
+           <path d="M 700 400 L 830 400" className="pipe-main" />
+           <path
+            d="M 730 400 L 800 400"
+            stroke="#22c55e"
+            strokeWidth="3"
+            markerEnd="url(#greenArrow)"
+          >
+            <animate
+              attributeName="opacity"
+              values="1;0.2;1"
+              dur="1s"
+              repeatCount="indefinite"
+            />
+          </path>
+
           {/* จุดออกไปห้วยพระคือ (Red) */}
           <path d="M 885 490 L 885 550" stroke="#ef4444" strokeWidth="8" />
 
@@ -544,6 +560,14 @@ const HecRasFinalCode = () => {
               style={{ fontSize: "12px" }}
             >
               ท่อระบายน้ำหลัก
+            </text>
+             <text
+              x="700"
+              y="380"
+              className="text-pipe"
+              style={{ fontSize: "12px" }}
+            >
+              ท่อระบายน้ำข้างเซนทรัล
             </text>
           </g>
 

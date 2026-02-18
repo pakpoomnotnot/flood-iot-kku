@@ -111,74 +111,30 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
     return iconMap[iconName] || ICONS.tag;
   };
 
-  // ฟังก์ชันสร้าง custom marker element
+  // ฟังก์ชันสร้าง custom marker element — สีเทาทั้งหมด
   const createMarkerElement = (station: Station): HTMLDivElement => {
     const el = document.createElement("div");
     el.className = "custom-marker-wrapper";
 
-    // Get station type from station data
     const stationType = getStationTypeFromStation(station);
     const config = getStationTypeConfig(stationType);
 
     el.innerHTML = `
-      <div class="custom-marker marker-color-${config.color}">
+      <div class="custom-marker marker-color-gray">
         ${getIconComponent(config.icon)}
       </div>
     `;
     return el;
   };
 
-  // ฟังก์ชันสร้าง popup content
-  const createPopupContent = (station: Station): string => {
-    // Get station type from station data
+  // ฟังก์ชันสร้าง minimal popup
+  const createCompactPopupContent = (station: Station): string => {
     const stationType = getStationTypeFromStation(station);
     const typeInfo = getStationTypeConfig(stationType);
-
-    const sensorsHtml = station.sensors
-      .map(
-        (sensor) => `
-      <li class="sensor-item">${sensor.name}</li>
-    `
-      )
-      .join("");
-
     return `
-      <div class="professional-popup">
-        <div class="popup-header color-${typeInfo.color}">
-          <h3 class="font-bold text-base">${station.name}</h3>
-          <p class="text-xs opacity-80">${station.location.area}</p>
-        </div>
-        
-        <div class="popup-body">
-          <div class="info-row">
-            <div class="info-icon">${ICONS.tag}</div>
-            <div class="info-text">
-              <span class="label">ประเภท</span>
-              <span class="value font-semibold color-text-${typeInfo.color}">${
-      typeInfo.label
-    }</span>
-            </div>
-            <span class="info-badge">${station.id}</span>
-          </div>
-          
-          <div class="info-row">
-            <div class="info-icon">${ICONS.mapPin}</div>
-            <div class="info-text">
-              <span class="label">พิกัด</span>
-              <span class="value font-mono text-xs">${station.location.latitude.toFixed(
-                6
-              )}, ${station.location.longitude.toFixed(6)}</span>
-            </div>
-          </div>
-          
-          <div class="info-section">
-            <div class="info-row-header">
-              <div class="info-icon">${ICONS.cpu}</div>
-              <span class="label">เซนเซอร์ที่ติดตั้ง</span>
-            </div>
-            <ul class="sensor-list">${sensorsHtml}</ul>
-          </div>
-        </div>
+      <div class="mini-popup">
+        <span class="mini-name">${station.name}</span>
+        <span class="mini-badge">${typeInfo.label}</span>
       </div>
     `;
   };
@@ -189,12 +145,16 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
     markersRef.current = [];
 
     const stations = getAllStations();
-    
+
     stations.forEach((station) => {
       const el = createMarkerElement(station);
-      const popup = new Popup({ offset: 35, closeButton: false }).setHTML(
-        createPopupContent(station)
-      );
+
+      const popup = new Popup({
+        offset: 40,
+        closeButton: false,
+        closeOnClick: true,
+        className: "mini-popup-wrapper",
+      }).setHTML(createCompactPopupContent(station));
 
       const marker = new Marker({ element: el })
         .setLngLat([station.location.longitude, station.location.latitude])
@@ -277,37 +237,21 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
       duration: 2000,
       essential: true,
     });
-
-    const marker = markersRef.current.find((m) => {
-      const lngLat = m.getLngLat();
-      return (
-        lngLat.lat === station.location.latitude &&
-        lngLat.lng === station.location.longitude
-      );
-    });
-
-    if (marker && !marker.getPopup().isOpen()) {
-      marker.togglePopup();
-    }
   };
 
   useEffect(() => {
     const checkScreenSize = () => {
       const width = window.innerWidth;
-      setIsMobile(width < 768); // < md
-      setIsTablet(width >= 768 && width < 1024); // md to lg
+      setIsMobile(width < 768);
+      setIsTablet(width >= 768 && width < 1024);
 
-      // ปรับ sidebar width ตามขนาดหน้าจอ
       if (width < 768) {
-        // Mobile: ซ่อน sidebar by default
         isWidth(0);
         setIsCollapsed(true);
       } else if (width >= 768 && width < 1024) {
-        // Tablet: ขนาดเล็กลง
         isWidth(320);
         setIsCollapsed(false);
       } else {
-        // Desktop: ขนาดปกติ
         if (sidebarWidth === 0) {
           isWidth(384);
           setIsCollapsed(false);
@@ -407,70 +351,6 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
         </div>
       </div>
 
-      {/* Selected Station Info Panel */}
-      {/* {selectedStation && (
-        <div className="absolute bottom-4 left-4 right-4 md:right-auto md:max-w-md z-40">
-          <div className="bg-white/95 backdrop-blur-md rounded-xl shadow-2xl border border-gray-200/50 p-4">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex-1">
-                <h3 className="font-bold text-base text-blue-900">
-                  {selectedStation.name}
-                </h3>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {selectedStation.location.area}
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedStation(null)}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">รหัสสถานี:</span>
-                <span className="font-semibold">{selectedStation.id}</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">พิกัด:</span>
-                <span className="font-mono text-xs">
-                  {selectedStation.location.latitude.toFixed(6)},{" "}
-                  {selectedStation.location.longitude.toFixed(6)}
-                </span>
-              </div>
-
-              <div className="pt-2 border-t">
-                <p className="text-xs font-semibold text-gray-700 mb-2">
-                  เซนเซอร์:
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {selectedStation.sensors.map((sensor, idx) => (
-                    <span
-                      key={idx}
-                      className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded-full font-medium"
-                    >
-                      {sensor.name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => flyToStation(selectedStation)}
-              className="w-full mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center shadow-sm hover:shadow-md"
-            >
-              <Navigation className="w-4 h-4 mr-2" />
-              บินไปที่สถานี
-            </button>
-          </div>
-        </div>
-      )} */}
-
       {/* Prediction Modal */}
       <PredictionModal
         station={selectedStationForPrediction}
@@ -483,164 +363,51 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
 
       {/* Custom Styles */}
       <style jsx global>{`
-        /* Professional Popup Styles */
-        .professional-popup {
-          font-family: system-ui, -apple-system, sans-serif;
-          min-width: 280px;
-          border-radius: 12px;
-          overflow: hidden;
-          background-color: #fff;
-          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
-            0 10px 10px -5px rgba(0, 0, 0, 0.04);
-        }
-        .popup-header {
-          padding: 14px 16px;
-          color: white;
-        }
-        .popup-body {
-          padding: 14px 16px;
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-        .info-row {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-        .info-row-header {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 8px;
-        }
-        .info-icon {
-          color: #6b7280;
-          flex-shrink: 0;
-        }
-        .info-text {
-          display: flex;
-          flex-direction: column;
-          flex-grow: 1;
-        }
-        .info-text .label {
-          font-size: 11px;
-          color: #6b7280;
-          font-weight: 500;
-          text-transform: uppercase;
-          letter-spacing: 0.025em;
-        }
-        .info-text .value {
-          font-size: 14px;
-          color: #1f2937;
-          margin-top: 2px;
-        }
-        .info-badge {
-          font-size: 11px;
-          font-weight: 600;
-          background-color: #f3f4f6;
-          color: #374151;
-          padding: 4px 10px;
-          border-radius: 9999px;
-        }
-        .info-section {
-          border-top: 1px solid #e5e7eb;
-          padding-top: 12px;
-        }
-        .sensor-list {
-          list-style: none;
-          padding-left: 28px;
-          margin: 0;
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-        .sensor-item {
-          font-size: 13px;
-          color: #374151;
-          position: relative;
-        }
-        .sensor-item::before {
-          content: "•";
-          color: #3b82f6;
-          position: absolute;
-          left: -16px;
-          font-weight: bold;
-        }
-
-        /* Color Themes */
-        .color-blue {
-          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-        }
-        .color-text-blue {
-          color: #2563eb;
-        }
-        .color-red {
-          background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-        }
-        .color-text-red {
-          color: #dc2626;
-        }
-        .color-green {
-          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        }
-        .color-text-green {
-          color: #059669;
-        }
-        .color-purple {
-          background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-        }
-        .color-text-purple {
-          color: #7c3aed;
-        }
-
-        /* Custom Marker Styles */
-        .custom-marker-wrapper {
-          cursor: pointer;
-        }
+        .custom-marker-wrapper { cursor: pointer; }
         .custom-marker {
-          width: 36px;
-          height: 36px;
+          width: 36px; height: 36px;
           border-radius: 50%;
-          display: flex;
-          justify-content: center;
-          align-items: center;
+          display: flex; justify-content: center; align-items: center;
           color: white;
           border: 3px solid white;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15),
-            0 2px 4px rgba(0, 0, 0, 0.1);
-          transition: all 0.2s ease;
+          box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
         .custom-marker-wrapper:hover .custom-marker {
           transform: scale(1.2);
-          box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2),
-            0 4px 6px rgba(0, 0, 0, 0.15);
-        }
-        .marker-color-blue {
-          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-        }
-        .marker-color-red {
-          background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-        }
-        .marker-color-green {
-          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        }
-        .marker-color-purple {
-          background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+          box-shadow: 0 8px 15px rgba(0,0,0,0.2);
         }
         .marker-color-gray {
-          background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+          background: linear-gradient(135deg, #6b7280, #4b5563);
         }
 
-        /* MapLibre Popup Overrides */
-        .maplibregl-popup-content {
-          padding: 0;
-          border-radius: 12px;
-          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
-            0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        /* Minimal popup */
+        .mini-popup-wrapper .maplibregl-popup-content {
+          padding: 6px 10px;
+          border-radius: 6px;
+          background: rgba(15, 23, 42, 0.88);
+          backdrop-filter: blur(4px);
+          box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          white-space: nowrap;
         }
-        .maplibregl-popup-tip {
-          display: none;
+        .mini-popup-wrapper .maplibregl-popup-tip { display: none; }
+        .mini-name {
+          font-size: 12px;
+          font-weight: 500;
+          color: #f1f5f9;
+          font-family: system-ui, sans-serif;
+        }
+        .mini-badge {
+          font-size: 10px;
+          font-weight: 600;
+          color: #94a3b8;
+          font-family: system-ui, sans-serif;
+          padding: 1px 5px;
+          background: rgba(255,255,255,0.1);
+          border-radius: 999px;
         }
       `}</style>
     </div>
