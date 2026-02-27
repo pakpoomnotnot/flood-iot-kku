@@ -18,14 +18,15 @@ import { DashboardNavAdmin } from "@/components/layout/dashboard-nav-admin";
 
 // --- 0. Interface ---
 interface WaterData {
-  station: string;
-  location: string;
-  basin: string;
-  level: number;
-  bankLevel: number;
-  status: string;
-  diff: number;
-  time: string;
+  station:      string;
+  location:     string;
+  basin:        string;
+  level:        number;
+  bankLevel:    number;
+  status:       string;
+  diff:         number;
+  time:         string;
+  stationCode?: string; // ← เพิ่มใหม่
 }
 
 // --- 1. ประเภท Tab ฝน ---
@@ -42,48 +43,52 @@ const RAINFALL_TABS: { key: RainfallTab; label: string }[] = [
 // --- 2. ข้อมูล Metadata สถานี ---
 const STATION_METADATA = [
   { id: "SNK_HOSP", name: "โรงพยาบาลศรีนครินทร์",        location: "ต. ในเมือง อ. เมือง" },
-  { id: "KKC_MUN", name: "เทศบาลนครขอนแก่น",             location: "ต. ในเมือง อ. เมือง" },
-  { id: "BKN",     name: "บึงแก่นนคร",                   location: "ต. ในเมือง อ. เมือง" },
-  { id: "BTS",     name: "บึงทุ่งสร้าง",                  location: "ต. ในเมือง อ. เมือง" },
-  { id: "NLP",     name: "หนองเลิงเปือย",                 location: "อ. เมือง" },
-  { id: "BNK",     name: "บึงหนองโคตร",                   location: "ต. บ้านเป็ด อ. เมือง" },
-  { id: "SIL_MUN", name: "เทศบาลเมืองศิลา",               location: "ต. ศิลา อ. เมือง" },
-  { id: "UNE_MC",  name: "ศูนย์อุตุนิยมวิทยาฯ",           location: "ต. ในเมือง อ. เมือง" },
-  { id: "MKO_MUN", name: "เทศบาลเมืองเก่า",               location: "ต. เมืองเก่า อ. เมือง" },
-  { id: "NEU",     name: "ม.ภาคตะวันออกเฉียงเหนือ",      location: "ต. ในเมือง อ. เมือง" },
-  { id: "UNE_SH",  name: "บ้านพักพนักงานอุตุฯ",           location: "ต. ในเมือง อ. เมือง" },
-  { id: "KKC_SP",  name: "อุทยานวิทยาศาสตร์ มข.",         location: "ต. ในเมือง อ. เมือง" },
-  { id: "BSV",     name: "หมู่บ้านสีวลี",                 location: "ต. บ้านเป็ด อ. เมือง" },
-  { id: "RMUTI",   name: "มทร.อีสาน ขอนแก่น",            location: "ต. ในเมือง อ. เมือง" },
-  { id: "KKC_BL",  name: "โรงเรียนสอนคนตาบอด",           location: "ต. ในเมือง อ. เมือง" },
+  { id: "KKC_MUN",  name: "เทศบาลนครขอนแก่น",            location: "ต. ในเมือง อ. เมือง" },
+  { id: "BKN",      name: "บึงแก่นนคร",                  location: "ต. ในเมือง อ. เมือง" },
+  { id: "BTS",      name: "บึงทุ่งสร้าง",                 location: "ต. ในเมือง อ. เมือง" },
+  { id: "NLP",      name: "หนองเลิงเปือย",                location: "อ. เมือง" },
+  { id: "BNK",      name: "บึงหนองโคตร",                  location: "ต. บ้านเป็ด อ. เมือง" },
+  { id: "SIL_MUN",  name: "เทศบาลเมืองศิลา",              location: "ต. ศิลา อ. เมือง" },
+  { id: "UNE_MC",   name: "ศูนย์อุตุนิยมวิทยาฯ",          location: "ต. ในเมือง อ. เมือง" },
+  { id: "MKO_MUN",  name: "เทศบาลเมืองเก่า",              location: "ต. เมืองเก่า อ. เมือง" },
+  { id: "NEU",      name: "ม.ภาคตะวันออกเฉียงเหนือ",     location: "ต. ในเมือง อ. เมือง" },
+  { id: "UNE_SH",   name: "บ้านพักพนักงานอุตุฯ",          location: "ต. ในเมือง อ. เมือง" },
+  { id: "KKC_SP",   name: "อุทยานวิทยาศาสตร์ มข.",        location: "ต. ในเมือง อ. เมือง" },
+  { id: "BSV",      name: "หมู่บ้านสีวลี",                location: "ต. บ้านเป็ด อ. เมือง" },
+  { id: "RMUTI",    name: "มทร.อีสาน ขอนแก่น",           location: "ต. ในเมือง อ. เมือง" },
+  { id: "KKC_BL",   name: "โรงเรียนสอนคนตาบอด",          location: "ต. ในเมือง อ. เมือง" },
 ];
 
-// --- 3. Mock Data สำหรับแต่ละ Tab ฝน ---
+// --- 3. Mock Data สำหรับแต่ละ Tab ฝน (tab ที่ยังไม่มี API จริง) ---
 const getRainfallMockData = (_tab: RainfallTab): WaterData[] => {
   const now = new Date();
-  const timeStr = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")} น.`;
+  const timeStr = `${now.getHours().toString().padStart(2, "0")}:${now
+    .getMinutes()
+    .toString()
+    .padStart(2, "0")} น.`;
 
   return STATION_METADATA.map((meta) => ({
-    station:   meta.name,
-    location:  meta.location,
-    basin:     "ลุ่มน้ำชี",
-    level:     0,
-    bankLevel: 0,
-    diff:      0,
-    status:    "ไม่มีฝน",
-    time:      timeStr,
+    station:     meta.name,
+    location:    meta.location,
+    basin:       "ลุ่มน้ำชี",
+    level:       0,
+    bankLevel:   0,
+    diff:        0,
+    status:      "ไม่มีฝน",
+    time:        timeStr,
+    stationCode: meta.id, // ← ส่ง stationCode ด้วย
   }));
 };
 
-
-// --- 4. Mock Data อื่นๆ ---
+// --- 4. Mock Data อื่นๆ (ponds, drainage, roads) ---
+// หมายเหตุ: สถานีเหล่านี้ไม่มีใน STATION_METADATA จึงไม่มี stationCode
 const dataByView: Record<string, WaterData[]> = {
   ponds: [
-    { station: "บึงแก่นนคร", location: "ต. บ้านเป็ด อ. เมือง", basin: "ลุ่มน้ำชี", level: 0, bankLevel: 0, status: "ปกติ", diff: 0, time: "14:30 น." },
+    { station: "บึงแก่นนคร", location: "ต. บ้านเป็ด อ. เมือง", basin: "ลุ่มน้ำชี", level: 0, bankLevel: 0, status: "ปกติ", diff: 0, time: "14:30 น.", stationCode: "BKN" },
     { station: "สะพาน บ้านทุ่งเศรษฐี (ทางน้ำเปิด)", location: "ต. หนองแสง อ. หนองแสง", basin: "ลุ่มน้ำชี", level: 0, bankLevel: 0, status: "ปกติ", diff: 0, time: "14:30 น." },
     { station: "คุ้มสีฐาน มหาวิทยาลัยขอนแก่น (ทางน้ำเปิด)", location: "ต. กุดบง อ. บ้านไผ่", basin: "ลุ่มน้ำชี", level: 0, bankLevel: 0, status: "ปกติ", diff: 0, time: "14:30 น." },
-    { station: "บึงทุ่งสร้าง", location: "ต. ทุ่งสร้าง อ. ชุมแพ", basin: "ลุ่มน้ำชี", level: 0, bankLevel: 0, status: "ปกติ", diff: 0, time: "14:30 น." },
-    { station: "บึงหนองโคตร", location: "ต. ทุ่งสร้าง อ. ชุมแพ", basin: "ลุ่มน้ำชี", level: 0, bankLevel: 0, status: "ปกติ", diff: 0, time: "14:30 น." },
+    { station: "บึงทุ่งสร้าง", location: "ต. ทุ่งสร้าง อ. ชุมแพ", basin: "ลุ่มน้ำชี", level: 0, bankLevel: 0, status: "ปกติ", diff: 0, time: "14:30 น.", stationCode: "BTS" },
+    { station: "บึงหนองโคตร", location: "ต. ทุ่งสร้าง อ. ชุมแพ", basin: "ลุ่มน้ำชี", level: 0, bankLevel: 0, status: "ปกติ", diff: 0, time: "14:30 น.", stationCode: "BNK" },
   ],
 
   drainage: [
@@ -102,7 +107,6 @@ const dataByView: Record<string, WaterData[]> = {
     { station: "ถนนหน้ามหาวิทยาลัย", location: "ต. ในเมือง อ. เมือง", basin: "ลุ่มน้ำชี", level: 0, bankLevel: 0, status: "ปกติ", diff: 0, time: "14:30 น." },
   ],
 };
-
 
 // ============================================================
 // Component: RainfallTabBar
@@ -142,13 +146,12 @@ const RainfallTabBar = ({
 // Main Component: MapViewAdmin
 // ============================================================
 const MapViewAdmin = () => {
-  const [activeView, setActiveView]           = useState("overview");
-  const [showTable, setShowTable]             = useState(false);
+  const [activeView, setActiveView]             = useState("overview");
+  const [showTable, setShowTable]               = useState(false);
   const [realRainfallData, setRealRainfallData] = useState<WaterData[]>([]);
-  // State สำหรับ Tab ฝน (default = "1hr")
-  const [rainfallTab, setRainfallTab]         = useState<RainfallTab>("1hr");
+  const [rainfallTab, setRainfallTab]           = useState<RainfallTab>("1hr");
 
-  // ดึงข้อมูลฝนจริงสำหรับ tab "1hr" (ตามเดิม)
+  // ดึงข้อมูลฝนจริงสำหรับ tab "1hr"
   const fetchRainData = async () => {
     try {
       const response = await fetch("http://10.198.110.39:3000/api/rain_1hr_2km?limit=1");
@@ -157,7 +160,10 @@ const MapViewAdmin = () => {
       if (result.status === "success" && result.data && result.data.length > 0) {
         const latestData = result.data[0];
         const dateObj    = new Date(latestData.datetime);
-        const timeStr    = `${dateObj.getHours().toString().padStart(2, "0")}:${dateObj.getMinutes().toString().padStart(2, "0")} น.`;
+        const timeStr    = `${dateObj.getHours().toString().padStart(2, "0")}:${dateObj
+          .getMinutes()
+          .toString()
+          .padStart(2, "0")} น.`;
 
         const rainValues: Record<string, number> = {};
         Object.entries(latestData.stations).forEach(([key, value]) => {
@@ -174,14 +180,15 @@ const MapViewAdmin = () => {
           else if (value > 0)  statusText = "เล็กน้อย";
 
           return {
-            station:   meta.name,
-            location:  meta.location,
-            basin:     "ลุ่มน้ำชี",
-            level:     Number(value.toFixed(1)),
-            bankLevel: 0,
-            diff:      0,
-            status:    statusText,
-            time:      timeStr,
+            station:     meta.name,
+            location:    meta.location,
+            basin:       "ลุ่มน้ำชี",
+            level:       Number(value.toFixed(1)),
+            bankLevel:   0,
+            diff:        0,
+            status:      statusText,
+            time:        timeStr,
+            stationCode: meta.id, // ← ส่ง stationCode ด้วย
           };
         });
 
@@ -200,7 +207,6 @@ const MapViewAdmin = () => {
   const getCurrentData = (): WaterData[] => {
     switch (activeView) {
       case "rainfall":
-        // ถ้า tab "1hr" และมีข้อมูลจริง → ใช้ข้อมูลจริง, นอกนั้นใช้ mock
         if (rainfallTab === "1hr" && realRainfallData.length > 0) {
           return realRainfallData;
         }

@@ -48,43 +48,87 @@ const getRainColor = (value: number) => {
 const CLOUD_RAIN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/></svg>`;
 
 // ─────────────────────────────────────────────
-// Types & Mock data generator
-// ค่า = 0 ทั้งหมด, 28 จุด: ย้อนหลัง 24 ชม. + ปัจจุบัน + forecast 3 ชม.
+// Types
 // ─────────────────────────────────────────────
 interface HourlyPoint {
-  label: string;
-  value: number | null;
-  forecastValue: number | null;
-  isCurrent: boolean;
-  isForecast: boolean;
+  label:         string;
+  value:         number | null;      // ข้อมูลจริง (lead_hour <= 0)
+  forecastValue: number | null;      // พยากรณ์ (lead_hour > 0)
+  isCurrent:     boolean;
+  isForecast:    boolean;
 }
 
-function generateMockHourly(): HourlyPoint[] {
+interface ForecastItem {
+  station_code:      string;
+  station_name:      string;
+  forecast_datetime: string;
+  rainfall_mm:       number;
+  lead_hour:         number;
+  model_run_time:    string;
+}
+
+interface ForecastResponse {
+  run:          { run_time: string };
+  count:        number;
+  station_code: string;
+  data:         ForecastItem[];
+}
+
+// ─────────────────────────────────────────────
+// แปลง API response → HourlyPoint[]
+// lead_hour <= 0  → value (น้ำเงิน)
+// lead_hour > 0   → forecastValue (ม่วง)
+// จุดที่ใกล้ปัจจุบัน → isCurrent = true, มีทั้ง value & forecastValue (จุดเชื่อมต่อ)
+// ─────────────────────────────────────────────
+function toHourlyPoints(items: ForecastItem[]): HourlyPoint[] {
   const now = new Date();
-  const points: HourlyPoint[] = [];
 
-  // ย้อนหลัง 24 ชม.
-  for (let i = 24; i >= 1; i--) {
-    const t = new Date(now.getTime() - i * 3_600_000);
-    const label = `${t.getDate()}-${t.toLocaleString("en", { month: "short" })} ${t.getHours().toString().padStart(2, "0")}:00`;
-    points.push({ label, value: 0, forecastValue: null, isCurrent: false, isForecast: false });
-  }
+  const sorted = [...items].sort(
+    (a, b) =>
+      new Date(a.forecast_datetime).getTime() -
+      new Date(b.forecast_datetime).getTime()
+  );
 
-  // ปัจจุบัน — จุดเชื่อมต่อ มีทั้ง value และ forecastValue
-  {
-    const t = new Date(now);
-    const label = `${t.getDate()}-${t.toLocaleString("en", { month: "short" })} ${t.getHours().toString().padStart(2, "0")}:00`;
-    points.push({ label, value: 0, forecastValue: 0, isCurrent: true, isForecast: false });
-  }
+  // หา index ที่ใกล้เวลาปัจจุบันที่สุด
+  let closestIdx = 0;
+  let minDiff = Infinity;
+  sorted.forEach((item, i) => {
+    const diff = Math.abs(new Date(item.forecast_datetime).getTime() - now.getTime());
+    if (diff < minDiff) {
+      minDiff = diff;
+      closestIdx = i;
+    }
+  });
 
-  // Forecast 3 ชม.
-  for (let i = 1; i <= 3; i++) {
-    const t = new Date(now.getTime() + i * 3_600_000);
-    const label = `${t.getDate()}-${t.toLocaleString("en", { month: "short" })} ${t.getHours().toString().padStart(2, "0")}:00`;
-    points.push({ label, value: null, forecastValue: 0, isCurrent: false, isForecast: true });
-  }
+  return sorted.map((item, i) => {
+    const t = new Date(item.forecast_datetime);
+    const label = `${t.getDate()}-${t.toLocaleString("en", { month: "short" })} ${t
+      .getHours()
+      .toString()
+      .padStart(2, "0")}:00`;
 
-  return points; // รวม 28 จุด
+    const isCurrent  = i === closestIdx;
+    const isForecast = item.lead_hour > 0;
+
+    // จุดเชื่อมต่อ (isCurrent) มีทั้งสองเส้น
+    if (isCurrent) {
+      return {
+        label,
+        value:         item.rainfall_mm,
+        forecastValue: item.rainfall_mm,
+        isCurrent:     true,
+        isForecast:    false,
+      };
+    }
+
+    return {
+      label,
+      value:         isForecast ? null : item.rainfall_mm,
+      forecastValue: isForecast ? item.rainfall_mm : null,
+      isCurrent:     false,
+      isForecast,
+    };
+  });
 }
 
 // ─────────────────────────────────────────────
@@ -95,7 +139,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   const isForecast = payload[0]?.payload?.isForecast;
   const displayValue =
     payload.find((p: any) => p.dataKey === "forecastValue" && p.value != null)?.value ??
-    payload.find((p: any) => p.dataKey === "value" && p.value != null)?.value ?? 0;
+    payload.find((p: any) => p.dataKey === "value"         && p.value != null)?.value ?? 0;
   return (
     <div className="rounded-lg border border-blue-100 bg-white px-3 py-2 shadow-lg text-xs">
       <p className="font-semibold text-gray-700">
@@ -112,21 +156,46 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 // ─────────────────────────────────────────────
-// Chart Modal
+// Chart Modal — ดึงข้อมูลจาก API จริง
 // ─────────────────────────────────────────────
 interface ChartModalProps {
-  station: typeof staticStations[0];
-  rainValue: number;
+  station:    typeof staticStations[0];
+  rainValue:  number;
   lastUpdate: string;
-  onClose: () => void;
+  onClose:    () => void;
 }
 
 const ChartModal: FC<ChartModalProps> = ({ station, rainValue, lastUpdate, onClose }) => {
-  const data = useMemo(() => generateMockHourly(), [station.id]);
+  const [data, setData]       = useState<HourlyPoint[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState<string | null>(null);
+  const [runTime, setRunTime] = useState<string | null>(null);
 
-  const currentLabel      = data.find((d) => d.isCurrent)?.label ?? "";
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(
+          `/api/rain/forecast-timeseries?station_code=${station.id}&limit=500`
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json: ForecastResponse = await res.json();
+        setRunTime(json.run?.run_time ?? null);
+        setData(toHourlyPoints(json.data ?? []));
+      } catch (e: any) {
+        setError(e.message ?? "โหลดข้อมูลไม่สำเร็จ");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [station.id]);
+
+  const currentLabel       = data.find((d) => d.isCurrent)?.label ?? "";
   const firstForecastLabel = data.find((d) => d.isForecast)?.label ?? "";
-  const tickLabels        = data.filter((_, i) => i % 3 === 0).map((d) => d.label);
+  const tickLabels         = data.filter((_, i) => i % 3 === 0).map((d) => d.label);
 
   const formatTime = (raw: string) => {
     try {
@@ -166,6 +235,11 @@ const ChartModal: FC<ChartModalProps> = ({ station, rainValue, lastUpdate, onClo
         {/* Sub-header */}
         <div className="flex flex-wrap gap-3 px-5 py-2.5 bg-blue-50/60 text-xs text-gray-500 border-b border-blue-100">
           <span>อัปเดตล่าสุด: {formatTime(lastUpdate)}</span>
+          {runTime && (
+            <span className="text-purple-500">
+              รันโมเดล: {formatTime(runTime)}
+            </span>
+          )}
           <span className="ml-auto font-semibold text-blue-700">
             ฝนสะสม 1 ชม.: {rainValue.toFixed(1)} มม.
           </span>
@@ -175,11 +249,11 @@ const ChartModal: FC<ChartModalProps> = ({ station, rainValue, lastUpdate, onClo
         <div className="flex items-center gap-4 px-5 pt-3 text-xs text-gray-500">
           <span className="flex items-center gap-1.5">
             <span className="inline-block h-2.5 w-2.5 rounded-full bg-blue-500" />
-            ข้อมูลย้อนหลัง 24 ชม.
+            ข้อมูลจริง
           </span>
           <span className="flex items-center gap-1.5">
             <span className="inline-block h-2.5 w-2.5 rounded-full bg-purple-500" />
-            พยากรณ์ล่วงหน้า 3 ชม.
+            พยากรณ์ล่วงหน้า
           </span>
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-5" style={{ borderTop: "2px dashed #f87171", height: 0 }} />
@@ -190,88 +264,121 @@ const ChartModal: FC<ChartModalProps> = ({ station, rainValue, lastUpdate, onClo
         {/* Chart */}
         <div className="px-4 pt-2 pb-5">
           <p className="text-[11px] font-medium text-gray-400 mb-2 uppercase tracking-wide">
-            ปริมาณน้ำฝนรายชั่วโมง (มม.) — ย้อนหลัง 24 ชม. + พยากรณ์ 3 ชม.
+            ปริมาณน้ำฝนรายชั่วโมง (มม.)
           </p>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={data} margin={{ top: 8, right: 10, left: -10, bottom: 5 }}>
-              <defs>
-                <linearGradient id="gradBlue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.03} />
-                </linearGradient>
-                <linearGradient id="gradPurple" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#a855f7" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#a855f7" stopOpacity={0.03} />
-                </linearGradient>
-              </defs>
 
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+          {loading ? (
+            <div className="flex h-[220px] items-center justify-center">
+              <div className="flex flex-col items-center gap-2 text-sm text-gray-400">
+                <svg className="h-6 w-6 animate-spin text-blue-400" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                กำลังโหลดข้อมูล...
+              </div>
+            </div>
+          ) : error ? (
+            <div className="flex h-[220px] items-center justify-center">
+              <div className="flex flex-col items-center gap-1 text-sm text-red-400">
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                </svg>
+                {error}
+              </div>
+            </div>
+          ) : data.length === 0 ? (
+            <div className="flex h-[220px] items-center justify-center text-sm text-gray-400">
+              ไม่มีข้อมูลสถานีนี้
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={data} margin={{ top: 8, right: 10, left: -10, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="gradBlue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.03} />
+                  </linearGradient>
+                  <linearGradient id="gradPurple" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#a855f7" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#a855f7" stopOpacity={0.03} />
+                  </linearGradient>
+                </defs>
 
-              <XAxis
-                dataKey="label"
-                ticks={tickLabels}
-                tick={{ fontSize: 9, fill: "#9ca3af" }}
-                tickLine={false}
-                axisLine={false}
-              />
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
 
-              <YAxis
-                tick={{ fontSize: 10, fill: "#9ca3af" }}
-                tickLine={false}
-                axisLine={false}
-                unit=" มม."
-              />
+                <XAxis
+                  dataKey="label"
+                  ticks={tickLabels}
+                  tick={{ fontSize: 9, fill: "#9ca3af" }}
+                  tickLine={false}
+                  axisLine={false}
+                />
 
-              <Tooltip content={<CustomTooltip />} />
+                <YAxis
+                  tick={{ fontSize: 10, fill: "#9ca3af" }}
+                  tickLine={false}
+                  axisLine={false}
+                  unit=" มม."
+                />
 
-              {/* เส้นแดงประ = ปัจจุบัน */}
-              <ReferenceLine
-                x={currentLabel}
-                stroke="#ef4444"
-                strokeWidth={1.5}
-                strokeDasharray="4 3"
-                label={{ value: "ปัจจุบัน", position: "top", fontSize: 10, fill: "#ef4444", fontWeight: 600 }}
-              />
+                <Tooltip content={<CustomTooltip />} />
 
-              {/* เส้นม่วงประ = เริ่ม forecast */}
-              <ReferenceLine
-                x={firstForecastLabel}
-                stroke="#a855f7"
-                strokeWidth={1}
-                strokeDasharray="3 3"
-              />
+                {/* เส้นแดงประ = ปัจจุบัน */}
+                {currentLabel && (
+                  <ReferenceLine
+                    x={currentLabel}
+                    stroke="#ef4444"
+                    strokeWidth={1.5}
+                    strokeDasharray="4 3"
+                    label={{ value: "ปัจจุบัน", position: "top", fontSize: 10, fill: "#ef4444", fontWeight: 600 }}
+                  />
+                )}
 
-              {/* กราฟเส้น historical (สีฟ้า) */}
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke="#3b82f6"
-                strokeWidth={2}
-                fill="url(#gradBlue)"
-                dot={{ r: 3, fill: "#3b82f6", stroke: "white", strokeWidth: 1 }}
-                activeDot={{ r: 5, fill: "#3b82f6", stroke: "white", strokeWidth: 1.5 }}
-                connectNulls={false}
-              />
+                {/* เส้นม่วงประ = เริ่ม forecast */}
+                {firstForecastLabel && firstForecastLabel !== currentLabel && (
+                  <ReferenceLine
+                    x={firstForecastLabel}
+                    stroke="#a855f7"
+                    strokeWidth={1}
+                    strokeDasharray="3 3"
+                  />
+                )}
 
-              {/* กราฟเส้น forecast (สีม่วงประ) */}
-              <Area
-                type="monotone"
-                dataKey="forecastValue"
-                stroke="#a855f7"
-                strokeWidth={2}
-                strokeDasharray="5 3"
-                fill="url(#gradPurple)"
-                dot={{ r: 3, fill: "#a855f7", stroke: "white", strokeWidth: 1 }}
-                activeDot={{ r: 5, fill: "#a855f7", stroke: "white", strokeWidth: 1.5 }}
-                connectNulls={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+                {/* กราฟเส้น historical (สีฟ้า) */}
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  fill="url(#gradBlue)"
+                  dot={{ r: 3, fill: "#3b82f6", stroke: "white", strokeWidth: 1 }}
+                  activeDot={{ r: 5, fill: "#3b82f6", stroke: "white", strokeWidth: 1.5 }}
+                  connectNulls={false}
+                />
+
+                {/* กราฟเส้น forecast (สีม่วงประ) */}
+                <Area
+                  type="monotone"
+                  dataKey="forecastValue"
+                  stroke="#a855f7"
+                  strokeWidth={2}
+                  strokeDasharray="5 3"
+                  fill="url(#gradPurple)"
+                  dot={{ r: 3, fill: "#a855f7", stroke: "white", strokeWidth: 1 }}
+                  activeDot={{ r: 5, fill: "#a855f7", stroke: "white", strokeWidth: 1.5 }}
+                  connectNulls={false}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {/* Footer */}
         <div className="flex justify-end px-5 pb-4">
-          <button onClick={onClose} className="rounded-lg bg-gray-100 px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-200 transition-colors font-medium">
+          <button
+            onClick={onClose}
+            className="rounded-lg bg-gray-100 px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-200 transition-colors font-medium"
+          >
             ปิด
           </button>
         </div>
