@@ -492,7 +492,7 @@ const MapComponentSwamp: FC = () => {
     try {
       setApiLoading(true);
       setApiError(null);
-      const res  = await fetch("http://localhost:3000/api/lake");
+      const res  = await fetch("/api/lake");
       if (!res.ok) throw new Error(`API ตอบกลับ ${res.status}`);
       const json: LakesApiResponse = await res.json();
       lakesDataRef.current = json.lakes;
