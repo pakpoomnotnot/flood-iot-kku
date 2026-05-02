@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, FC, useMemo } from "react";
-import { Layers, Map as MapIcon, Droplets, Waves } from "lucide-react";
+import { Layers, Map as MapIcon } from "lucide-react";
 import maplibregl, { Map, Marker, Popup, ScaleControl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
@@ -28,6 +28,7 @@ const ICONS = {
 // ─────────────────────────────────────────────
 interface BasemapConfig { name: string; style: string; icon: string; }
 type BasemapStyleKey = "hybrid" | "topo";
+
 interface Station {
   id: string; no: number; name: string;
   location: { latitude: number; longitude: number; area: string };
@@ -36,6 +37,184 @@ interface Station {
 interface StationsData {
   project: string; projectName: string;
   stationTypes: Array<{ type: string; name: string; stations: Station[] }>;
+}
+
+// ── CHANGE 1: เพิ่ม field water_volume_m3, water_area_m2, capacity_pct จาก API ──
+interface LakeApiItem {
+  lake_id: string;
+  name_th: string;
+  name_en: string;
+  location: { lat: number; lng: number };
+  status: "ok" | "error" | "no_data";
+  water_level?: number;
+  water_flow?: number;
+  water_total?: number;
+  rain_value?: number;
+  rain_daily?: number;
+  air_temp?: number;
+  air_humid?: number;
+  wind_direction_name?: string;
+  date_time?: string;
+  water_volume_m3?: number;   // ปริมาตรน้ำ ลบ.ม. จาก API โดยตรง
+  water_area_m2?: number;     // พื้นที่ผิวน้ำ ตร.ม. จาก API โดยตรง
+  capacity_pct?: number;      // % ความจุ จาก API โดยตรง
+  error?: string;
+}
+interface LakesApiResponse {
+  fetched_at: string;
+  count: number;
+  lakes: LakeApiItem[];
+}
+
+// ─────────────────────────────────────────────
+// LAV (Level–Area–Volume) lookup tables
+// ─────────────────────────────────────────────
+interface LavInfo {
+  name_th: string;
+  name_en: string;
+  maxVol: number;
+  maxArea: number;
+  maxLevel: number;
+  table: [number, number, number][];
+}
+
+const LAV_DATA: Record<string, LavInfo> = {
+  Lake_04: {
+    name_th: "บึงหนองโคตร", name_en: "Bueng Nong Khot",
+    maxLevel: 155.0, maxVol: 7042958.829, maxArea: 1091408.30,
+    table: [
+      [155.0, 1091408.30, 7042958.829],
+      [154.5, 1082261.86, 6499502.459],
+      [154.0, 1070785.25, 5961217.788],
+      [153.5, 1051155.60, 5431230.875],
+      [153.0, 1033267.54, 4909906.539],
+      [152.5, 1015241.26, 4397662.928],
+      [152.0,  998249.51, 3894825.483],
+      [151.5,  979688.97, 3400359.133],
+      [151.0,  958023.69, 2916040.387],
+      [150.5,  928415.59, 2444380.698],
+      [150.0,  884737.59, 1991166.335],
+      [149.5,  821914.62, 1561960.896],
+      [149.0,  735077.25, 1170074.717],
+      [148.5,  625223.68,  829540.808],
+      [148.0,  452735.38,  566579.393],
+      [147.5,  320752.68,  374294.954],
+      [147.0,  235260.02,  238270.355],
+      [146.5,  162074.05,  142121.555],
+      [146.0,  106837.00,   77902.363],
+      [145.5,   55900.69,   43025.011],
+      [145.0,   35902.28,   20976.852],
+      [144.5,   18540.02,    8457.009],
+      [144.0,    8858.72,    2317.830],
+      [143.5,    2641.99,     245.266],
+      [143.0,      61.41,       0.000],
+    ],
+  },
+  Lake_01: {
+    name_th: "บึงแก่นนคร", name_en: "Bueng Kaen Nakhon",
+    maxLevel: 152.0, maxVol: 1800273.44, maxArea: 604444.60,
+    table: [
+      [152.0, 604444.60, 1800273.44],
+      [151.5, 596553.82, 1499434.18],
+      [151.0, 590101.47, 1202730.07],
+      [150.5, 573454.11,  912835.53],
+      [150.0, 537618.64,  633312.88],
+      [149.5, 437042.52,  386984.34],
+      [149.0, 307379.96,  201313.08],
+      [148.5, 175730.32,   80190.36],
+      [148.0,  89470.15,   13967.17],
+      [147.5,   5601.33,     944.03],
+      [147.0,    713.17,      95.39],
+    ],
+  },
+  Lake_02: {
+    name_th: "บึงทุ่งสร้าง (ตะวันตก)", name_en: "Bueng Thung Sang (W)",
+    maxLevel: 150.0, maxVol: 2240580.209, maxArea: 742715.252,
+    table: [
+      [150.0, 742715.252, 2240580.209],
+      [149.5, 728119.710, 1872613.424],
+      [149.0, 709894.577, 1512923.241],
+      [148.5, 672133.779, 1168838.097],
+      [148.0, 653026.598,  837623.486],
+      [147.5, 633984.684,  515923.480],
+      [147.0, 595332.889,  210643.401],
+      [146.5, 176572.427,   17941.403],
+      [146.0,  15865.753,    1259.342],
+    ],
+  },
+  Lake_03: {
+    name_th: "หนองเลิงเปือย (ตะวันออก)", name_en: "Nong Loeng Phuai (E)",
+    maxLevel: 151.5, maxVol: 1374617.490, maxArea: 300597.883,
+    table: [
+      [151.5, 300597.883, 1374617.490],
+      [151.0, 294528.131, 1225826.964],
+      [150.5, 288410.097, 1080085.479],
+      [150.0, 276435.774,  938885.265],
+      [149.5, 256420.342,  805568.543],
+      [149.0, 235258.272,  683157.218],
+      [148.5, 224103.445,  568467.528],
+      [148.0, 211944.453,  459508.669],
+      [147.5, 199358.150,  356694.676],
+      [147.0, 181922.376,  260595.203],
+      [146.5, 152651.150,  176641.370],
+      [146.0, 105758.932,  113336.951],
+      [145.5,  70154.586,   71275.541],
+      [145.0,  52412.629,   41682.544],
+      [144.5,  37669.750,   19191.062],
+      [144.0,  20047.157,    5728.448],
+      [143.5,   8037.282,       0.000],
+    ],
+  },
+};
+
+// ─────────────────────────────────────────────
+// LAV interpolation helper
+// ─────────────────────────────────────────────
+function interpolateLAV(lakeId: string, level: number): { area: number; vol: number; pct: number } {
+  const info = LAV_DATA[lakeId];
+  if (!info) return { area: 0, vol: 0, pct: 0 };
+
+  const table = info.table;
+  let area = 0;
+  let vol = 0;
+
+  if (level >= table[0][0]) {
+    [, area, vol] = table[0];
+  } else if (level <= table[table.length - 1][0]) {
+    [, area, vol] = table[table.length - 1];
+  } else {
+    for (let i = 0; i < table.length - 1; i++) {
+      const [l1, a1, v1] = table[i];
+      const [l2, a2, v2] = table[i + 1];
+      if (level <= l1 && level >= l2) {
+        const t = (level - l2) / (l1 - l2);
+        area = a2 + t * (a1 - a2);
+        vol  = v2 + t * (v1 - v2);
+        break;
+      }
+    }
+  }
+
+  const pct = Math.min(100, Math.max(0, (vol / info.maxVol) * 100));
+  return { area, vol, pct };
+}
+
+// ── CHANGE 2: fmtVol แสดงตัวเลขจริงเป็น ลบ.ม. พร้อม comma separator ──
+function fmtVol(v: number): string {
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(3)} ล้าน ลบ.ม.`;
+  if (v >= 1_000)     return `${(v / 1_000).toFixed(1)} พัน ลบ.ม.`;
+  return `${v.toFixed(2)} ลบ.ม.`;
+}
+
+// ── ฟังก์ชันแสดงปริมาตรเต็มๆ พร้อม comma สำหรับ popup และ modal ──
+function fmtVolFull(v: number): string {
+  // แสดงเป็น ลบ.ม. พร้อม comma separator ทศนิยม 2 ตำแหน่ง
+  return `${v.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ลบ.ม.`;
+}
+
+function fmtArea(a: number): string {
+  if (a >= 1_000_000) return `${(a / 1_000_000).toFixed(4)} ตร.กม.`;
+  return `${a.toLocaleString("th-TH", { maximumFractionDigits: 0 })} ตร.ม.`;
 }
 
 // ─────────────────────────────────────────────
@@ -49,19 +228,17 @@ const stationTypeConfig = {
 };
 
 // ─────────────────────────────────────────────
-// Legend segments (ระดับน้ำในบึง)
+// Legend segments
 // ─────────────────────────────────────────────
 const LEGEND_SEGMENTS = [
-  { range: "0-1",   color: "#81d4fa", label: "" },
-  { range: ">1-2",  color: "#d0f8ce", label: "" },
-  { range: ">2-3",  color: "#7cb342", label: "" },
-  { range: ">3-4",  color: "#fdd835", label: "" },
-  { range: ">4-5",  color: "#f57f17", label: "" },
-  { range: ">5-6",  color: "#8d6e63", label: "" },
-  { range: ">6",    color: "#bf360c", label: "" },
+  { range: "0-1",   color: "#81d4fa" },
+  { range: ">1-2",  color: "#d0f8ce" },
+  { range: ">2-3",  color: "#7cb342" },
+  { range: ">3-4",  color: "#fdd835" },
+  { range: ">4-5",  color: "#f57f17" },
+  { range: ">5-6",  color: "#8d6e63" },
+  { range: ">6",    color: "#bf360c" },
 ];
-
-
 const LEVEL_LABELS = [
   { label: "ต่ำ",      span: 2 },
   { label: "ปานกลาง",  span: 2 },
@@ -70,8 +247,20 @@ const LEVEL_LABELS = [
 ];
 
 // ─────────────────────────────────────────────
-// Mock hourly water-level data
+// Helpers
 // ─────────────────────────────────────────────
+function formatDateTime(dt: string): string {
+  if (!dt) return "—";
+  try {
+    const d = new Date(dt);
+    if (isNaN(d.getTime())) return dt;
+    return d.toLocaleString("th-TH", {
+      day: "numeric", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
+  } catch { return dt; }
+}
+
 interface HourlyPoint { label: string; value: number; }
 
 function generateMockWaterLevel(currentLevel: number): HourlyPoint[] {
@@ -102,18 +291,34 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 // ─────────────────────────────────────────────
-// Chart Modal (กราฟเส้น)
+// Chart Modal
 // ─────────────────────────────────────────────
 interface ChartModalProps {
   station: Station;
   currentLevel: number;
+  lakeData: LakeApiItem | null;
   onClose: () => void;
 }
 
-const ChartModal: FC<ChartModalProps> = ({ station, currentLevel, onClose }) => {
-  const data         = useMemo(() => generateMockWaterLevel(currentLevel), [station.id]);
+const ChartModal: FC<ChartModalProps> = ({ station, currentLevel, lakeData, onClose }) => {
+  const data         = useMemo(() => generateMockWaterLevel(currentLevel), [station.id, currentLevel]);
   const currentLabel = data[data.length - 1]?.label ?? "";
   const tickLabels   = data.filter((_, i) => i % 4 === 0).map((d) => d.label);
+
+  // ── CHANGE 4: ใช้ข้อมูลจาก API โดยตรง (water_volume_m3, water_area_m2, capacity_pct) ──
+  const lakeId  = lakeData?.lake_id ?? "";
+  const lavInfo = LAV_DATA[lakeId];
+
+  // ใช้ค่าจาก API ก่อน ถ้าไม่มีค่อย fallback LAV interpolation
+  const apiVol  = lakeData?.water_volume_m3;
+  const apiArea = lakeData?.water_area_m2;
+  const apiPct  = lakeData?.capacity_pct;
+
+  const lav = interpolateLAV(lakeId, currentLevel); // ใช้สำหรับ fallback เท่านั้น
+
+  const displayVol  = apiVol  != null ? apiVol  : lav.vol;
+  const displayArea = apiArea != null ? apiArea : lav.area;
+  const displayPct  = apiPct  != null ? apiPct  : lav.pct;
 
   return (
     <div
@@ -141,17 +346,59 @@ const ChartModal: FC<ChartModalProps> = ({ station, currentLevel, onClose }) => 
         </div>
 
         {/* Sub-header */}
-        <div className="flex items-center gap-4 px-5 py-2.5 bg-blue-50/60 text-xs text-gray-500 border-b border-blue-100">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-2.5 bg-blue-50/60 text-xs text-gray-500 border-b border-blue-100">
           <span>📍 {station.location.area}</span>
+          {lakeData?.air_temp != null && <span>🌡️ {lakeData.air_temp.toFixed(1)} °C</span>}
+          {lakeData?.air_humid != null && <span>💧 ความชื้น {lakeData.air_humid.toFixed(0)}%</span>}
+          {lakeData?.rain_daily != null && <span>🌧️ ฝนวันนี้ {lakeData.rain_daily.toFixed(1)} มม.</span>}
+          {lakeData?.wind_direction_name && <span>💨 ลม {lakeData.wind_direction_name}</span>}
           <span className="ml-auto font-semibold text-blue-700">
-            ระดับน้ำปัจจุบัน: {currentLevel.toFixed(2)} ม.
+            ระดับน้ำปัจจุบัน: {currentLevel.toFixed(2)} ม.รทก.
           </span>
         </div>
+
+        {/* ── CHANGE 4: Info cards — แสดงปริมาตรน้ำจาก API เป็น ลบ.ม. ── */}
+        {lakeData && lakeData.status === "ok" && (
+          <div className="grid grid-cols-4 gap-2 px-5 py-3 bg-gray-50 border-b border-gray-100">
+            {[
+              {
+                label: "ปริมาตรน้ำ (ลบ.ม.)",
+                value: fmtVolFull(displayVol),
+                color: "text-blue-700",
+              },
+              {
+                label: "% ความจุ",
+                value: `${displayPct.toFixed(2)} %`,
+                color: displayPct >= 80 ? "text-red-600" : displayPct >= 50 ? "text-orange-500" : "text-emerald-600",
+              },
+              {
+                label: "พื้นที่ผิวน้ำ",
+                value: fmtArea(displayArea),
+                color: "text-violet-700",
+              },
+              {
+                label: "ความจุสูงสุด",
+                value: lavInfo ? fmtVol(lavInfo.maxVol) : "—",
+                color: "text-gray-600",
+              },
+            ].map((item) => (
+              <div key={item.label} className="flex flex-col items-center bg-white rounded-xl py-2 px-1 shadow-sm border border-gray-100">
+                <span className={`text-sm font-extrabold leading-tight ${item.color} text-center`}>{item.value}</span>
+                <span className="text-[9px] text-gray-400 font-medium mt-0.5 text-center">{item.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Chart */}
         <div className="px-4 pt-4 pb-3">
           <p className="text-[11px] font-medium text-gray-400 mb-3 uppercase tracking-wide">
-            ระดับน้ำในบึง (ม.) — 24 ชั่วโมงย้อนหลัง
+            ระดับน้ำในบึง (ม.รทก.) — 24 ชั่วโมงย้อนหลัง
+            {lakeData?.date_time && (
+              <span className="ml-2 normal-case text-blue-400">
+                อัปเดต: {formatDateTime(lakeData.date_time)}
+              </span>
+            )}
           </p>
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={data} margin={{ top: 10, right: 30, left: -10, bottom: 5 }}>
@@ -165,16 +412,12 @@ const ChartModal: FC<ChartModalProps> = ({ station, currentLevel, onClose }) => 
               <XAxis dataKey="label" ticks={tickLabels} tick={{ fontSize: 10, fill: "#9ca3af" }} tickLine={false} axisLine={false} />
               <YAxis domain={[0, 7]} tick={{ fontSize: 10, fill: "#9ca3af" }} tickLine={false} axisLine={false} unit=" ม." />
               <Tooltip content={<CustomTooltip />} />
-
-              {/* เส้น threshold */}
               <ReferenceLine y={1.5} stroke="#CA8A04" strokeWidth={1} strokeDasharray="5 4"
                 label={{ value: "เฝ้าระวัง", position: "right", fontSize: 9, fill: "#CA8A04", fontWeight: 600 }} />
               <ReferenceLine y={3.0} stroke="#EA580C" strokeWidth={1} strokeDasharray="5 4"
                 label={{ value: "เตือนภัย", position: "right", fontSize: 9, fill: "#EA580C", fontWeight: 600 }} />
               <ReferenceLine y={4.5} stroke="#DC2626" strokeWidth={1} strokeDasharray="5 4"
                 label={{ value: "วิกฤต", position: "right", fontSize: 9, fill: "#DC2626", fontWeight: 600 }} />
-
-              {/* เส้นแดงบอกเวลาปัจจุบัน */}
               <ReferenceLine
                 x={currentLabel}
                 stroke="#ef4444"
@@ -182,7 +425,6 @@ const ChartModal: FC<ChartModalProps> = ({ station, currentLevel, onClose }) => 
                 strokeDasharray="4 3"
                 label={{ value: "ปัจจุบัน", position: "top", fontSize: 9, fill: "#ef4444", fontWeight: 600 }}
               />
-
               <Area
                 type="monotone"
                 dataKey="value"
@@ -221,22 +463,78 @@ const MapComponentSwamp: FC = () => {
   const [chartStation, setChartStation]   = useState<Station | null>(null);
   const [chartLevel, setChartLevel]       = useState(0);
 
+  const [lakesData, setLakesData]     = useState<LakeApiItem[]>([]);
+  const [apiLoading, setApiLoading]   = useState(true);
+  const [apiError, setApiError]       = useState<string | null>(null);
+  const [lastFetched, setLastFetched] = useState<string>("");
+
+  const lakesDataRef = useRef<LakeApiItem[]>([]);
+
   const { setSelectedStationData } = useStation();
   const API_KEY = "yYduxrRP3C81U2fRFNIU";
+
+  // mapping: station ID จาก stations_complete.json → lake_id จาก API
+  // PW01=บึงแก่นนคร, PW02=บึงทุ่งสร้าง, PW03=หนองเลิงเปือย, PW05=บึงหนองโคตร
+  // PW04 (คุ้มสีฐาน มข.) ไม่มีใน Lake API จึงไม่ map
+  const STATION_TO_LAKE: Record<string, string> = {
+    "PW01": "Lake_01",  // บึงแก่นนคร
+    "PW02": "Lake_02",  // บึงทุ่งสร้าง
+    "PW03": "Lake_03",  // หนองเลิงเปือย
+    "PW05": "Lake_04",  // บึงหนองโคตร
+  };
 
   const basemaps: Record<BasemapStyleKey, BasemapConfig> = {
     hybrid: { name: "Hybrid",      style: `https://api.maptiler.com/maps/hybrid/style.json?key=${API_KEY}`,  icon: "🌍" },
     topo:   { name: "Topographic", style: `https://api.maptiler.com/maps/topo-v2/style.json?key=${API_KEY}`, icon: "🏔️" },
   };
 
-  // ── Marker ──
+  const fetchLakesData = async () => {
+    try {
+      setApiLoading(true);
+      setApiError(null);
+      const res  = await fetch("http://localhost:3000/api/lake");
+      if (!res.ok) throw new Error(`API ตอบกลับ ${res.status}`);
+      const json: LakesApiResponse = await res.json();
+      lakesDataRef.current = json.lakes;
+      setLakesData(json.lakes);
+      setLastFetched(json.fetched_at);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setApiError(msg);
+    } finally {
+      setApiLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLakesData();
+    const interval = setInterval(fetchLakesData, 15 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const getLakeData = (stationId: string): LakeApiItem | null => {
+    const lakeId = STATION_TO_LAKE[stationId];
+    if (!lakeId) return null;
+    return lakesDataRef.current.find((l) => l.lake_id === lakeId) ?? null;
+  };
+
   const createMarkerElement = (stationId: string): HTMLDivElement => {
     const el = document.createElement("div");
     el.className = "custom-marker-wrapper";
     const prefix = stationId.substring(0, 2) as keyof typeof stationTypeConfig;
     const config = stationTypeConfig[prefix] || { color: "#6B7280", icon: ICONS.mapPin };
-    const waterLevel  = Math.random() * 5 + 1;
-    const waterHeight = Math.min((waterLevel / 6) * 100, 100);
+
+    const ld = getLakeData(stationId);
+    const lakeId = STATION_TO_LAKE[stationId] ?? "";
+    const waterLevel = ld?.water_level ?? 0;
+
+    // ใช้ capacity_pct จาก API โดยตรง ถ้าไม่มีค่อย fallback LAV
+    const apiPct = ld?.capacity_pct;
+    const { pct: lavPct } = interpolateLAV(lakeId, waterLevel);
+    const waterHeight = lakeId
+      ? (apiPct != null ? apiPct : lavPct)
+      : Math.min((waterLevel / 6) * 100, 100);
+
     el.innerHTML = `
       <div class="custom-marker-animated" style="--marker-color: ${config.color}; --water-height: ${waterHeight}%;">
         <div class="marker-water-container">
@@ -250,23 +548,91 @@ const MapComponentSwamp: FC = () => {
     return el;
   };
 
-  // ── Popup HTML ──
+  // ── CHANGE 3: createPopupContent — lavRow ใช้ water_volume_m3 จาก API แสดงเป็น ลบ.ม. ──
   const createPopupContent = (station: Station): string => {
     const prefix   = station.id.substring(0, 2) as keyof typeof stationTypeConfig;
     const typeInfo = stationTypeConfig[prefix] || { label: "อื่นๆ", color: "#6B7280", icon: ICONS.tag };
 
-    let mockValue = 0;
+    const ld = getLakeData(station.id);
+    const lakeId = STATION_TO_LAKE[station.id] ?? "";
+
+    let displayValue = 0;
     let mockUnit  = "";
     let mockLabel = "";
+
     switch (prefix) {
-      case "RF": mockValue = Math.random() * 50;      mockUnit = "มม."; mockLabel = "ปริมาณฝนสะสม";   break;
-      case "WP": mockValue = Math.random() * 2 + 0.5; mockUnit = "ม.";  mockLabel = "ระดับน้ำในท่อ";   break;
-      case "WR": mockValue = Math.random() * 0.8;     mockUnit = "ม.";  mockLabel = "ระดับน้ำท่วมถนน"; break;
-      case "PW": mockValue = Math.random() * 5 + 1;   mockUnit = "ม.";  mockLabel = "ระดับน้ำในบึง";   break;
-      default:   mockValue = 0; mockUnit = ""; mockLabel = "ข้อมูล";
+      case "RF":
+        displayValue = ld?.rain_daily ?? Math.random() * 50;
+        mockUnit  = "มม."; mockLabel = "ปริมาณฝนสะสม (วันนี้)";
+        break;
+      case "WP":
+        displayValue = ld?.water_level ?? Math.random() * 2 + 0.5;
+        mockUnit  = "ม."; mockLabel = "ระดับน้ำในท่อ";
+        break;
+      case "WR":
+        displayValue = ld?.water_level ?? Math.random() * 0.8;
+        mockUnit  = "ม."; mockLabel = "ระดับน้ำท่วมถนน";
+        break;
+      case "PW":
+        displayValue = ld?.water_level ?? 0;
+        mockUnit  = "ม.รทก."; mockLabel = "ระดับน้ำในบึง";
+        break;
+      default:
+        displayValue = 0; mockUnit = ""; mockLabel = "ข้อมูล";
     }
 
-    const waterHeight = prefix === "PW" ? Math.min((mockValue / 6) * 100, 100) : 50;
+    // ── ดึงค่าจาก API โดยตรง (water_volume_m3, water_area_m2, capacity_pct) ──
+    const apiVol  = ld?.water_volume_m3;
+    const apiArea = ld?.water_area_m2;
+    const apiPct  = ld?.capacity_pct;
+
+    // fallback LAV interpolation ถ้า API ไม่ส่งค่ามา
+    const lav     = prefix === "PW" ? interpolateLAV(lakeId, displayValue) : null;
+    const lavInfo = prefix === "PW" ? LAV_DATA[lakeId] : null;
+
+    const finalVol  = apiVol  != null ? apiVol  : (lav?.vol  ?? 0);
+    const finalArea = apiArea != null ? apiArea : (lav?.area ?? 0);
+    const finalPct  = apiPct  != null ? apiPct  : (lav?.pct  ?? 0);
+
+    // water tank height ใช้ % ความจุจาก API
+    const waterHeight = prefix === "PW"
+      ? finalPct
+      : Math.min((displayValue / 6) * 100, 100);
+
+    const timestampDisplay = ld?.date_time ? formatDateTime(ld.date_time) : "—";
+
+    const statusBadge = ld
+      ? ld.status === "ok"
+        ? `<span class="api-badge ok">● Live</span>`
+        : `<span class="api-badge err">● ไม่มีสัญญาณ</span>`
+      : `<span class="api-badge warn">● Mock</span>`;
+
+    // ── LAV row แสดงปริมาตรน้ำเป็น ลบ.ม. จาก API ──
+    const lavRow = (prefix === "PW" && (apiVol != null || lav)) ? `
+      <div class="lav-info-row">
+        <div class="lav-chip vol">
+          <span class="lav-chip-label">ปริมาตรน้ำ</span>
+          <span class="lav-chip-val">${fmtVolFull(finalVol)}</span>
+        </div>
+        <div class="lav-chip pct" style="--pct-color: ${finalPct >= 80 ? "#dc2626" : finalPct >= 50 ? "#ea580c" : finalPct >= 20 ? "#16a34a" : "#2563eb"};">
+          <span class="lav-chip-label">ความจุ</span>
+          <span class="lav-chip-val pct-val">${finalPct.toFixed(2)}%</span>
+        </div>
+        <div class="lav-chip area">
+          <span class="lav-chip-label">พื้นที่ผิว</span>
+          <span class="lav-chip-val">${fmtArea(finalArea)}</span>
+        </div>
+      </div>
+    ` : "";
+
+    const extraRow = (prefix === "PW" && ld && ld.status === "ok") ? `
+      <div class="popup-extra-row">
+        ${ld.rain_daily != null ? `<div class="extra-chip">🌧 ฝน ${ld.rain_daily.toFixed(1)} มม.</div>` : ""}
+        ${ld.air_temp   != null ? `<div class="extra-chip">🌡 ${ld.air_temp.toFixed(1)} °C</div>` : ""}
+        ${ld.air_humid  != null ? `<div class="extra-chip">💧 ${ld.air_humid.toFixed(0)}%</div>` : ""}
+        ${ld.wind_direction_name ? `<div class="extra-chip">💨 ${ld.wind_direction_name}</div>` : ""}
+      </div>
+    ` : "";
 
     return `
       <div class="modern-popup">
@@ -276,8 +642,11 @@ const MapComponentSwamp: FC = () => {
           </svg>
         </div>
         <div class="popup-location-header" style="background: linear-gradient(135deg, ${typeInfo.color}15 0%, ${typeInfo.color}05 100%);">
-          <div class="station-type-badge" style="background: ${typeInfo.color};">
-            ${typeInfo.icon}<span>${typeInfo.label}</span>
+          <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
+            <div class="station-type-badge" style="background: ${typeInfo.color};">
+              ${typeInfo.icon}<span>${typeInfo.label}</span>
+            </div>
+            ${statusBadge}
           </div>
           <h3 class="location-name">${station.name}</h3>
           <div class="location-area">${station.location.area}</div>
@@ -292,27 +661,34 @@ const MapComponentSwamp: FC = () => {
                 <div class="water-shimmer-popup"></div>
               </div>
               <div class="water-level-text">
-                <span class="level-number">${mockValue.toFixed(2)}</span>
+                <span class="level-number">${displayValue.toFixed(2)}</span>
                 <span class="level-unit">${mockUnit}</span>
               </div>
               <div class="water-scale">
-                ${[6,5,4,3,2,1,0].map(n => `<div class="scale-line" style="bottom:${(n/6)*100}%"><span>${n}</span></div>`).join("")}
+                ${lavInfo
+                  ? [100, 75, 50, 25, 0].map(p => {
+                      return `<div class="scale-line" style="bottom:${p}%"><span>${p}%</span></div>`;
+                    }).join("")
+                  : [6,5,4,3,2,1,0].map(n => `<div class="scale-line" style="bottom:${(n/6)*100}%"><span>${n}</span></div>`).join("")
+                }
               </div>
             </div>
           </div>
           ` : `
           <div class="data-value-box">
-            <span class="data-number">${mockValue.toFixed(2)}</span>
+            <span class="data-number">${displayValue.toFixed(2)}</span>
             <span class="data-unit">${mockUnit}</span>
           </div>
           `}
+          ${lavRow}
+          ${extraRow}
           <div class="popup-footer-row">
             <div class="data-timestamp">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              <span>4 ธ.ค. 2568 14:30</span>
+              <span>${timestampDisplay}</span>
             </div>
             ${prefix === "PW" ? `
-            <button class="swamp-chart-btn" data-station-id="${station.id}" data-level="${mockValue.toFixed(2)}" title="ดูกราฟระดับน้ำ">
+            <button class="swamp-chart-btn" data-station-id="${station.id}" data-level="${displayValue.toFixed(2)}" title="ดูกราฟระดับน้ำ">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
               </svg>
@@ -324,7 +700,6 @@ const MapComponentSwamp: FC = () => {
     `;
   };
 
-  // ── Add markers ──
   const addStationMarkers = () => {
     if (!map.current) return;
     markersRef.current.forEach((m) => m.remove());
@@ -335,7 +710,7 @@ const MapComponentSwamp: FC = () => {
       stationType.stations.forEach((station) => {
         if (station.id.substring(0, 2) !== "PW") return;
         const el    = createMarkerElement(station.id);
-        const popup = new Popup({ offset: 35, closeButton: false }).setHTML(createPopupContent(station));
+        const popup = new Popup({ offset: 35, closeButton: false });
         const marker = new Marker({ element: el })
           .setLngLat([station.location.longitude, station.location.latitude])
           .setPopup(popup);
@@ -346,6 +721,7 @@ const MapComponentSwamp: FC = () => {
         });
 
         popup.on("open", () => {
+          popup.setHTML(createPopupContent(station));
           setTimeout(() => {
             const btn = document.querySelector<HTMLButtonElement>(
               `.swamp-chart-btn[data-station-id="${station.id}"]`
@@ -364,6 +740,10 @@ const MapComponentSwamp: FC = () => {
   };
 
   useEffect(() => {
+    if (isLoaded) addStationMarkers();
+  }, [lakesData, isLoaded]);
+
+  useEffect(() => {
     if (map.current || !mapContainer.current) return;
     map.current = new Map({
       container: mapContainer.current,
@@ -373,7 +753,7 @@ const MapComponentSwamp: FC = () => {
       attributionControl: false,
     });
     map.current.addControl(new ScaleControl(), "bottom-left");
-    map.current.on("load", () => { setIsLoaded(true); addStationMarkers(); });
+    map.current.on("load", () => { setIsLoaded(true); });
     map.current.on("mousedown", () => { if (isSwitcherOpen) setSwitcherOpen(false); });
     return () => {
       markersRef.current.forEach((m) => m.remove());
@@ -394,7 +774,6 @@ const MapComponentSwamp: FC = () => {
   return (
     <div className="relative w-full h-full bg-gray-900 font-sans rounded-xl overflow-hidden flex flex-col">
 
-      {/* ── Map ── */}
       <div className="relative flex-1 min-h-0">
         <div ref={mapContainer} className="w-full h-full" />
 
@@ -407,7 +786,28 @@ const MapComponentSwamp: FC = () => {
           </div>
         )}
 
-        {/* Basemap switcher */}
+        {isLoaded && (
+          <div className="absolute top-4 left-4 z-40 flex items-center gap-2">
+            {apiLoading && (
+              <div className="flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1.5 shadow text-xs text-gray-600">
+                <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                กำลังดึงข้อมูลบึง...
+              </div>
+            )}
+            {!apiLoading && apiError && (
+              <div className="flex items-center gap-1.5 bg-red-50/95 border border-red-200 backdrop-blur-sm rounded-full px-3 py-1.5 shadow text-xs text-red-700">
+                ⚠️ {apiError}
+                <button onClick={fetchLakesData} className="ml-1 underline hover:no-underline">ลองใหม่</button>
+              </div>
+            )}
+            {!apiLoading && !apiError && lastFetched && (
+              <div className="flex items-center gap-1.5 bg-emerald-50/95 border border-emerald-200 backdrop-blur-sm rounded-full px-3 py-1.5 shadow text-xs text-emerald-700">
+                ✅ Live — อัปเดต {formatDateTime(lastFetched)}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="absolute top-4 right-4 z-40">
           <div className="relative">
             <button
@@ -441,9 +841,8 @@ const MapComponentSwamp: FC = () => {
         </div>
       </div>
 
-      {/* ── Legend แถบล่างสุด (เหมือน map_rain) ── */}
+      {/* Legend */}
       <div className="flex-shrink-0 bg-white border-t border-gray-300 px-3 pt-1.5 pb-2">
-        {/* แถบสี 7 ช่อง */}
         <div className="flex w-full rounded-sm overflow-hidden border border-gray-300">
           {LEGEND_SEGMENTS.map((seg, i) => (
             <div key={i} className="flex-1 flex items-center justify-center py-2" style={{ backgroundColor: seg.color }}>
@@ -451,7 +850,6 @@ const MapComponentSwamp: FC = () => {
             </div>
           ))}
         </div>
-        {/* Label ระดับ */}
         <div className="flex w-full mt-0.5">
           {LEVEL_LABELS.map((l, i) => (
             <div
@@ -465,20 +863,21 @@ const MapComponentSwamp: FC = () => {
         </div>
       </div>
 
-      {/* ── Chart Modal ── */}
+      {/* Chart Modal */}
       {chartStation && (
         <ChartModal
           station={chartStation}
           currentLevel={chartLevel}
+          lakeData={getLakeData(chartStation.id)}
           onClose={() => setChartStation(null)}
         />
       )}
 
-      {/* ── Global styles ── */}
+      {/* Global styles */}
       <style jsx global>{`
         .modern-popup {
           font-family: system-ui, -apple-system, sans-serif;
-          width: 280px; background: white; border-radius: 12px;
+          width: 290px; background: white; border-radius: 12px;
           overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.12); position: relative;
         }
         .popup-close-btn {
@@ -492,9 +891,16 @@ const MapComponentSwamp: FC = () => {
         .popup-location-header { padding: 16px 14px 12px; border-bottom: 1px solid #E5E7EB; }
         .station-type-badge {
           display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px;
-          border-radius: 6px; color: white; font-size: 10px; font-weight: 600; margin-bottom: 8px;
+          border-radius: 6px; color: white; font-size: 10px; font-weight: 600;
         }
         .station-type-badge svg { width: 12px; height: 12px; }
+        .api-badge {
+          display: inline-flex; align-items: center; gap: 3px;
+          font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 20px;
+        }
+        .api-badge.ok   { background: #f0fdf4; color: #16a34a; border: 1px solid #86efac; }
+        .api-badge.err  { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+        .api-badge.warn { background: #fffbeb; color: #d97706; border: 1px solid #fcd34d; }
         .location-name { font-size: 15px; font-weight: 700; color: #111827; margin: 0 0 4px; line-height: 1.3; }
         .location-area { font-size: 11px; color: #6B7280; font-weight: 500; }
         .popup-content-body { padding: 14px; background: #F9FAFB; }
@@ -505,11 +911,28 @@ const MapComponentSwamp: FC = () => {
         }
         .data-number { font-size: 32px; font-weight: 800; color: #1F2937; line-height: 1; }
         .data-unit { font-size: 14px; font-weight: 600; color: #6B7280; }
+
+        /* ── LAV info row ── */
+        .lav-info-row {
+          display: flex; gap: 5px; margin: 8px 0 6px;
+        }
+        .lav-chip {
+          flex: 1; display: flex; flex-direction: column; align-items: center;
+          background: white; border-radius: 8px; padding: 5px 4px;
+          border: 1px solid #E5E7EB;
+        }
+        .lav-chip-label { font-size: 9px; color: #9CA3AF; font-weight: 600; text-transform: uppercase; margin-bottom: 2px; }
+        .lav-chip-val   { font-size: 10px; font-weight: 700; color: #1F2937; text-align: center; line-height: 1.3; word-break: break-all; }
+        .lav-chip.pct .pct-val { color: var(--pct-color, #16a34a); }
+
+        .popup-extra-row { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+        .extra-chip {
+          font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 20px;
+          background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE;
+        }
         .popup-footer-row { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
         .data-timestamp { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #9CA3AF; }
         .data-timestamp svg { color: #9CA3AF; }
-
-        /* ปุ่มกราฟเส้น (สีเขียว) */
         .swamp-chart-btn {
           display: inline-flex; align-items: center; justify-content: center;
           width: 34px; height: 34px; border-radius: 50%;
@@ -522,7 +945,7 @@ const MapComponentSwamp: FC = () => {
         /* water tank */
         .water-level-container { margin-bottom: 0; }
         .water-tank {
-          position: relative; width: 100%; height: 180px;
+          position: relative; width: 100%; height: 160px;
           background: linear-gradient(180deg, #E0F2FE 0%, #F0F9FF 100%);
           border: 3px solid #0EA5E9; border-radius: 12px; overflow: hidden;
           box-shadow: inset 0 2px 8px rgba(14,165,233,0.1);
@@ -537,13 +960,13 @@ const MapComponentSwamp: FC = () => {
         .water-shimmer-popup { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.3) 50%, transparent 70%); background-size: 200% 200%; animation: popupShimmer 4s ease-in-out infinite; }
         @keyframes popupWaterWave { 0%,100% { transform: translateX(0) translateY(0) rotate(0deg); } 25% { transform: translateX(-15%) translateY(-3px) rotate(-2deg); } 50% { transform: translateX(0) translateY(-5px) rotate(0deg); } 75% { transform: translateX(-15%) translateY(-3px) rotate(2deg); } }
         @keyframes popupShimmer { 0%,100% { background-position: 0% 50%; opacity: 0.5; } 50% { background-position: 100% 50%; opacity: 0.8; } }
-        .water-level-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 10; display: flex; align-items: baseline; gap: 6px; background: rgba(255,255,255,0.95); padding: 10px 16px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: 2px solid #0EA5E9; }
-        .level-number { font-size: 32px; font-weight: 900; color: #0369A1; line-height: 1; }
-        .level-unit { font-size: 14px; font-weight: 700; color: #0284C7; }
-        .water-scale { position: absolute; right: 8px; top: 0; bottom: 0; width: 30px; z-index: 5; }
+        .water-level-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 10; display: flex; align-items: baseline; gap: 6px; background: rgba(255,255,255,0.95); padding: 8px 12px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: 2px solid #0EA5E9; }
+        .level-number { font-size: 26px; font-weight: 900; color: #0369A1; line-height: 1; }
+        .level-unit { font-size: 11px; font-weight: 700; color: #0284C7; }
+        .water-scale { position: absolute; right: 8px; top: 0; bottom: 0; width: 36px; z-index: 5; }
         .scale-line { position: absolute; right: 0; width: 100%; height: 1px; background: rgba(14,165,233,0.3); display: flex; align-items: center; justify-content: flex-end; }
         .scale-line::before { content: ''; position: absolute; right: 0; width: 8px; height: 1px; background: #0EA5E9; }
-        .scale-line span { position: absolute; right: 12px; font-size: 9px; font-weight: 700; color: #0369A1; background: rgba(255,255,255,0.9); padding: 1px 4px; border-radius: 3px; transform: translateY(-50%); }
+        .scale-line span { position: absolute; right: 12px; font-size: 9px; font-weight: 700; color: #0369A1; background: rgba(255,255,255,0.9); padding: 1px 3px; border-radius: 3px; transform: translateY(-50%); white-space: nowrap; }
 
         /* markers */
         .custom-marker-wrapper { cursor: pointer; }
