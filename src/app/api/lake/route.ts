@@ -2,31 +2,12 @@ import { NextResponse } from "next/server";
 import { fetchLatestReading } from "../lib/fetchLakeData";
 import { LAKES } from "../lib/lakes";
 
-// ─────────────────────────────────────────────
-// LAV (Level–Area–Volume) lookup tables
-// แต่ละแถว: [ระดับ ม.รทก., พื้นที่ผิวน้ำ ตร.ม., ปริมาตร ลบ.ม.]
-// เรียงจากระดับสูง → ต่ำ
-// ─────────────────────────────────────────────
 interface LavRow { level: number; area: number; vol: number; }
 interface LavInfo { maxVol: number; maxArea: number; rows: LavRow[]; }
 
 const LAV: Record<string, LavInfo> = {
-  Lake_01: {
-    maxVol: 1800273.44, maxArea: 604444.60,
-    rows: [
-      { level: 152.0, area: 604444.60, vol: 1800273.44 },
-      { level: 151.5, area: 596553.82, vol: 1499434.18 },
-      { level: 151.0, area: 590101.47, vol: 1202730.07 },
-      { level: 150.5, area: 573454.11, vol:  912835.53 },
-      { level: 150.0, area: 537618.64, vol:  633312.88 },
-      { level: 149.5, area: 437042.52, vol:  386984.34 },
-      { level: 149.0, area: 307379.96, vol:  201313.08 },
-      { level: 148.5, area: 175730.32, vol:   80190.36 },
-      { level: 148.0, area:  89470.15, vol:   13967.17 },
-      { level: 147.5, area:   5601.33, vol:     944.03 },
-      { level: 147.0, area:    713.17, vol:      95.39 },
-    ],
-  },
+  // Lake_01: สะพาน บ้านทุ่งเศรษฐี (ทางน้ำเปิด) — ไม่มีตาราง LAV (ทางน้ำเปิด)
+  // Lake_02: บึงทุ่งสร้าง
   Lake_02: {
     maxVol: 2240580.209, maxArea: 742715.252,
     rows: [
@@ -41,29 +22,26 @@ const LAV: Record<string, LavInfo> = {
       { level: 146.0, area:  15865.753, vol:    1259.342 },
     ],
   },
+  // Lake_03: บึงแก่นนคร
   Lake_03: {
-    maxVol: 1374617.490, maxArea: 300597.883,
+    maxVol: 1800273.44, maxArea: 604444.60,
     rows: [
-      { level: 151.5, area: 300597.883, vol: 1374617.490 },
-      { level: 151.0, area: 294528.131, vol: 1225826.964 },
-      { level: 150.5, area: 288410.097, vol: 1080085.479 },
-      { level: 150.0, area: 276435.774, vol:  938885.265 },
-      { level: 149.5, area: 256420.342, vol:  805568.543 },
-      { level: 149.0, area: 235258.272, vol:  683157.218 },
-      { level: 148.5, area: 224103.445, vol:  568467.528 },
-      { level: 148.0, area: 211944.453, vol:  459508.669 },
-      { level: 147.5, area: 199358.150, vol:  356694.676 },
-      { level: 147.0, area: 181922.376, vol:  260595.203 },
-      { level: 146.5, area: 152651.150, vol:  176641.370 },
-      { level: 146.0, area: 105758.932, vol:  113336.951 },
-      { level: 145.5, area:  70154.586, vol:   71275.541 },
-      { level: 145.0, area:  52412.629, vol:   41682.544 },
-      { level: 144.5, area:  37669.750, vol:   19191.062 },
-      { level: 144.0, area:  20047.157, vol:    5728.448 },
-      { level: 143.5, area:   8037.282, vol:       0.000 },
+      { level: 152.0, area: 604444.60,  vol: 1800273.440 },
+      { level: 151.5, area: 596553.82,  vol: 1499434.180 },
+      { level: 151.0, area: 590101.47,  vol: 1202730.070 },
+      { level: 150.5, area: 573454.11,  vol:  912835.530 },
+      { level: 150.0, area: 537618.64,  vol:  633312.880 },
+      { level: 149.5, area: 437042.52,  vol:  386984.340 },
+      { level: 149.0, area: 307379.96,  vol:  201313.080 },
+      { level: 148.5, area: 175730.32,  vol:   80190.360 },
+      { level: 148.0, area:  89470.15,  vol:   13967.170 },
+      { level: 147.5, area:   5601.33,  vol:     944.030 },
+      { level: 147.0, area:    713.17,  vol:      95.390 },
     ],
   },
-  Lake_04: {
+  // Lake_04: คุ้มสีฐาน มหาวิทยาลัยขอนแก่น (ทางน้ำเปิด) — ไม่มีตาราง LAV (ทางน้ำเปิด)
+  // Lake_05: บึงหนองโคตร
+  Lake_05: {
     maxVol: 7042958.829, maxArea: 1091408.30,
     rows: [
       { level: 155.0, area: 1091408.30, vol: 7042958.829 },
@@ -93,13 +71,31 @@ const LAV: Record<string, LavInfo> = {
       { level: 143.0, area:      61.41, vol:       0.000 },
     ],
   },
+  // Lake_06: หนองเลิงเปือย
+  Lake_06: {
+    maxVol: 1374617.490, maxArea: 300597.883,
+    rows: [
+      { level: 151.5, area: 300597.883, vol: 1374617.490 },
+      { level: 151.0, area: 294528.131, vol: 1225826.964 },
+      { level: 150.5, area: 288410.097, vol: 1080085.479 },
+      { level: 150.0, area: 276435.774, vol:  938885.265 },
+      { level: 149.5, area: 256420.342, vol:  805568.543 },
+      { level: 149.0, area: 235258.272, vol:  683157.218 },
+      { level: 148.5, area: 224103.445, vol:  568467.528 },
+      { level: 148.0, area: 211944.453, vol:  459508.669 },
+      { level: 147.5, area: 199358.150, vol:  356694.676 },
+      { level: 147.0, area: 181922.376, vol:  260595.203 },
+      { level: 146.5, area: 152651.150, vol:  176641.370 },
+      { level: 146.0, area: 105758.932, vol:  113336.951 },
+      { level: 145.5, area:  70154.586, vol:   71275.541 },
+      { level: 145.0, area:  52412.629, vol:   41682.544 },
+      { level: 144.5, area:  37669.750, vol:   19191.062 },
+      { level: 144.0, area:  20047.157, vol:    5728.448 },
+      { level: 143.5, area:   8037.282, vol:       0.000 },
+    ],
+  },
 };
 
-/**
- * Linear interpolation จากตาราง LAV
- * คืนค่า water_volume_m3, water_area_m2, capacity_pct
- * หาก lake_id ไม่มีใน LAV หรือ level เป็น null/NaN คืน null
- */
 function computeLAV(
   lakeId: string,
   level: number
@@ -112,11 +108,9 @@ function computeLAV(
   let vol  = 0;
 
   if (level >= rows[0].level) {
-    // เกินระดับสูงสุดในตาราง → ใช้ค่าสูงสุด
     area = rows[0].area;
     vol  = rows[0].vol;
   } else if (level <= rows[rows.length - 1].level) {
-    // ต่ำกว่าระดับต่ำสุดในตาราง → ใช้ค่าต่ำสุด
     area = rows[rows.length - 1].area;
     vol  = rows[rows.length - 1].vol;
   } else {
@@ -124,7 +118,7 @@ function computeLAV(
       const hi = rows[i];
       const lo = rows[i + 1];
       if (level <= hi.level && level >= lo.level) {
-        const t = (level - lo.level) / (hi.level - lo.level); // 0..1
+        const t = (level - lo.level) / (hi.level - lo.level);
         area = lo.area + t * (hi.area - lo.area);
         vol  = lo.vol  + t * (hi.vol  - lo.vol);
         break;
@@ -133,34 +127,12 @@ function computeLAV(
   }
 
   return {
-    water_volume_m3: Math.round(vol  * 1000) / 1000, // ทศนิยม 3 ตำแหน่ง
-    water_area_m2:   Math.round(area * 100)  / 100,  // ทศนิยม 2 ตำแหน่ง
-    capacity_pct:    Math.round((vol / maxVol) * 10000) / 100, // ทศนิยม 2 ตำแหน่ง
+    water_volume_m3: Math.round(vol  * 1000) / 1000,
+    water_area_m2:   Math.round(area * 100)  / 100,
+    capacity_pct:    Math.round((vol / maxVol) * 10000) / 100,
   };
 }
 
-/**
- * GET /api/lake
- *
- * ดึงข้อมูลปริมาณน้ำล่าสุดของทุกบึงพร้อมกัน (parallel fetch)
- * พร้อมคำนวณ water_volume_m3, water_area_m2, capacity_pct จากตาราง LAV
- *
- * Response 200:
- * {
- *   "fetched_at": "2026-05-02T08:00:00.000Z",
- *   "count": 4,
- *   "lakes": [
- *     {
- *       "lake_id": "Lake_01",
- *       "water_level": 150.5,          ← ม.รทก. (จาก sensor เดิม)
- *       "water_volume_m3": 912835.53,  ← ลบ.ม. (คำนวณจาก LAV)
- *       "water_area_m2": 573454.11,    ← ตร.ม.  (คำนวณจาก LAV)
- *       "capacity_pct": 50.70,         ← % ความจุ (คำนวณจาก LAV)
- *       ...
- *     }
- *   ]
- * }
- */
 export async function GET() {
   const results = await Promise.allSettled(
     LAKES.map(async (lake) => {
@@ -196,7 +168,6 @@ export async function GET() {
       };
     }
 
-    // คำนวณ LAV จากระดับน้ำจริง
     const lav = computeLAV(lake.id, reading.water_level);
 
     return {
@@ -205,8 +176,7 @@ export async function GET() {
       name_en: lake.nameEn,
       location: { lat: lake.lat, lng: lake.lng },
       status: "ok",
-      // ── sensor readings ──
-      water_level: reading.water_level,          // ม.รทก.
+      water_level: reading.water_level,
       water_flow:  reading.water_flow,
       water_total: reading.water_total,
       rain_value:  reading.rain_value,
@@ -215,10 +185,9 @@ export async function GET() {
       air_humid:   reading.air_humid,
       wind_direction_name: reading.wind_direction_name,
       date_time:   reading.date_time,
-      // ── คำนวณจากตาราง LAV ──
-      water_volume_m3: lav?.water_volume_m3 ?? null, // ลบ.ม.
-      water_area_m2:   lav?.water_area_m2   ?? null, // ตร.ม.
-      capacity_pct:    lav?.capacity_pct    ?? null, // % ความจุ (0–100)
+      water_volume_m3: lav?.water_volume_m3 ?? null,
+      water_area_m2:   lav?.water_area_m2   ?? null,
+      capacity_pct:    lav?.capacity_pct    ?? null,
     };
   });
 

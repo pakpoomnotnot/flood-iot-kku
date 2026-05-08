@@ -10,11 +10,7 @@
     "rainfallMeasurement": 8,
     "total": 29
   },
-  "areas": [
-    "เทศบาลนครขอนแก่น",
-    "เทศบาลบ้านเป็ด",
-    "เทศบาลศิลา"
-  ],
+  "areas": ["เทศบาลนครขอนแก่น", "เทศบาลบ้านเป็ด", "เทศบาลศิลา"],
   "stationTypes": [
     {
       "type": "waterLevelPipe",
@@ -634,6 +630,43 @@
             "latitude": 16.429,
             "longitude": 102.805,
             "area": "เทศบาลบ้านเป็ด"
+          },
+          "sensors": [
+            {
+              "type": "waterLevel",
+              "name": "ระดับน้ำ",
+              "range": "0-300",
+              "unit": "เซนติเมตร",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "windSpeed",
+              "name": "ความเร็วลม",
+              "range": "0-60",
+              "unit": "เมตรวินาที",
+              "frequency": "15-60 นาที"
+            },
+            {
+              "type": "windDirection",
+              "name": "ทิศทางลม",
+              "range": "0-7",
+              "unit": "ทิศ",
+              "frequency": "15-60 นาที"
+            }
+          ],
+          "deployment": {
+            "phase1_piynat": "งวดงานที่ 1",
+            "phase1_wuttinan": "งวดงานที่ 1"
+          }
+        },
+        {
+          "id": "PW06",
+          "no": 6,
+          "name": "หนองเลิงเปือย",
+          "location": {
+            "latitude": 16.43,
+            "longitude": 102.877,
+            "area": "เทศบาลนครขอนแก่น"
           },
           "sensors": [
             {

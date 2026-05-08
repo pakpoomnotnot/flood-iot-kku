@@ -1,16 +1,94 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useState } from "react";
+
+// ─── Types ───────────────────────────────────────
+interface LakeApiItem {
+  lake_id: string;
+  status: "ok" | "error" | "no_data";
+  water_level?: number;
+  water_volume_m3?: number;
+  water_area_m2?: number;
+  capacity_pct?: number;
+  date_time?: string;
+}
+interface LakesApiResponse {
+  fetched_at: string;
+  count: number;
+  lakes: LakeApiItem[];
+}
+
+function fmtPct(p?: number): string {
+  if (p == null) return "ไม่พบข้อมูล %";
+  return `${p.toFixed(1)} %`;
+}
+function fmtVol(v?: number): string {
+  if (v == null) return "ความจุ XX ล้าน ลบ.ม.";
+  if (v >= 1_000_000) return `ความจุ ${(v / 1_000_000).toFixed(3)} ล้าน ลบ.ม.`;
+  if (v >= 1_000) return `ความจุ ${(v / 1_000).toFixed(1)} พัน ลบ.ม.`;
+  return `ความจุ ${v.toFixed(2)} ลบ.ม.`;
+}
+
+// ─── Water fill clip ──────────────────────────────
+function waterClipRect(
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  pct: number,
+) {
+  const fillH = (ry * 2 * Math.min(Math.max(pct, 0), 100)) / 100;
+  return { x: cx - rx, y: cy + ry - fillH, width: rx * 2, height: fillH };
+}
 
 const HecRasFinalCode = () => {
+  const [lakes, setLakes] = useState<LakeApiItem[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch("/api/lake");
+        if (!res.ok) return;
+        const json: LakesApiResponse = await res.json();
+        setLakes(json.lakes);
+      } catch {}
+    };
+    fetchData();
+    const id = setInterval(fetchData, 15 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const getLake = (id: string) => lakes.find((l) => l.lake_id === id);
+
+  // ── helper สร้าง water fill + ข้อความสำหรับบึง ──
+  const pondData = (lakeId: string) => {
+    const d = getLake(lakeId);
+    const pct = d?.status === "ok" ? (d.capacity_pct ?? 0) : 0;
+    const vol = d?.status === "ok" ? d.water_volume_m3 : undefined;
+    return { pct, vol };
+  };
+
+  // ── บึงทุ่งสร้าง (cx=840, cy=140, rx=80, ry=80) ──
+  const tungsang = pondData("Lake_02");
+  const tungsangClip = waterClipRect(840, 140, 80, 80, tungsang.pct);
+
+  // ── บึงหนองโคตร (cx=250, cy=650, rx=70, ry=70) ──
+  const nongkhot = pondData("Lake_05");
+  const nongkhotClip = waterClipRect(250, 650, 70, 70, nongkhot.pct);
+
+  // ── บึงแก่นนคร (cx=783, cy=580, rx=60, ry=60) ──
+  const kaennakhon = pondData("Lake_03");
+  const kaennakhonClip = waterClipRect(783, 580, 60, 60, kaennakhon.pct);
+
+  // ── หนองเลิงเปือย (cx=950, cy=300, rx=49, ry=49) ──
+  const loengpueai = pondData("Lake_06");
+  const loengpueaiClip = waterClipRect(950, 300, 49, 49, loengpueai.pct);
+
   return (
     <div className="p-0 bg-slate-50 min-h-screen flex flex-col items-center font-sans">
       <div className="bg-white p-0 rounded-xl shadow-lg w-full max-w-[1100px] border border-slate-200">
-        {/* <h2 className="text-2xl font-bold text-slate-800 mb-6 text-center">
-          แผนผังโครงข่ายระบายน้ำ HEC-RAS (Complete Data & Updated UI)
-        </h2> */}
-
         <svg viewBox="0 0 1000 850" className="w-full h-auto bg-white">
           <defs>
-            {/* หัวลูกศรสีเขียว */}
             <marker
               id="greenArrow"
               viewBox="0 0 10 10"
@@ -22,78 +100,86 @@ const HecRasFinalCode = () => {
             >
               <path d="M 0 0 L 10 5 L 0 10 z" fill="#22c55e" />
             </marker>
+
+            {/* clip น้ำแต่ละบึง */}
+            <clipPath id="clip-tungsang">
+              <rect
+                x={tungsangClip.x}
+                y={tungsangClip.y}
+                width={tungsangClip.width}
+                height={tungsangClip.height}
+              />
+            </clipPath>
+            <clipPath id="clip-nongkhot">
+              <rect
+                x={nongkhotClip.x}
+                y={nongkhotClip.y}
+                width={nongkhotClip.width}
+                height={nongkhotClip.height}
+              />
+            </clipPath>
+            <clipPath id="clip-kaennakhon">
+              <rect
+                x={kaennakhonClip.x}
+                y={kaennakhonClip.y}
+                width={kaennakhonClip.width}
+                height={kaennakhonClip.height}
+              />
+            </clipPath>
+            <clipPath id="clip-loengpueai">
+              <rect
+                x={loengpueaiClip.x}
+                y={loengpueaiClip.y}
+                width={loengpueaiClip.width}
+                height={loengpueaiClip.height}
+              />
+            </clipPath>
+
+            {/* clip น้ำ 75% เดิม (ใช้กับ nongkhot เดิม ไม่ใช้แล้ว) */}
+            <clipPath id="pond-water-75">
+              <rect x="180" y="615" width="140" height="105" />
+            </clipPath>
           </defs>
 
-          <style>
-            {`
-    .pipe-main {
-      stroke: #0ea5e9;
-      stroke-width: 24;
-      fill: none;
-      stroke-linejoin: round;
-    }
+          <style>{`
+            .pipe-main { stroke: #0ea5e9; stroke-width: 24; fill: none; stroke-linejoin: round; }
+            .pond-flat { fill: #dbeafe; stroke: #60a5fa; stroke-width: 2; opacity: 0.6; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15)); }
+            .text-main { font-size: 16px; font-weight: bold; fill: #000; }
+            .text-sub { font-size: 13px; fill: #334155; font-weight: 500; }
+            .text-pipe { font-size: 12px; font-style: italic; fill: #1e40af; font-weight: bold; }
+            .dashed-line { stroke: #64748b; stroke-width: 3; stroke-dasharray: 8, 6; fill: none; }
+            .node-point { fill: #2563eb; stroke: white; stroke-width: 3; }
+            .node-place { fill: #c41411; stroke: white; stroke-width: 2; }
+          `}</style>
 
-    .pond-flat {
-  fill: #dbeafe;
-  stroke: #60a5fa;
-  stroke-width: 2;
-  opacity: 0.6;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));
-}
-
-
-    .text-main {
-      font-size: 16px;   /* จาก 22 → 16 */
-      font-weight: bold;
-      fill: #000;
-    }
-
-    .text-sub {
-      font-size: 13px;   /* จาก 18 → 13 */
-      fill: #334155;
-      font-weight: 500;
-    }
-
-    .text-pipe {
-      font-size: 12px;   /* จาก 16 → 12 */
-      font-style: italic;
-      fill: #1e40af;
-      font-weight: bold;
-    }
-
-    .dashed-line {
-      stroke: #64748b;
-      stroke-width: 3;
-      stroke-dasharray: 8, 6;
-      fill: none;
-    }
-
-    .node-point {
-      fill: #2563eb;
-      stroke: white;
-      stroke-width: 3;
-    }
-
-    .node-place {
-      fill: #c41411;
-      stroke: white;
-      stroke-width: 2;
-    }
-  `}
-          </style>
-          {/* --- หนองเลิงเปือย --- */}
+          {/* ══════════════════════════════
+              หนองเลิงเปือย
+          ══════════════════════════════ */}
+          {/* น้ำ */}
+          <ellipse
+            cx="950"
+            cy="300"
+            rx="49"
+            ry="49"
+            fill="#225fee"
+            clipPath="url(#clip-loengpueai)"
+            opacity="0.7"
+          />
+          {/* ขอบ */}
           <ellipse cx="950" cy="300" rx="49" ry="49" className="pond-flat" />
-          <text x="805" y="110" className="text-[12px]">
-            ไม่พบข้อมูล %
+          <text x="935" y="280" className="text-[12px]">
+            {fmtPct(getLake("Lake_06")?.capacity_pct)}
           </text>
-          <text x="805" y="150" className="text-main">
-            บึงทุ่งสร้าง
+          <text x="904" y="300" className="text-main">
+            หนองเลิงเปือย
           </text>
-          <text x="795" y="170" className="text-[10px]">
-            ความจุ XX ล้าน ลบ.ม.
+          <text x="905" y="315" className="text-[10px]">
+            {fmtVol(getLake("Lake_06")?.water_volume_m3)}
           </text>
 
-          {/* --- ห้วยพระคือ (Outlet) --- */}
+          {/* ══════════════════════════════
+              ห้วยพระคือ (Outlet) — UI เดิม
+          ══════════════════════════════ */}
           <rect x="865" y="550" width="40" height="250" fill="#22d3ee" rx="5" />
           <text
             x="885"
@@ -104,68 +190,84 @@ const HecRasFinalCode = () => {
             ห้วยพระคือ
           </text>
 
-          {/* --- บ่อน้ำ (Ponds) --- */}
+          {/* ══════════════════════════════
+              บึงทุ่งสร้าง
+          ══════════════════════════════ */}
+          {/* น้ำ */}
+          <ellipse
+            cx="840"
+            cy="140"
+            rx="80"
+            ry="80"
+            fill="#225fee"
+            clipPath="url(#clip-tungsang)"
+            opacity="0.7"
+          />
+          {/* ขอบ */}
           <ellipse cx="840" cy="140" rx="80" ry="80" className="pond-flat" />
-          <text x="805" y="110" className="text-[12px]">
-            ไม่พบข้อมูล %
+          <text x="820" y="125" className="text-[12px]">
+            {fmtPct(getLake("Lake_02")?.capacity_pct)}
           </text>
-          <text x="805" y="150" className="text-main">
+          <text x="805" y="145" className="text-main">
             บึงทุ่งสร้าง
           </text>
-          <text x="795" y="170" className="text-[10px]">
-            ความจุ XX ล้าน ลบ.ม.
+          <text x="795" y="160" className="text-[10px]">
+            {fmtVol(getLake("Lake_02")?.water_volume_m3)}
           </text>
 
-          <defs>
-            {/* clip สำหรับน้ำ 75% (อิงตำแหน่งบึงใหม่) */}
-            <clipPath id="pond-water-75">
-              <rect
-                x="180" // cx - rx = 250 - 70
-                y="615" // คำนวณใหม่
-                width="140" // rx * 2
-                height="105" // 75%
-              />
-            </clipPath>
-          </defs>
-
-          {/* น้ำ 75% */}
+          {/* ══════════════════════════════
+              บึงหนองโคตร
+          ══════════════════════════════ */}
+          {/* น้ำ */}
           <ellipse
             cx="250"
             cy="650"
             rx="70"
             ry="70"
             fill="#225fee"
-            clipPath="url(#pond-water-75)"
+            clipPath="url(#clip-nongkhot)"
+            opacity="0.7"
           />
-
-          {/* ขอบบ่อ */}
+          {/* ขอบ */}
           <ellipse cx="250" cy="650" rx="70" ry="70" className="pond-flat" />
-
-          {/* ข้อความ */}
-          <text x="223" y="620" className="text-[12px] font-bold">
-            ความจุ 78 %
+          <text x="234" y="630" className="text-[12px]">
+            {fmtPct(getLake("Lake_05")?.capacity_pct)}
           </text>
-          <text x="203" y="650" className="text-main">
+          <text x="204" y="650" className="text-main">
             บึงหนองโคตร
           </text>
           <text x="200" y="670" className="text-[10px]">
-            ความจุ 2.58 ล้าน ลบ.ม.
+            {fmtVol(getLake("Lake_05")?.water_volume_m3)}
           </text>
 
+          {/* ══════════════════════════════
+              บึงแก่นนคร
+          ══════════════════════════════ */}
+          {/* น้ำ */}
+          <ellipse
+            cx="783"
+            cy="580"
+            rx="60"
+            ry="60"
+            fill="#225fee"
+            clipPath="url(#clip-kaennakhon)"
+            opacity="0.7"
+          />
+          {/* ขอบ */}
           <ellipse cx="783" cy="580" rx="60" ry="60" className="pond-flat" />
-          <text x="748" y="555" className="text-[12px]">
-            ไม่พบข้อมูล %
+          <text x="765" y="560" className="text-[12px]">
+            {fmtPct(getLake("Lake_03")?.capacity_pct)}
           </text>
-          <text x="742" y="585" className="text-main">
+          <text x="745" y="580" className="text-main">
             บึงแก่นนคร
           </text>
-          <text x="742" y="600" className="text-[10px]">
-            ความจุ XX ล้าน ลบ.ม.
+          <text x="735" y="600" className="text-[10px]">
+            {fmtVol(getLake("Lake_03")?.water_volume_m3)}
           </text>
 
-          {/* --- เส้นท่อระบายน้ำ (Blue 200%) & ลูกศรทิศทาง (Green) --- */}
-
-          {/* สายที่ 1 & 2 (เหนือ) */}
+          {/* ══════════════════════════════
+              ท่อระบายน้ำ & ลูกศร — UI เดิมทั้งหมด
+          ══════════════════════════════ */}
           <path d="M 600 40 L 600 140" className="pipe-main" />
           <path
             d="M 600 70 L 600 110"
@@ -202,7 +304,6 @@ const HecRasFinalCode = () => {
           <path d="M 880 230 L 950 230" className="pipe-main" />
           <path d="M 885 218 L 885 490" className="pipe-main" />
 
-          {/* สายที่ 5 (มะลิวัลย์) */}
           <path d="M 50 300 L 480 300" className="pipe-main" />
           <path
             d="M 80 300 L 240 300"
@@ -231,7 +332,6 @@ const HecRasFinalCode = () => {
             />
           </path>
 
-          {/* ท่อไทยพิพัฒน์ & บ้านคำไฮ */}
           <path d="M 210 310 L 210 589" className="pipe-main" />
           <path
             d="M 210 380 L 210 460"
@@ -262,9 +362,7 @@ const HecRasFinalCode = () => {
             />
           </path>
 
-          {/* สายที่ 4 & ท่อหลัก */}
-          <path d="M 300 480 L 840 480 L 840 220 " className="pipe-main" />
-
+          <path d="M 300 480 L 840 480 L 840 220" className="pipe-main" />
           <path
             d="M 650 480 L 750 480"
             stroke="#22c55e"
@@ -305,7 +403,6 @@ const HecRasFinalCode = () => {
             />
           </path>
 
-          {/* สายที่ 3 (ประชาสโมสร) */}
           <path d="M 640 380 L 640 480" className="pipe-main" />
           <path
             d="M 640 400 L 640 450"
@@ -321,7 +418,6 @@ const HecRasFinalCode = () => {
             />
           </path>
 
-          {/* สายที่ 6 & 7 (ใต้) */}
           <path d="M 380 750 L 380 550" className="pipe-main" />
           <path
             d="M 380 720 L 380 620"
@@ -368,7 +464,6 @@ const HecRasFinalCode = () => {
           </path>
 
           <path d="M 780 520 L 780 480" className="pipe-main" />
-
           <path d="M 318 653 L 370 653" className="pipe-main" />
           <path
             d="M 950 180 L 950 220"
@@ -385,13 +480,8 @@ const HecRasFinalCode = () => {
             />
           </path>
 
-          <text x="910" y="305" className="text-sm font-semibold">
-            หนองเลิงเปือย
-          </text>
-
-          {/* ท่อระบายน้ำข้างเซ็นทรัล */}
-           <path d="M 700 400 L 830 400" className="pipe-main" />
-           <path
+          <path d="M 700 400 L 830 400" className="pipe-main" />
+          <path
             d="M 730 400 L 800 400"
             stroke="#22c55e"
             strokeWidth="3"
@@ -405,10 +495,9 @@ const HecRasFinalCode = () => {
             />
           </path>
 
-          {/* จุดออกไปห้วยพระคือ (Red) */}
           <path d="M 885 490 L 885 550" stroke="#ef4444" strokeWidth="8" />
 
-          {/* --- ข้อความและจุด Node --- */}
+          {/* Node points */}
           <g>
             {[
               { x: 600, y: 40, n: 1 },
@@ -435,7 +524,7 @@ const HecRasFinalCode = () => {
               </g>
             ))}
 
-            {/* ชื่อสถานที่ */}
+            {/* ชื่อสถานที่ — เดิมทั้งหมด */}
             <text x="450" y="45" className="text-sub text-right">
               มหาวิทยาลัยขอนแก่น
             </text>
@@ -487,9 +576,8 @@ const HecRasFinalCode = () => {
             <text x="760" y="680" className="text-sub">
               บ้านตูม
             </text>
-            {/* <text x="880" y="350" className="text-main">เมืองขอนแก่น</text> */}
 
-            {/* ชื่อท่อ */}
+            {/* ชื่อท่อ — เดิมทั้งหมด */}
             <text
               x="625"
               y="10"
@@ -561,7 +649,7 @@ const HecRasFinalCode = () => {
             >
               ท่อระบายน้ำหลัก
             </text>
-             <text
+            <text
               x="700"
               y="380"
               className="text-pipe"
@@ -571,18 +659,8 @@ const HecRasFinalCode = () => {
             </text>
           </g>
 
-          {/* เส้นประสถาปัตยกรรม (ความสัมพันธ์) */}
-          {/* <g className="dashed-line">
-            <line x1="680" y1="140" x2="680" y2="105" />
-            <line x1="850" y1="100" x2="850" y2="75" />
-            <line x1="180" y1="520" x2="140" y2="520" />
-            <line x1="780" y1="720" x2="780" y2="750" />
-            <line x1="480" y1="410" x2="480" y2="365" />
-          </g> */}
-          {/* สถานที่สำคัญ */}
-          {/* มข */}
+          {/* สถานที่สำคัญ — เดิม */}
           <circle cx="505" cy="59" r="6" className="node-place" />
-          {/* เซ็นทรัล */}
           <circle cx="685" cy="505" r="6" className="node-place" />
           <text x="640" y="530" className="text-sub text-right">
             ศูนย์การค้าเซ็นทรัล
@@ -597,7 +675,7 @@ const HecRasFinalCode = () => {
           </text>
         </svg>
 
-        {/* Legend */}
+        {/* Legend — เดิม */}
         <div className="mt-6 flex flex-wrap justify-center gap-6 bg-slate-50 p-4 rounded-lg border border-slate-200 text-xs font-bold">
           <div className="flex items-center gap-2">
             <div className="w-8 h-3 bg-[#0ea5e9] rounded-sm"></div> ท่อระบายน้ำ

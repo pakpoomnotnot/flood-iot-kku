@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { Wifi, ChevronUp, ChevronDown } from "lucide-react";
+import { useLakeData } from "../dashboard-chart/water_value/useLakeData";
 
 // Types for API response
 interface StationData {
@@ -33,12 +34,32 @@ interface RainStats {
 export const DashboardHeader = () => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [rainData1hr, setRainData1hr] = useState<RainData | null>(null);
-  console.log("ข้อมูลน้ำฝน", rainData1hr);
   const [rainData3hr, setRainData3hr] = useState<RainData | null>(null);
   const [rainData24hr, setRainData24hr] = useState<RainData | null>(null);
   const [tempMax, setTempMax] = useState<number | null>(null);
   const [tempMin, setTempMin] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // ── Lake data ──
+  const { getLake } = useLakeData();
+  const LAKE_IDS = ["Lake_02", "Lake_03", "Lake_05", "Lake_06"];
+
+  const totalVolume = LAKE_IDS.reduce((sum, id) => {
+    const lake = getLake(id);
+    return lake?.status === "ok" && lake.water_volume_m3 != null
+      ? sum + lake.water_volume_m3
+      : sum;
+  }, 0);
+
+  const hasLakeData = LAKE_IDS.some((id) => getLake(id)?.status === "ok");
+
+  const totalVolLabel = hasLakeData
+    ? totalVolume >= 1_000_000
+      ? `${(totalVolume / 1_000_000).toFixed(3)} ล้าน`
+      : `${totalVolume.toLocaleString("th-TH", { maximumFractionDigits: 0 })}`
+    : "ไม่พบข้อมูล";
+
+  const totalVolUnit = hasLakeData ? "ลบ.ม. รวมทุกบึง" : "";
 
   // Station name mapping - memoized
   const stationNames = useMemo(
@@ -51,28 +72,24 @@ export const DashboardHeader = () => {
       BNK: "บึงหนองโคตร",
       SIL_MUN: "เทศบาลเมืองศิลา",
       UNE_MC: "ศูนย์อุตุนิยมวิทยากาคตะวันออกเฉียงเหนือตอนบน",
-      MKO_MUN: "เทศบาลเมือนเก่า",
+      MKO_MUN: "เทศบาลเมืองเก่า",
       NEU: "มหาวิทยาลัยภาคตะวันออกเฉียงเหนือ",
       UNE_SH: "บ้านพักพนักงานอุตุฯ",
       KKC_SP: "อุทยานวิทยาศาสตร์มหาวิทยาลัยขอนแก่น",
       BSV: "หมู่บ้านสีวลี",
-      RMUTI: "มหาวิทยาลัยเทยขนำหงคลอิสาน วิทยาเขตขอนแก่น",
+      RMUTI: "มหาวิทยาลัยเทคโนโลยีราชมงคลอิสาน วิทยาเขตขอนแก่น",
       KKC_BL: "โรงเรียนสอนคนตาบอด",
     }),
-    []
+    [],
   );
 
   // Calculate rain statistics for 1hr - memoized
   const rain1hr = useMemo(() => {
-    if (!rainData1hr) {
-      return { maxValue: 0, maxStation: "", hasRain: false };
-    }
-
+    if (!rainData1hr) return { maxValue: 0, maxStation: "", hasRain: false };
     const stations = rainData1hr.stations;
-    let maxValue = 0;
-    let maxStation = "";
-    let hasRain = false;
-
+    let maxValue = 0,
+      maxStation = "",
+      hasRain = false;
     Object.entries(stations).forEach(([station, value]) => {
       const cleanStation = station.replace(/\r/g, "");
       if (value > maxValue) {
@@ -81,7 +98,6 @@ export const DashboardHeader = () => {
         hasRain = value > 0;
       }
     });
-
     return {
       maxValue,
       maxStation: stationNames[maxStation] || maxStation,
@@ -91,15 +107,11 @@ export const DashboardHeader = () => {
 
   // Calculate rain statistics for 3hr - memoized
   const rain3hr = useMemo(() => {
-    if (!rainData3hr) {
-      return { maxValue: 0, maxStation: "", hasRain: false };
-    }
-
+    if (!rainData3hr) return { maxValue: 0, maxStation: "", hasRain: false };
     const stations = rainData3hr.stations;
-    let maxValue = 0;
-    let maxStation = "";
-    let hasRain = false;
-
+    let maxValue = 0,
+      maxStation = "",
+      hasRain = false;
     Object.entries(stations).forEach(([station, value]) => {
       const cleanStation = station.replace(/\r/g, "");
       if (value > maxValue) {
@@ -108,7 +120,6 @@ export const DashboardHeader = () => {
         hasRain = value > 0;
       }
     });
-
     return {
       maxValue,
       maxStation: stationNames[maxStation] || maxStation,
@@ -118,15 +129,11 @@ export const DashboardHeader = () => {
 
   // Calculate rain statistics for 24hr - memoized
   const rain24hr = useMemo(() => {
-    if (!rainData24hr) {
-      return { maxValue: 0, maxStation: "", hasRain: false };
-    }
-
+    if (!rainData24hr) return { maxValue: 0, maxStation: "", hasRain: false };
     const stations = rainData24hr.stations;
-    let maxValue = 0;
-    let maxStation = "";
-    let hasRain = false;
-
+    let maxValue = 0,
+      maxStation = "",
+      hasRain = false;
     Object.entries(stations).forEach(([station, value]) => {
       const cleanStation = station.replace(/\r/g, "");
       if (value > maxValue) {
@@ -135,7 +142,6 @@ export const DashboardHeader = () => {
         hasRain = value > 0;
       }
     });
-
     return {
       maxValue,
       maxStation: stationNames[maxStation] || maxStation,
@@ -143,110 +149,79 @@ export const DashboardHeader = () => {
     };
   }, [rainData24hr, stationNames]);
 
+  // Fetch temperature
   useEffect(() => {
-    // ===========================
-    // ดึงข้อมูลอุณหภูมิ ขอนแก่น
-    // ===========================
     const fetchTemperature = async () => {
       try {
         const url =
           "https://api.open-meteo.com/v1/forecast?latitude=16.4419&longitude=102.8350&hourly=temperature_2m&timezone=Asia/Bangkok&past_days=1";
-
         const res = await fetch(url);
         const data = await res.json();
-
         const temps: number[] = data.hourly.temperature_2m;
-
-        const maxT = Math.max(...temps);
-        const minT = Math.min(...temps);
-
-        setTempMax(maxT);
-        setTempMin(minT);
+        setTempMax(Math.max(...temps));
+        setTempMin(Math.min(...temps));
       } catch (err) {
         console.error("Temperature API error:", err);
         setTempMax(null);
         setTempMin(null);
       }
     };
-
-    // เรียกครั้งแรกตอน component โหลด
     fetchTemperature();
-
-    // ตั้งเวลา refresh ทุก 5 นาที
-    const interval = setInterval(() => {
-      fetchTemperature();
-    }, 5 * 60 * 1000);
-
+    const interval = setInterval(fetchTemperature, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch data from API
+  // Fetch rain data
   useEffect(() => {
     const fetchRainData = async () => {
       try {
         setIsLoading(true);
-
-        // Fetch from /api/rain endpoint
         const response = await fetch("/api/rain");
         const data = await response.json();
 
-        // Process max_1h data
         if (data.max_1h && data.max_1h.length > 0) {
-          // Find station with max value
           const maxStation = data.max_1h.reduce(
             (max: any, station: any) =>
               station.value > max.value ? station : max,
-            data.max_1h[0]
+            data.max_1h[0],
           );
-
-          // ใช้ station_name จาก API โดยตรง
           setRainData1hr({
             file: "",
             datetime: "",
             datetime_ts: Date.now(),
-            stations: {
-              [maxStation.station_name]: maxStation.value, // เปลี่ยนจาก station_code เป็น station_name
-            },
+            stations: { [maxStation.station_name]: maxStation.value },
           });
         } else {
           setRainData1hr(null);
         }
 
-        // Process max_3h data
         if (data.max_3h && data.max_3h.length > 0) {
           const maxStation = data.max_3h.reduce(
             (max: any, station: any) =>
               station.value > max.value ? station : max,
-            data.max_3h[0]
+            data.max_3h[0],
           );
-
           setRainData3hr({
             file: "",
             datetime: "",
             datetime_ts: Date.now(),
-            stations: {
-              [maxStation.station_name]: maxStation.value, // เปลี่ยนจาก station_code เป็น station_name
-            },
+            stations: { [maxStation.station_name]: maxStation.value },
           });
         } else {
           setRainData3hr(null);
         }
 
-        // Process max_24h data
         if (data.max_24h && data.max_24h.length > 0) {
           const maxStation = data.max_24h.reduce(
             (max: any, station: any) =>
               station.value > max.value ? station : max,
-            data.max_24h[0]
+            data.max_24h[0],
           );
-
           setRainData24hr({
             file: "",
             datetime: "",
             datetime_ts: Date.now(),
-            stations: {
-              [maxStation.station_name]: maxStation.value,
-            },
+            stations: { [maxStation.station_name]: maxStation.value },
           });
         } else {
           setRainData24hr(null);
@@ -262,10 +237,7 @@ export const DashboardHeader = () => {
     };
 
     fetchRainData();
-
-    // Refresh every 5 minutes
     const interval = setInterval(fetchRainData, 5 * 60 * 1000);
-
     return () => clearInterval(interval);
   }, []);
 
@@ -343,16 +315,16 @@ export const DashboardHeader = () => {
                   isLoading
                     ? "..."
                     : rain1hr.hasRain
-                    ? rain1hr.maxValue.toFixed(1)
-                    : "0"
+                      ? rain1hr.maxValue.toFixed(1)
+                      : "0"
                 }
                 unit={rain1hr.hasRain ? "มม." : ""}
                 location={
                   isLoading
                     ? "กำลังโหลด..."
                     : rain1hr.hasRain
-                    ? rain1hr.maxStation
-                    : "ขณะนี้ไม่มีฝนตก"
+                      ? rain1hr.maxStation
+                      : "ขณะนี้ไม่มีฝนตก"
                 }
               />
               <StatCard
@@ -361,16 +333,16 @@ export const DashboardHeader = () => {
                   isLoading
                     ? "..."
                     : rain3hr.hasRain
-                    ? rain3hr.maxValue.toFixed(1)
-                    : "0"
+                      ? rain3hr.maxValue.toFixed(1)
+                      : "0"
                 }
                 unit={rain3hr.hasRain ? "มม." : ""}
                 location={
                   isLoading
                     ? "กำลังโหลด..."
                     : rain3hr.hasRain
-                    ? rain3hr.maxStation
-                    : "ขณะนี้ไม่มีฝนตก"
+                      ? rain3hr.maxStation
+                      : "ขณะนี้ไม่มีฝนตก"
                 }
               />
               <StatCard
@@ -379,23 +351,24 @@ export const DashboardHeader = () => {
                   isLoading
                     ? "..."
                     : rain24hr.hasRain
-                    ? rain24hr.maxValue.toFixed(1)
-                    : "0"
+                      ? rain24hr.maxValue.toFixed(1)
+                      : "0"
                 }
                 unit={rain24hr.hasRain ? "มม." : ""}
                 location={
                   isLoading
                     ? "กำลังโหลด..."
                     : rain24hr.hasRain
-                    ? rain24hr.maxStation
-                    : "ขณะนี้ไม่มีฝนตก"
+                      ? rain24hr.maxStation
+                      : "ขณะนี้ไม่มีฝนตก"
                 }
               />
               <TemperatureCard tempMax={tempMax} tempMin={tempMin} />
+              {/* ── LIVE: ปริมาณน้ำในบึงทั้งหมด ── */}
               <StatCard
                 title="ปริมาณน้ำในบึงทั้งหมด"
-                value="ไม่พบข้อมูล"
-                unit="ไม่พบข้อมูล ลบ.ซม."
+                value={totalVolLabel}
+                unit={totalVolUnit}
               />
               <TelemetryCard />
             </div>
@@ -409,16 +382,16 @@ export const DashboardHeader = () => {
                     isLoading
                       ? "..."
                       : rain1hr.hasRain
-                      ? rain1hr.maxValue.toFixed(1)
-                      : "0"
+                        ? rain1hr.maxValue.toFixed(1)
+                        : "0"
                   }
                   unit={rain1hr.hasRain ? "มม." : ""}
                   location={
                     isLoading
                       ? "กำลังโหลด..."
                       : rain1hr.hasRain
-                      ? rain1hr.maxStation
-                      : "ขณะนี้ไม่มีฝนตก"
+                        ? rain1hr.maxStation
+                        : "ขณะนี้ไม่มีฝนตก"
                   }
                   compact
                 />
@@ -428,16 +401,16 @@ export const DashboardHeader = () => {
                     isLoading
                       ? "..."
                       : rain3hr.hasRain
-                      ? rain3hr.maxValue.toFixed(1)
-                      : "0"
+                        ? rain3hr.maxValue.toFixed(1)
+                        : "0"
                   }
                   unit={rain3hr.hasRain ? "มม." : ""}
                   location={
                     isLoading
                       ? "กำลังโหลด..."
                       : rain3hr.hasRain
-                      ? rain3hr.maxStation
-                      : "ขณะนี้ไม่มีฝนตก"
+                        ? rain3hr.maxStation
+                        : "ขณะนี้ไม่มีฝนตก"
                   }
                   compact
                 />
@@ -447,26 +420,27 @@ export const DashboardHeader = () => {
                     isLoading
                       ? "..."
                       : rain24hr.hasRain
-                      ? rain24hr.maxValue.toFixed(1)
-                      : "0"
+                        ? rain24hr.maxValue.toFixed(1)
+                        : "0"
                   }
                   unit={rain24hr.hasRain ? "มม." : ""}
                   location={
                     isLoading
                       ? "กำลังโหลด..."
                       : rain24hr.hasRain
-                      ? rain24hr.maxStation
-                      : "ขณะนี้ไม่มีฝนตก"
+                        ? rain24hr.maxStation
+                        : "ขณะนี้ไม่มีฝนตก"
                   }
                   compact
                 />
               </div>
               <div className="flex flex-row items-center justify-around">
                 <TemperatureCard compact tempMax={tempMax} tempMin={tempMin} />
+                {/* ── LIVE ── */}
                 <StatCard
                   title="ปริมาณน้ำในบึงทั้งหมด"
-                  value="ไม่พบข้อมูล"
-                  unit="ไม่พบข้อมูล ลบ.ซม."
+                  value={totalVolLabel}
+                  unit={totalVolUnit}
                   compact
                 />
                 <TelemetryCard compact />
@@ -481,16 +455,16 @@ export const DashboardHeader = () => {
                   isLoading
                     ? "..."
                     : rain1hr.hasRain
-                    ? rain1hr.maxValue.toFixed(1)
-                    : "0"
+                      ? rain1hr.maxValue.toFixed(1)
+                      : "0"
                 }
                 unit={rain1hr.hasRain ? "มม." : ""}
                 location={
                   isLoading
                     ? "..."
                     : rain1hr.hasRain
-                    ? rain1hr.maxStation
-                    : "ไม่มีฝนตก"
+                      ? rain1hr.maxStation
+                      : "ไม่มีฝนตก"
                 }
                 mobile
               />
@@ -500,16 +474,16 @@ export const DashboardHeader = () => {
                   isLoading
                     ? "..."
                     : rain3hr.hasRain
-                    ? rain3hr.maxValue.toFixed(1)
-                    : "0"
+                      ? rain3hr.maxValue.toFixed(1)
+                      : "0"
                 }
                 unit={rain3hr.hasRain ? "มม." : ""}
                 location={
                   isLoading
                     ? "..."
                     : rain3hr.hasRain
-                    ? rain3hr.maxStation
-                    : "ไม่มีฝนตก"
+                      ? rain3hr.maxStation
+                      : "ไม่มีฝนตก"
                 }
                 mobile
               />
@@ -519,24 +493,25 @@ export const DashboardHeader = () => {
                   isLoading
                     ? "..."
                     : rain24hr.hasRain
-                    ? rain24hr.maxValue.toFixed(1)
-                    : "0"
+                      ? rain24hr.maxValue.toFixed(1)
+                      : "0"
                 }
                 unit={rain24hr.hasRain ? "มม." : ""}
                 location={
                   isLoading
                     ? "..."
                     : rain24hr.hasRain
-                    ? rain24hr.maxStation
-                    : "ไม่มีฝนตก"
+                      ? rain24hr.maxStation
+                      : "ไม่มีฝนตก"
                 }
                 mobile
               />
               <TemperatureCard mobile tempMax={tempMax} tempMin={tempMin} />
+              {/* ── LIVE ── */}
               <StatCard
                 title="น้ำในบึงทั้งหมด"
-                value="1,617"
-                unit="(64%) ลบ.ซม."
+                value={totalVolLabel}
+                unit={totalVolUnit}
                 mobile
               />
               <TelemetryCard mobile />
@@ -548,7 +523,7 @@ export const DashboardHeader = () => {
   );
 };
 
-// Stat Card Component
+// ─── Stat Card ────────────────────────────────────────────────────────────────
 const StatCard = ({
   title,
   value,
@@ -563,45 +538,34 @@ const StatCard = ({
   location?: string;
   compact?: boolean;
   mobile?: boolean;
-}) => {
-  return (
-    <div className="flex flex-col text-center">
-      <div
-        className={`font-semibold text-[#4b1f17] ${
-          mobile ? "text-[10px]" : compact ? "text-xs" : "text-sm"
-        }`}
-      >
-        {title}
-      </div>
-      <div
-        className={`font-bold text-[#a73824] ${
-          mobile ? "text-lg" : compact ? "text-xl" : "text-2xl"
-        }`}
-      >
-        {value}
-      </div>
-      <div
-        className={`text-[#8c6a61] ${
-          mobile ? "text-[9px]" : compact ? "text-[10px]" : "text-xs"
-        }`}
-      >
-        {unit}
-      </div>
-      {location && (
-        <div
-          className={`text-[#a73824] ${
-            mobile ? "text-[9px]" : compact ? "text-[10px]" : "text-xs"
-          }`}
-        >
-          {location}
-        </div>
-      )}
+}) => (
+  <div className="flex flex-col text-center">
+    <div
+      className={`font-semibold text-[#4b1f17] ${mobile ? "text-[10px]" : compact ? "text-xs" : "text-sm"}`}
+    >
+      {title}
     </div>
-  );
-};
+    <div
+      className={`font-bold text-[#a73824] ${mobile ? "text-lg" : compact ? "text-xl" : "text-2xl"}`}
+    >
+      {value}
+    </div>
+    <div
+      className={`text-[#8c6a61] ${mobile ? "text-[9px]" : compact ? "text-[10px]" : "text-xs"}`}
+    >
+      {unit}
+    </div>
+    {location && (
+      <div
+        className={`text-[#a73824] ${mobile ? "text-[9px]" : compact ? "text-[10px]" : "text-xs"}`}
+      >
+        {location}
+      </div>
+    )}
+  </div>
+);
 
-// Temperature Card Component
-// Temperature Card Component
+// ─── Temperature Card ─────────────────────────────────────────────────────────
 const TemperatureCard = ({
   compact = false,
   mobile = false,
@@ -615,67 +579,40 @@ const TemperatureCard = ({
 }) => {
   const maxText = tempMax !== null ? tempMax.toFixed(1) : "...";
   const minText = tempMin !== null ? tempMin.toFixed(1) : "...";
-
   return (
     <div className="flex flex-col text-center">
       <div
-        className={`font-semibold text-[#4b1f17] mb-2 ${
-          mobile ? "text-[10px]" : compact ? "text-xs" : "text-sm"
-        }`}
+        className={`font-semibold text-[#4b1f17] mb-2 ${mobile ? "text-[10px]" : compact ? "text-xs" : "text-sm"}`}
       >
         อุณหภูมิในรอบสัปดาห์
       </div>
-
       <div
-        className={`flex flex-col rounded-xl border border-[#edd9d4] bg-white shadow-sm ${
-          mobile ? "px-2 py-1" : compact ? "px-2 py-1" : "px-3 py-1"
-        }`}
+        className={`flex flex-col rounded-xl border border-[#edd9d4] bg-white shadow-sm ${mobile ? "px-2 py-1" : compact ? "px-2 py-1" : "px-3 py-1"}`}
       >
         <div
-          className={`mb-1 font-semibold text-[#2b120d] ${
-            mobile ? "text-[9px]" : compact ? "text-[10px]" : "text-[11px]"
-          }`}
+          className={`flex items-center justify-center ${mobile ? "gap-2" : compact ? "gap-3" : "gap-4"}`}
         >
-          {/* อุณหภูมิในรอบสัปดาห์ */}
-        </div>
-
-        <div
-          className={`flex items-center justify-center ${
-            mobile ? "gap-2" : compact ? "gap-3" : "gap-4"
-          }`}
-        >
-          {/* MAX */}
           <div className="flex flex-col items-center">
             <div
-              className={`font-bold text-[#a73824] ${
-                mobile ? "text-lg" : compact ? "text-xl" : "text-2xl"
-              }`}
+              className={`font-bold text-[#a73824] ${mobile ? "text-lg" : compact ? "text-xl" : "text-2xl"}`}
             >
               {maxText}
             </div>
             <div
-              className={`flex items-center gap-0.5 text-[#7c584e] ${
-                mobile ? "text-[8px]" : compact ? "text-[9px]" : "text-[10px]"
-              }`}
+              className={`flex items-center gap-0.5 text-[#7c584e] ${mobile ? "text-[8px]" : compact ? "text-[9px]" : "text-[10px]"}`}
             >
               <span>สูงสุด</span>
               <span className="text-[#d96a4c]">▲</span>
             </div>
           </div>
-
-          {/* MIN */}
           <div className="flex flex-col items-center">
             <div
-              className={`font-bold text-[#1f6f8b] ${
-                mobile ? "text-lg" : compact ? "text-xl" : "text-2xl"
-              }`}
+              className={`font-bold text-[#1f6f8b] ${mobile ? "text-lg" : compact ? "text-xl" : "text-2xl"}`}
             >
               {minText}
             </div>
             <div
-              className={`flex items-center gap-0.5 text-[#7c584e] ${
-                mobile ? "text-[8px]" : compact ? "text-[9px]" : "text-[10px]"
-              }`}
+              className={`flex items-center gap-0.5 text-[#7c584e] ${mobile ? "text-[8px]" : compact ? "text-[9px]" : "text-[10px]"}`}
             >
               <span>ต่ำสุด</span>
               <span className="text-gray-400">▼</span>
@@ -687,49 +624,37 @@ const TemperatureCard = ({
   );
 };
 
-// Telemetry Card Component
+// ─── Telemetry Card ───────────────────────────────────────────────────────────
 const TelemetryCard = ({
   compact = false,
   mobile = false,
 }: {
   compact?: boolean;
   mobile?: boolean;
-}) => {
-  return (
+}) => (
+  <div
+    className={`flex flex-col items-center rounded-xl border border-[#edd9d4] bg-[#fff8f5] text-center shadow-sm ${mobile ? "px-2 py-1" : compact ? "px-2 py-1" : "px-3 py-2"}`}
+  >
     <div
-      className={`flex flex-col items-center rounded-xl border border-[#edd9d4] bg-[#fff8f5] text-center shadow-sm ${
-        mobile ? "px-2 py-1" : compact ? "px-2 py-1" : "px-3 py-2"
-      }`}
+      className={`font-semibold text-[#4b1f17] ${mobile ? "text-[10px]" : compact ? "text-xs" : "text-sm"}`}
     >
-      <div
-        className={`font-semibold text-[#4b1f17] ${
-          mobile ? "text-[10px]" : compact ? "text-xs" : "text-sm"
-        }`}
-      >
-        สถานสถานีโทรมาตร
-      </div>
-      <div
-        className={`text-[#8c6a61] ${
-          mobile ? "text-[8px]" : compact ? "text-[9px]" : "text-[10px]"
-        }`}
-      >
-        ออนไลน์
-      </div>
-      <div
-        className={`font-bold text-[#a73824] ${
-          mobile ? "text-base" : compact ? "text-lg" : "text-lg"
-        }`}
-      >
-        27/29
-      </div>
-      <div
-        className={`flex items-center gap-1 text-green-600 ${
-          mobile ? "text-[8px]" : compact ? "text-[9px]" : "text-[10px]"
-        }`}
-      >
-        <span className="font-medium">Telemetry Active</span>
-        <Wifi className={mobile ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} />
-      </div>
+      สถานสถานีโทรมาตร
     </div>
-  );
-};
+    <div
+      className={`text-[#8c6a61] ${mobile ? "text-[8px]" : compact ? "text-[9px]" : "text-[10px]"}`}
+    >
+      ออนไลน์
+    </div>
+    <div
+      className={`font-bold text-[#a73824] ${mobile ? "text-base" : compact ? "text-lg" : "text-lg"}`}
+    >
+      27/29
+    </div>
+    <div
+      className={`flex items-center gap-1 text-green-600 ${mobile ? "text-[8px]" : compact ? "text-[9px]" : "text-[10px]"}`}
+    >
+      <span className="font-medium">Telemetry Active</span>
+      <Wifi className={mobile ? "h-2.5 w-2.5" : "h-3.5 w-3.5"} />
+    </div>
+  </div>
+);

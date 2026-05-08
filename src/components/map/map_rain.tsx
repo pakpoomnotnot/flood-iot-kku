@@ -1,34 +1,91 @@
 "use client";
 
-import React, { useEffect, useRef, useState, FC, useMemo } from "react";
+import React, { useEffect, useRef, useState, FC } from "react";
 import { Layers } from "lucide-react";
 import maplibregl, { Map, Marker, Popup, ScaleControl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  Tooltip, ReferenceLine, ResponsiveContainer,
+  ComposedChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ReferenceLine,
+  ResponsiveContainer,
 } from "recharts";
-import { useStation, generateMockStationData } from "@/contexts/station-context";
+import {
+  useStation,
+  generateMockStationData,
+} from "@/contexts/station-context";
 
 // ─────────────────────────────────────────────
 // Static station coordinates
 // ─────────────────────────────────────────────
 const staticStations = [
-  { no: 1,  lat: 16.466, long: 102.831, id: "SNK_HOSP", name: "โรงพยาบาลศรีนครินทร์" },
-  { no: 2,  lat: 16.429, long: 102.829, id: "KKC_MUN",  name: "เทศบาลนครขอนแก่น" },
-  { no: 3,  lat: 16.419, long: 102.836, id: "BKN",      name: "บึงแก่นนคร" },
-  { no: 4,  lat: 16.452, long: 102.855, id: "BTS",      name: "บึงทุ่งสร้าง" },
-  { no: 5,  lat: 16.43,  long: 102.877, id: "NLP",      name: "หนองเลิงเปือย" },
-  { no: 6,  lat: 16.429, long: 102.805, id: "BNK",      name: "บึงหนองโคตร" },
-  { no: 7,  lat: 16.473, long: 102.849, id: "SIL_MUN",  name: "เทศบาลเมืองศิลา" },
-  { no: 8,  lat: 16.463, long: 102.786, id: "UNE_MC",   name: "ศูนย์อุตุนิยมวิทยาภาคตะวันออกเฉียงเหนือตอนบน" },
-  { no: 9,  lat: 16.402, long: 102.788, id: "MKO_MUN",  name: "เทศบาลเมืองเก่า" },
-  { no: 10, lat: 16.422, long: 102.814, id: "NEU",      name: "มหาวิทยาลัยภาคตะวันออกเฉียงเหนือ" },
-  { no: 11, lat: 16.446, long: 102.832, id: "UNE_SH",   name: "บ้านพักพนักงานอุตุฯ" },
-  { no: 12, lat: 16.456, long: 102.819, id: "KKC_SP",   name: "อุทยานวิทยาศาสตร์ มหาวิทยาลัยขอนแก่น" },
-  { no: 13, lat: 16.436, long: 102.785, id: "BSV",      name: "หมู่บ้านสีวลี" },
-  { no: 14, lat: 16.434, long: 102.861, id: "RMUTI",    name: "มหาวิทยาลัยราชมงคลอีสาน วิทยาเขตขอนแก่น" },
-  { no: 15, lat: 16.442, long: 102.808, id: "KKC_BL",   name: "โรงเรียนสอนคนตาบอด" },
+  {
+    no: 1,
+    lat: 16.466,
+    long: 102.831,
+    id: "SNK_HOSP",
+    name: "โรงพยาบาลศรีนครินทร์",
+  },
+  {
+    no: 2,
+    lat: 16.429,
+    long: 102.829,
+    id: "KKC_MUN",
+    name: "เทศบาลนครขอนแก่น",
+  },
+  { no: 3, lat: 16.419, long: 102.836, id: "BKN", name: "บึงแก่นนคร" },
+  { no: 4, lat: 16.452, long: 102.855, id: "BTS", name: "บึงทุ่งสร้าง" },
+  { no: 5, lat: 16.43, long: 102.877, id: "NLP", name: "หนองเลิงเปือย" },
+  { no: 6, lat: 16.429, long: 102.805, id: "BNK", name: "บึงหนองโคตร" },
+  { no: 7, lat: 16.473, long: 102.849, id: "SIL_MUN", name: "เทศบาลเมืองศิลา" },
+  {
+    no: 8,
+    lat: 16.463,
+    long: 102.786,
+    id: "UNE_MC",
+    name: "ศูนย์อุตุนิยมวิทยาภาคตะวันออกเฉียงเหนือตอนบน",
+  },
+  { no: 9, lat: 16.402, long: 102.788, id: "MKO_MUN", name: "เทศบาลเมืองเก่า" },
+  {
+    no: 10,
+    lat: 16.422,
+    long: 102.814,
+    id: "NEU",
+    name: "มหาวิทยาลัยภาคตะวันออกเฉียงเหนือ",
+  },
+  {
+    no: 11,
+    lat: 16.446,
+    long: 102.832,
+    id: "UNE_SH",
+    name: "บ้านพักพนักงานอุตุฯ",
+  },
+  {
+    no: 12,
+    lat: 16.456,
+    long: 102.819,
+    id: "KKC_SP",
+    name: "อุทยานวิทยาศาสตร์ มหาวิทยาลัยขอนแก่น",
+  },
+  { no: 13, lat: 16.436, long: 102.785, id: "BSV", name: "หมู่บ้านสีวลี" },
+  {
+    no: 14,
+    lat: 16.434,
+    long: 102.861,
+    id: "RMUTI",
+    name: "มหาวิทยาลัยราชมงคลอีสาน วิทยาเขตขอนแก่น",
+  },
+  {
+    no: 15,
+    lat: 16.442,
+    long: 102.808,
+    id: "KKC_BL",
+    name: "โรงเรียนสอนคนตาบอด",
+  },
 ];
 
 // ─────────────────────────────────────────────
@@ -41,7 +98,7 @@ const getRainColor = (value: number) => {
   if (value > 35) return "#FB923C";
   if (value > 20) return "#FDE047";
   if (value > 10) return "#BEF264";
-  if (value >  0) return "#86EFAC";
+  if (value > 0) return "#86EFAC";
   return "#BFDBFE";
 };
 
@@ -51,54 +108,54 @@ const CLOUD_RAIN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" heigh
 // Types
 // ─────────────────────────────────────────────
 interface HourlyPoint {
-  label:         string;
-  value:         number | null;      // ข้อมูลจริง (lead_hour <= 0)
-  forecastValue: number | null;      // พยากรณ์ (lead_hour > 0)
-  isCurrent:     boolean;
-  isForecast:    boolean;
+  label: string;
+  value: number;
+  actual: number | null;
+  forecast: number | null;
+  isCurrent: boolean;
+  isForecast: boolean;
 }
 
 interface ForecastItem {
-  station_code:      string;
-  station_name:      string;
+  station_code: string;
+  station_name: string;
   forecast_datetime: string;
-  rainfall_mm:       number;
-  lead_hour:         number;
-  model_run_time:    string;
+  rainfall_mm: number;
+  lead_hour: number;
+  model_run_time: string;
 }
 
 interface ForecastResponse {
-  run:          { run_time: string };
-  count:        number;
+  run: { run_time: string };
+  count: number;
   station_code: string;
-  data:         ForecastItem[];
+  data: ForecastItem[];
 }
 
 // ─────────────────────────────────────────────
 // แปลง API response → HourlyPoint[]
-// lead_hour <= 0  → value (น้ำเงิน)
-// lead_hour > 0   → forecastValue (ม่วง)
-// จุดที่ใกล้ปัจจุบัน → isCurrent = true, มีทั้ง value & forecastValue (จุดเชื่อมต่อ)
 // ─────────────────────────────────────────────
 function toHourlyPoints(items: ForecastItem[]): HourlyPoint[] {
   const now = new Date();
-
   const sorted = [...items].sort(
     (a, b) =>
       new Date(a.forecast_datetime).getTime() -
-      new Date(b.forecast_datetime).getTime()
+      new Date(b.forecast_datetime).getTime(),
   );
 
-  // หา index ที่ใกล้เวลาปัจจุบันที่สุด
   let closestIdx = 0;
   let minDiff = Infinity;
   sorted.forEach((item, i) => {
-    const diff = Math.abs(new Date(item.forecast_datetime).getTime() - now.getTime());
+    const diff = Math.abs(
+      new Date(item.forecast_datetime).getTime() - now.getTime(),
+    );
     if (diff < minDiff) {
       minDiff = diff;
       closestIdx = i;
     }
   });
+
+  const firstForecastIdx = sorted.findIndex((item) => item.lead_hour > 0);
 
   return sorted.map((item, i) => {
     const t = new Date(item.forecast_datetime);
@@ -107,28 +164,48 @@ function toHourlyPoints(items: ForecastItem[]): HourlyPoint[] {
       .toString()
       .padStart(2, "0")}:00`;
 
-    const isCurrent  = i === closestIdx;
     const isForecast = item.lead_hour > 0;
-
-    // จุดเชื่อมต่อ (isCurrent) มีทั้งสองเส้น
-    if (isCurrent) {
-      return {
-        label,
-        value:         item.rainfall_mm,
-        forecastValue: item.rainfall_mm,
-        isCurrent:     true,
-        isForecast:    false,
-      };
-    }
 
     return {
       label,
-      value:         isForecast ? null : item.rainfall_mm,
-      forecastValue: isForecast ? item.rainfall_mm : null,
-      isCurrent:     false,
+      value: item.rainfall_mm,
+      actual: !isForecast || i === firstForecastIdx ? item.rainfall_mm : null,
+      forecast: isForecast
+        ? item.rainfall_mm
+        : i === firstForecastIdx - 1
+          ? item.rainfall_mm
+          : null,
+      isCurrent: i === closestIdx,
       isForecast,
     };
   });
+}
+
+// ─────────────────────────────────────────────
+// ตัดข้อมูลให้ได้อัตราส่วน actual:forecast = 3:2
+// ─────────────────────────────────────────────
+function sliceByRatio(points: HourlyPoint[]): HourlyPoint[] {
+  const actualPoints = points.filter((p) => p.actual !== null);
+  const forecastPoints = points.filter((p) => p.forecast !== null);
+
+  if (actualPoints.length === 0 || forecastPoints.length === 0) return points;
+
+  const unit = Math.min(
+    Math.floor(actualPoints.length / 3),
+    Math.floor(forecastPoints.length / 2),
+  );
+
+  if (unit === 0) return points;
+
+  const keepActualLabels = new Set(
+    actualPoints.slice(-(unit * 3)).map((p) => p.label),
+  );
+  const keepForecastLabels = new Set(
+    forecastPoints.slice(0, unit * 2).map((p) => p.label),
+  );
+  const keepLabels = new Set([...keepActualLabels, ...keepForecastLabels]);
+
+  return points.filter((p) => keepLabels.has(p.label));
 }
 
 // ─────────────────────────────────────────────
@@ -137,38 +214,46 @@ function toHourlyPoints(items: ForecastItem[]): HourlyPoint[] {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   const isForecast = payload[0]?.payload?.isForecast;
-  const displayValue =
-    payload.find((p: any) => p.dataKey === "forecastValue" && p.value != null)?.value ??
-    payload.find((p: any) => p.dataKey === "value"         && p.value != null)?.value ?? 0;
+  const val = payload[0]?.payload?.value;
   return (
     <div className="rounded-lg border border-blue-100 bg-white px-3 py-2 shadow-lg text-xs">
       <p className="font-semibold text-gray-700">
         {label}
         {isForecast && (
-          <span className="ml-1.5 rounded-full bg-purple-100 px-1.5 py-0.5 text-purple-600 font-medium">พยากรณ์</span>
+          <span className="ml-1.5 rounded-full bg-purple-100 px-1.5 py-0.5 text-purple-600 font-medium">
+            พยากรณ์
+          </span>
         )}
       </p>
-      <p className="mt-0.5 font-bold" style={{ color: isForecast ? "#a855f7" : "#3b82f6" }}>
-        {displayValue} มม.
+      <p
+        className="mt-0.5 font-bold"
+        style={{ color: isForecast ? "#a855f7" : "#3b82f6" }}
+      >
+        {val} มม.
       </p>
     </div>
   );
 };
 
 // ─────────────────────────────────────────────
-// Chart Modal — ดึงข้อมูลจาก API จริง
+// Chart Modal
 // ─────────────────────────────────────────────
 interface ChartModalProps {
-  station:    typeof staticStations[0];
-  rainValue:  number;
+  station: (typeof staticStations)[0];
+  rainValue: number;
   lastUpdate: string;
-  onClose:    () => void;
+  onClose: () => void;
 }
 
-const ChartModal: FC<ChartModalProps> = ({ station, rainValue, lastUpdate, onClose }) => {
-  const [data, setData]       = useState<HourlyPoint[]>([]);
+const ChartModal: FC<ChartModalProps> = ({
+  station,
+  rainValue,
+  lastUpdate,
+  onClose,
+}) => {
+  const [data, setData] = useState<HourlyPoint[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [runTime, setRunTime] = useState<string | null>(null);
 
   useEffect(() => {
@@ -177,7 +262,7 @@ const ChartModal: FC<ChartModalProps> = ({ station, rainValue, lastUpdate, onClo
       setError(null);
       try {
         const res = await fetch(
-          `/api/rain/forecast-timeseries?station_code=${station.id}&limit=500`
+          `/api/rain/forecast-timeseries?station_code=${station.id}&limit=500`,
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json: ForecastResponse = await res.json();
@@ -189,23 +274,27 @@ const ChartModal: FC<ChartModalProps> = ({ station, rainValue, lastUpdate, onClo
         setLoading(false);
       }
     };
-
     fetchData();
   }, [station.id]);
 
-  const currentLabel       = data.find((d) => d.isCurrent)?.label ?? "";
-  const firstForecastLabel = data.find((d) => d.isForecast)?.label ?? "";
-  const tickLabels         = data.filter((_, i) => i % 3 === 0).map((d) => d.label);
+  const formatTime = (timestamp: string) =>
+    new Date(timestamp).toLocaleTimeString("th-TH", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
-  const formatTime = (raw: string) => {
-    try {
-      const d = new Date(raw);
-      return isNaN(d.getTime()) ? raw : d.toLocaleString("th-TH", {
-        year: "numeric", month: "2-digit", day: "2-digit",
-        hour: "2-digit", minute: "2-digit", hour12: false,
-      }).replace(",", "");
-    } catch { return raw; }
-  };
+  // สัดส่วน 3:2 แล้ว sample ทุก 2 จุด
+  const ratioData = sliceByRatio(data);
+  const displayData = ratioData.filter((_, i) => i % 2 === 0);
+
+  const currentLabel =
+    displayData.find((d) => d.isCurrent)?.label ??
+    data.find((d) => d.isCurrent)?.label ??
+    "";
+  const firstForecastLabel = displayData.find((d) => d.isForecast)?.label ?? "";
+  const tickLabels = displayData
+    .filter((_, i) => i % 6 === 0)
+    .map((d) => d.label);
 
   return (
     <div
@@ -219,15 +308,27 @@ const ChartModal: FC<ChartModalProps> = ({ station, rainValue, lastUpdate, onClo
         {/* Header */}
         <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-gray-100">
           <div>
-            <h2 className="text-base font-bold text-gray-800">กราฟฝน — {station.name}</h2>
+            <h2 className="text-base font-bold text-gray-800">
+              กราฟฝน — {station.name}
+            </h2>
             <p className="text-xs text-gray-400 mt-0.5">ID: {station.id}</p>
           </div>
           <button
             onClick={onClose}
             className="ml-4 mt-0.5 flex-shrink-0 rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -248,15 +349,18 @@ const ChartModal: FC<ChartModalProps> = ({ station, rainValue, lastUpdate, onClo
         {/* Legend */}
         <div className="flex items-center gap-4 px-5 pt-3 text-xs text-gray-500">
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2.5 w-2.5 rounded-full bg-blue-500" />
+            <span className="inline-block h-3 w-4 rounded-sm bg-blue-500" />
             ข้อมูลจริง
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2.5 w-2.5 rounded-full bg-purple-500" />
+            <span className="inline-block h-3 w-4 rounded-sm bg-purple-400 opacity-75" />
             พยากรณ์ล่วงหน้า
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-5" style={{ borderTop: "2px dashed #f87171", height: 0 }} />
+            <span
+              className="inline-block w-5"
+              style={{ borderTop: "2px dashed #f87171", height: 0 }}
+            />
             ปัจจุบัน
           </span>
         </div>
@@ -270,9 +374,24 @@ const ChartModal: FC<ChartModalProps> = ({ station, rainValue, lastUpdate, onClo
           {loading ? (
             <div className="flex h-[220px] items-center justify-center">
               <div className="flex flex-col items-center gap-2 text-sm text-gray-400">
-                <svg className="h-6 w-6 animate-spin text-blue-400" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                <svg
+                  className="h-6 w-6 animate-spin text-blue-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8z"
+                  />
                 </svg>
                 กำลังโหลดข้อมูล...
               </div>
@@ -280,31 +399,39 @@ const ChartModal: FC<ChartModalProps> = ({ station, rainValue, lastUpdate, onClo
           ) : error ? (
             <div className="flex h-[220px] items-center justify-center">
               <div className="flex flex-col items-center gap-1 text-sm text-red-400">
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                  />
                 </svg>
                 {error}
               </div>
             </div>
-          ) : data.length === 0 ? (
+          ) : displayData.length === 0 ? (
             <div className="flex h-[220px] items-center justify-center text-sm text-gray-400">
               ไม่มีข้อมูลสถานีนี้
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={data} margin={{ top: 8, right: 10, left: -10, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="gradBlue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.03} />
-                  </linearGradient>
-                  <linearGradient id="gradPurple" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#a855f7" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#a855f7" stopOpacity={0.03} />
-                  </linearGradient>
-                </defs>
-
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+              <ComposedChart
+                data={displayData}
+                margin={{ top: 8, right: 10, left: -10, bottom: 5 }}
+                barCategoryGap="20%"
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="#e2e8f0"
+                  strokeWidth={1.5}
+                  vertical={false}
+                />
 
                 <XAxis
                   dataKey="label"
@@ -323,18 +450,22 @@ const ChartModal: FC<ChartModalProps> = ({ station, rainValue, lastUpdate, onClo
 
                 <Tooltip content={<CustomTooltip />} />
 
-                {/* เส้นแดงประ = ปัจจุบัน */}
                 {currentLabel && (
                   <ReferenceLine
                     x={currentLabel}
                     stroke="#ef4444"
                     strokeWidth={1.5}
                     strokeDasharray="4 3"
-                    label={{ value: "ปัจจุบัน", position: "top", fontSize: 10, fill: "#ef4444", fontWeight: 600 }}
+                    label={{
+                      value: "ปัจจุบัน",
+                      position: "top",
+                      fontSize: 10,
+                      fill: "#ef4444",
+                      fontWeight: 600,
+                    }}
                   />
                 )}
 
-                {/* เส้นม่วงประ = เริ่ม forecast */}
                 {firstForecastLabel && firstForecastLabel !== currentLabel && (
                   <ReferenceLine
                     x={firstForecastLabel}
@@ -344,31 +475,25 @@ const ChartModal: FC<ChartModalProps> = ({ station, rainValue, lastUpdate, onClo
                   />
                 )}
 
-                {/* กราฟเส้น historical (สีฟ้า) */}
-                <Area
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  fill="url(#gradBlue)"
-                  dot={{ r: 3, fill: "#3b82f6", stroke: "white", strokeWidth: 1 }}
-                  activeDot={{ r: 5, fill: "#3b82f6", stroke: "white", strokeWidth: 1.5 }}
-                  connectNulls={false}
+                {/* แท่ง actual — น้ำเงิน */}
+                <Bar
+                  dataKey="actual"
+                  name="ย้อนหลัง"
+                  fill="#3b82f6"
+                  radius={[3, 3, 0, 0]}
+                  maxBarSize={40}
                 />
 
-                {/* กราฟเส้น forecast (สีม่วงประ) */}
-                <Area
-                  type="monotone"
-                  dataKey="forecastValue"
-                  stroke="#a855f7"
-                  strokeWidth={2}
-                  strokeDasharray="5 3"
-                  fill="url(#gradPurple)"
-                  dot={{ r: 3, fill: "#a855f7", stroke: "white", strokeWidth: 1 }}
-                  activeDot={{ r: 5, fill: "#a855f7", stroke: "white", strokeWidth: 1.5 }}
-                  connectNulls={false}
+                {/* แท่ง forecast — ม่วง */}
+                <Bar
+                  dataKey="forecast"
+                  name="พยากรณ์"
+                  fill="#a855f7"
+                  radius={[3, 3, 0, 0]}
+                  maxBarSize={40}
+                  opacity={0.75}
                 />
-              </AreaChart>
+              </ComposedChart>
             </ResponsiveContainer>
           )}
         </div>
@@ -390,7 +515,11 @@ const ChartModal: FC<ChartModalProps> = ({ station, rainValue, lastUpdate, onClo
 // ─────────────────────────────────────────────
 // Basemap types
 // ─────────────────────────────────────────────
-interface BasemapConfig { name: string; style: string; icon: string; }
+interface BasemapConfig {
+  name: string;
+  style: string;
+  icon: string;
+}
 type BasemapStyleKey = "hybrid" | "topo";
 
 // ─────────────────────────────────────────────
@@ -398,51 +527,68 @@ type BasemapStyleKey = "hybrid" | "topo";
 // ─────────────────────────────────────────────
 const MapComponent: FC = () => {
   const mapContainer = useRef<HTMLDivElement | null>(null);
-  const map          = useRef<Map | null>(null);
-  const markersRef   = useRef<Marker[]>([]);
+  const map = useRef<Map | null>(null);
+  const markersRef = useRef<Marker[]>([]);
 
-  const [currentStyle, setCurrentStyle]   = useState<BasemapStyleKey>("topo");
-  const [isLoaded, setIsLoaded]           = useState(false);
+  const [currentStyle, setCurrentStyle] = useState<BasemapStyleKey>("topo");
+  const [isLoaded, setIsLoaded] = useState(false);
   const [isSwitcherOpen, setSwitcherOpen] = useState(false);
-  const [rainData, setRainData]           = useState<Record<string, number>>({});
-  const [lastUpdate, setLastUpdate]       = useState("-");
-
-  const [chartStation, setChartStation] = useState<typeof staticStations[0] | null>(null);
+  const [rainData, setRainData] = useState<Record<string, number>>({});
+  const [lastUpdate, setLastUpdate] = useState("-");
+  const [chartStation, setChartStation] = useState<
+    (typeof staticStations)[0] | null
+  >(null);
 
   const { setSelectedStationData } = useStation();
   const API_KEY = "yYduxrRP3C81U2fRFNIU";
 
   const basemaps: Record<BasemapStyleKey, BasemapConfig> = {
-    hybrid: { name: "Hybrid",      style: `https://api.maptiler.com/maps/hybrid/style.json?key=${API_KEY}`,  icon: "🌍" },
-    topo:   { name: "Topographic", style: `https://api.maptiler.com/maps/topo-v2/style.json?key=${API_KEY}`, icon: "🏔️" },
+    hybrid: {
+      name: "Hybrid",
+      style: `https://api.maptiler.com/maps/hybrid/style.json?key=${API_KEY}`,
+      icon: "🌍",
+    },
+    topo: {
+      name: "Topographic",
+      style: `https://api.maptiler.com/maps/topo-v2/style.json?key=${API_KEY}`,
+      icon: "🏔️",
+    },
   };
 
   const fetchRainData = async () => {
     try {
-      const res    = await fetch("http://10.198.110.39:3000/api/rain_1hr_2km?limit=1");
+      const res = await fetch(
+        "http://10.198.110.39:3000/api/rain_1hr_2km?limit=1",
+      );
       const result = await res.json();
       if (result.status === "success" && result.data?.length > 0) {
         const latest = result.data[0];
         setLastUpdate(latest.datetime);
         const cleaned: Record<string, number> = {};
-        Object.entries(latest.stations).forEach(([k, v]) => { cleaned[k.trim()] = Number(v); });
+        Object.entries(latest.stations).forEach(([k, v]) => {
+          cleaned[k.trim()] = Number(v);
+        });
         setRainData(cleaned);
       }
-    } catch (e) { console.error("Rain fetch error:", e); }
+    } catch (e) {
+      console.error("Rain fetch error:", e);
+    }
   };
 
-  useEffect(() => { fetchRainData(); }, []);
+  useEffect(() => {
+    fetchRainData();
+  }, []);
 
   const createMarkerElement = (value: number): HTMLDivElement => {
     const el = document.createElement("div");
     el.className = "custom-marker-wrapper";
-    const color  = getRainColor(value);
+    const color = getRainColor(value);
     el.innerHTML = `<div class="custom-marker" style="background:${color};border:3px solid white;">${CLOUD_RAIN_SVG}</div>`;
     return el;
   };
 
   const createPopupContent = (
-    station: typeof staticStations[0],
+    station: (typeof staticStations)[0],
     value: number,
     time: string,
   ): string => {
@@ -487,9 +633,9 @@ const MapComponent: FC = () => {
 
     staticStations.forEach((station) => {
       const rainValue = rainData[station.id] ?? 0;
-      const el        = createMarkerElement(rainValue);
-      const popup     = new Popup({ offset: 35, closeButton: false }).setHTML(
-        createPopupContent(station, rainValue, lastUpdate)
+      const el = createMarkerElement(rainValue);
+      const popup = new Popup({ offset: 35, closeButton: false }).setHTML(
+        createPopupContent(station, rainValue, lastUpdate),
       );
 
       const marker = new Marker({ element: el })
@@ -503,8 +649,14 @@ const MapComponent: FC = () => {
 
       el.addEventListener("click", () => {
         const mockData = generateMockStationData({
-          id: station.id, name: station.name, no: station.no,
-          location: { latitude: station.lat, longitude: station.long, area: "Khon Kaen" },
+          id: station.id,
+          name: station.name,
+          no: station.no,
+          location: {
+            latitude: station.lat,
+            longitude: station.long,
+            area: "Khon Kaen",
+          },
           sensors: [],
         });
         setSelectedStationData(mockData);
@@ -513,7 +665,7 @@ const MapComponent: FC = () => {
       popup.on("open", () => {
         setTimeout(() => {
           const btn = document.querySelector<HTMLButtonElement>(
-            `.chart-btn[data-station-id="${station.id}"]`
+            `.chart-btn[data-station-id="${station.id}"]`,
           );
           if (btn) {
             btn.addEventListener("click", (e) => {
@@ -526,7 +678,9 @@ const MapComponent: FC = () => {
     });
   };
 
-  useEffect(() => { if (isLoaded && map.current) addStationMarkers(); }, [isLoaded, rainData]);
+  useEffect(() => {
+    if (isLoaded && map.current) addStationMarkers();
+  }, [isLoaded, rainData]);
 
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
@@ -539,7 +693,9 @@ const MapComponent: FC = () => {
     });
     map.current.addControl(new ScaleControl(), "bottom-left");
     map.current.on("load", () => setIsLoaded(true));
-    map.current.on("mousedown", () => { if (isSwitcherOpen) setSwitcherOpen(false); });
+    map.current.on("mousedown", () => {
+      if (isSwitcherOpen) setSwitcherOpen(false);
+    });
     return () => {
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
@@ -559,16 +715,25 @@ const MapComponent: FC = () => {
   const formatTime = (raw: string) => {
     try {
       const d = new Date(raw);
-      return isNaN(d.getTime()) ? raw : d.toLocaleString("th-TH", {
-        year: "numeric", month: "2-digit", day: "2-digit",
-        hour: "2-digit", minute: "2-digit", hour12: false,
-      }).replace(",", "");
-    } catch { return raw; }
+      return isNaN(d.getTime())
+        ? raw
+        : d
+            .toLocaleString("th-TH", {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            })
+            .replace(",", "");
+    } catch {
+      return raw;
+    }
   };
 
   return (
     <div className="relative w-full h-full bg-gray-900 font-sans rounded-xl overflow-hidden flex flex-col">
-
       {/* ── Map ── */}
       <div className="relative flex-1 min-h-0">
         <div ref={mapContainer} className="w-full h-full" />
@@ -577,7 +742,9 @@ const MapComponent: FC = () => {
           <div className="absolute inset-0 bg-slate-800/60 backdrop-blur-sm flex items-center justify-center z-50">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto" />
-              <p className="text-white text-lg mt-4 font-semibold">กำลังโหลดแผนที่...</p>
+              <p className="text-white text-lg mt-4 font-semibold">
+                กำลังโหลดแผนที่...
+              </p>
             </div>
           </div>
         )}
@@ -594,10 +761,16 @@ const MapComponent: FC = () => {
           {isSwitcherOpen && isLoaded && (
             <div className="absolute right-0 top-full mt-2 w-56 bg-white/90 backdrop-blur-md rounded-xl shadow-2xl border border-gray-200/50 p-3">
               <div className="grid grid-cols-2 gap-2">
-                {(Object.entries(basemaps) as [BasemapStyleKey, BasemapConfig][]).map(([key, bm]) => (
-                  <button key={key} onClick={() => switchBasemap(key)}
+                {(
+                  Object.entries(basemaps) as [BasemapStyleKey, BasemapConfig][]
+                ).map(([key, bm]) => (
+                  <button
+                    key={key}
+                    onClick={() => switchBasemap(key)}
                     className={`flex flex-col items-center justify-center p-3 rounded-lg text-xs font-medium h-20 transition-all ${
-                      currentStyle === key ? "bg-blue-500 text-white ring-2 ring-blue-300" : "bg-gray-50 hover:bg-blue-100 text-gray-700"
+                      currentStyle === key
+                        ? "bg-blue-500 text-white ring-2 ring-blue-300"
+                        : "bg-gray-50 hover:bg-blue-100 text-gray-700"
                     }`}
                   >
                     <span className="text-2xl mb-1">{bm.icon}</span>
@@ -622,24 +795,38 @@ const MapComponent: FC = () => {
         </div>
         <div className="flex w-full rounded-sm overflow-hidden border border-gray-300">
           {[
-            { range: ">0-10",  color: "#81d4fa" },
+            { range: ">0-10", color: "#81d4fa" },
             { range: ">10-20", color: "#d0f8ce" },
             { range: ">20-35", color: "#7cb342" },
             { range: ">35-50", color: "#fdd835" },
             { range: ">50-70", color: "#f57f17" },
             { range: ">70-90", color: "#8d6e63" },
-            { range: ">90",    color: "#bf360c" },
+            { range: ">90", color: "#bf360c" },
           ].map((seg, i) => (
-            <div key={i} className="flex-1 flex items-center justify-center py-2" style={{ backgroundColor: seg.color }}>
-              <span className="text-[9px] font-bold text-gray-800 whitespace-nowrap">{seg.range}</span>
+            <div
+              key={i}
+              className="flex-1 flex items-center justify-center py-2"
+              style={{ backgroundColor: seg.color }}
+            >
+              <span className="text-[9px] font-bold text-gray-800 whitespace-nowrap">
+                {seg.range}
+              </span>
             </div>
           ))}
         </div>
         <div className="flex w-full mt-0.5">
-          <div className="flex-[2] text-center text-[10px] font-semibold text-gray-700 border-r border-gray-300">เล็กน้อย</div>
-          <div className="flex-[2] text-center text-[10px] font-semibold text-gray-700 border-r border-gray-300">ปานกลาง</div>
-          <div className="flex-[2] text-center text-[10px] font-semibold text-gray-700 border-r border-gray-300">หนัก</div>
-          <div className="flex-[1] text-center text-[10px] font-semibold text-gray-700">หนักมาก</div>
+          <div className="flex-[2] text-center text-[10px] font-semibold text-gray-700 border-r border-gray-300">
+            เล็กน้อย
+          </div>
+          <div className="flex-[2] text-center text-[10px] font-semibold text-gray-700 border-r border-gray-300">
+            ปานกลาง
+          </div>
+          <div className="flex-[2] text-center text-[10px] font-semibold text-gray-700 border-r border-gray-300">
+            หนัก
+          </div>
+          <div className="flex-[1] text-center text-[10px] font-semibold text-gray-700">
+            หนักมาก
+          </div>
         </div>
       </div>
 
@@ -656,58 +843,157 @@ const MapComponent: FC = () => {
       {/* ── Global styles ── */}
       <style jsx global>{`
         .modern-popup {
-          font-family: system-ui, -apple-system, sans-serif;
-          width: 270px; background: white;
-          border-radius: 12px; overflow: hidden;
-          box-shadow: 0 8px 32px rgba(0,0,0,0.12); position: relative;
+          font-family:
+            system-ui,
+            -apple-system,
+            sans-serif;
+          width: 270px;
+          background: white;
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+          position: relative;
         }
         .popup-close-btn {
-          position: absolute; top: 10px; right: 10px;
-          width: 24px; height: 24px; border-radius: 50%;
-          background: rgba(0,0,0,0.45);
-          display: flex; align-items: center; justify-content: center;
-          cursor: pointer; z-index: 10;
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: rgba(0, 0, 0, 0.45);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          z-index: 10;
         }
-        .popup-close-btn svg { color: #fff; }
-        .popup-location-header { padding: 16px 14px 12px; border-bottom: 1px solid #E5E7EB; }
+        .popup-close-btn svg {
+          color: #fff;
+        }
+        .popup-location-header {
+          padding: 16px 14px 12px;
+          border-bottom: 1px solid #e5e7eb;
+        }
         .station-type-badge {
-          display: inline-flex; align-items: center; gap: 4px;
-          padding: 3px 8px; border-radius: 6px;
-          color: white; font-size: 10px; font-weight: 600; margin-bottom: 8px;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 3px 8px;
+          border-radius: 6px;
+          color: white;
+          font-size: 10px;
+          font-weight: 600;
+          margin-bottom: 8px;
         }
-        .station-type-badge svg { width: 12px; height: 12px; }
-        .location-name { font-size: 15px; font-weight: 700; color: #111827; margin: 0 0 4px; line-height: 1.3; }
-        .location-area { font-size: 11px; color: #6B7280; font-weight: 500; }
-        .popup-content-body { padding: 14px; background: #F9FAFB; }
-        .data-label { font-size: 10px; color: #6B7280; margin-bottom: 8px; font-weight: 600; }
+        .station-type-badge svg {
+          width: 12px;
+          height: 12px;
+        }
+        .location-name {
+          font-size: 15px;
+          font-weight: 700;
+          color: #111827;
+          margin: 0 0 4px;
+          line-height: 1.3;
+        }
+        .location-area {
+          font-size: 11px;
+          color: #6b7280;
+          font-weight: 500;
+        }
+        .popup-content-body {
+          padding: 14px;
+          background: #f9fafb;
+        }
+        .data-label {
+          font-size: 10px;
+          color: #6b7280;
+          margin-bottom: 8px;
+          font-weight: 600;
+        }
         .data-value-box {
-          background: white; border: 2px solid #E5E7EB; border-radius: 10px;
-          padding: 12px; display: flex; align-items: baseline; gap: 6px; margin-bottom: 10px;
+          background: white;
+          border: 2px solid #e5e7eb;
+          border-radius: 10px;
+          padding: 12px;
+          display: flex;
+          align-items: baseline;
+          gap: 6px;
+          margin-bottom: 10px;
         }
-        .data-number { font-size: 32px; font-weight: 800; line-height: 1; }
-        .data-unit { font-size: 14px; font-weight: 600; color: #6B7280; }
-        .popup-footer-row { display: flex; align-items: center; justify-content: space-between; }
-        .data-timestamp { font-size: 10px; color: #9CA3AF; }
+        .data-number {
+          font-size: 32px;
+          font-weight: 800;
+          line-height: 1;
+        }
+        .data-unit {
+          font-size: 14px;
+          font-weight: 600;
+          color: #6b7280;
+        }
+        .popup-footer-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .data-timestamp {
+          font-size: 10px;
+          color: #9ca3af;
+        }
         .chart-btn {
-          display: inline-flex; align-items: center; justify-content: center;
-          width: 34px; height: 34px; border-radius: 50%;
-          background: #EFF6FF; border: 1.5px solid #BFDBFE;
-          color: #3B82F6; cursor: pointer;
-          transition: background 0.15s, transform 0.15s;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          background: #eff6ff;
+          border: 1.5px solid #bfdbfe;
+          color: #3b82f6;
+          cursor: pointer;
+          transition:
+            background 0.15s,
+            transform 0.15s;
         }
-        .chart-btn:hover { background: #DBEAFE; transform: scale(1.1); }
-        .chart-btn:active { transform: scale(0.95); }
-        .custom-marker-wrapper { cursor: pointer; }
+        .chart-btn:hover {
+          background: #dbeafe;
+          transform: scale(1.1);
+        }
+        .chart-btn:active {
+          transform: scale(0.95);
+        }
+        .custom-marker-wrapper {
+          cursor: pointer;
+        }
         .custom-marker {
-          width: 36px; height: 36px; border-radius: 50%;
-          display: flex; justify-content: center; align-items: center; color: white;
-          box-shadow: 0 4px 6px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.1);
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          color: white;
+          box-shadow:
+            0 4px 6px rgba(0, 0, 0, 0.15),
+            0 2px 4px rgba(0, 0, 0, 0.1);
           transition: transform 0.2s ease;
         }
-        .custom-marker-wrapper:hover .custom-marker { transform: scale(1.2); }
-        .maplibregl-popup-content { padding: 0; border-radius: 12px; background: transparent; box-shadow: none; }
-        .maplibregl-popup-tip { display: none; }
-        .maplibregl-popup-close-button { display: none; }
+        .custom-marker-wrapper:hover .custom-marker {
+          transform: scale(1.2);
+        }
+        .maplibregl-popup-content {
+          padding: 0;
+          border-radius: 12px;
+          background: transparent;
+          box-shadow: none;
+        }
+        .maplibregl-popup-tip {
+          display: none;
+        }
+        .maplibregl-popup-close-button {
+          display: none;
+        }
       `}</style>
     </div>
   );

@@ -1,119 +1,160 @@
 "use client";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  LineChart,
-  Line,
+  ComposedChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ReferenceLine,
   ResponsiveContainer,
-  Area,
 } from "recharts";
 
-// ─────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────
 interface WaterData {
-  station:      string;
-  location:     string;
-  basin:        string;
-  level:        number;
-  bankLevel:    number;
-  status:       string;
-  diff:         number;
-  time:         string;
-  stationCode?: string; // ← เพิ่มใหม่
+  station: string;
+  location: string;
+  basin: string;
+  level: number;
+  bankLevel: number;
+  status: string;
+  diff: number;
+  time: string;
+  stationCode?: string;
 }
 
 interface HourlyPoint {
-  label:      string;
-  value:      number;
-  isCurrent:  boolean;
+  label: string;
+  value: number;
+  actual: number | null;
+  forecast: number | null;
+  isCurrent: boolean;
   isForecast: boolean;
 }
 
 interface ForecastItem {
-  station_code:      string;
-  station_name:      string;
+  station_code: string;
+  station_name: string;
   forecast_datetime: string;
-  rainfall_mm:       number;
-  lead_hour:         number;
-  model_run_time:    string;
+  rainfall_mm: number;
+  lead_hour: number;
+  model_run_time: string;
 }
 
 interface ForecastResponse {
-  run:          { run_time: string };
-  count:        number;
+  run: { run_time: string };
+  count: number;
   station_code: string;
-  data:         ForecastItem[];
+  data: ForecastItem[];
 }
 
-// ─────────────────────────────────────────────
-// แปลง API response → HourlyPoint[]
-// lead_hour <= 0 = ข้อมูลจริง (น้ำเงิน)
-// lead_hour > 0  = พยากรณ์ (ม่วง)
-// ─────────────────────────────────────────────
 function toHourlyPoints(items: ForecastItem[]): HourlyPoint[] {
   const now = new Date();
-
   const sorted = [...items].sort(
     (a, b) =>
       new Date(a.forecast_datetime).getTime() -
-      new Date(b.forecast_datetime).getTime()
+      new Date(b.forecast_datetime).getTime(),
   );
 
-  // หา index ที่ใกล้เวลาปัจจุบันที่สุด
   let closestIdx = 0;
   let minDiff = Infinity;
   sorted.forEach((item, i) => {
-    const diff = Math.abs(new Date(item.forecast_datetime).getTime() - now.getTime());
+    const diff = Math.abs(
+      new Date(item.forecast_datetime).getTime() - now.getTime(),
+    );
     if (diff < minDiff) {
       minDiff = diff;
       closestIdx = i;
     }
   });
 
+  const firstForecastIdx = sorted.findIndex((item) => item.lead_hour > 0);
+
   return sorted.map((item, i) => {
     const t = new Date(item.forecast_datetime);
-    const label = `${t.getDate()}-${t.toLocaleString("en", { month: "short" })} ${t
-      .getHours()
-      .toString()
-      .padStart(2, "0")}:00`;
+    const label = `${t.getDate()}-${t.toLocaleString("en", {
+      month: "short",
+    })} ${t.getHours().toString().padStart(2, "0")}:00`;
+
+    const isForecast = item.lead_hour > 0;
 
     return {
       label,
-      value:      item.rainfall_mm,
-      isCurrent:  i === closestIdx,
-      isForecast: item.lead_hour > 0,
+      value: item.rainfall_mm,
+      actual: !isForecast || i === firstForecastIdx ? item.rainfall_mm : null,
+      forecast: isForecast
+        ? item.rainfall_mm
+        : i === firstForecastIdx - 1
+          ? item.rainfall_mm
+          : null,
+      isCurrent: i === closestIdx,
+      isForecast,
     };
   });
 }
 
-// ─────────────────────────────────────────────
-// Status badge color
-// ─────────────────────────────────────────────
+// ── ตัดข้อมูลให้ได้อัตราส่วน actual:forecast = 3:2 ──
+function sliceByRatio(points: HourlyPoint[]): HourlyPoint[] {
+  const actualPoints = points.filter((p) => p.actual !== null);
+  const forecastPoints = points.filter((p) => p.forecast !== null);
+
+  if (actualPoints.length === 0 || forecastPoints.length === 0) return points;
+
+  const unit = Math.min(
+    Math.floor(actualPoints.length / 3),
+    Math.floor(forecastPoints.length / 2),
+  );
+
+  if (unit === 0) return points;
+
+  // เอา actual ล่าสุด (tail) 3 ส่วน + forecast แรกสุด (head) 2 ส่วน
+  // หา index ของ actual จุดสุดท้ายที่ต้องการ
+  const lastActualKeep = actualPoints[actualPoints.length - 1];
+  const firstActualKeep = actualPoints[actualPoints.length - unit * 3];
+  const lastForecastKeep = forecastPoints[unit * 2 - 1];
+
+  // กรองจาก array ต้นฉบับโดยใช้ label เป็น key
+  const keepActualLabels = new Set(
+    actualPoints.slice(-(unit * 3)).map((p) => p.label),
+  );
+  const keepForecastLabels = new Set(
+    forecastPoints.slice(0, unit * 2).map((p) => p.label),
+  );
+
+  // รวม label ที่ต้องการ (union)
+  const keepLabels = new Set([...keepActualLabels, ...keepForecastLabels]);
+
+  // คืน array ต้นฉบับที่ filter เฉพาะ label ที่ต้องการ (รักษาลำดับ + ข้อมูลครบ)
+  return points.filter((p) => keepLabels.has(p.label));
+}
+
 function statusColor(status: string) {
   switch (status) {
-    case "หนักมาก":  return "bg-red-500 text-white";
-    case "หนัก":     return "bg-orange-400 text-white";
-    case "ปานกลาง":  return "bg-yellow-400 text-gray-900";
-    case "เล็กน้อย": return "bg-blue-400 text-white";
-    case "สูง":      return "bg-red-500 text-white";
-    case "กลาง":     return "bg-yellow-400 text-gray-900";
-    case "ต่ำ":      return "bg-green-400 text-white";
-    case "น้ำท่วม":  return "bg-red-600 text-white";
-    default:         return "bg-gray-200 text-gray-600";
+    case "หนักมาก":
+      return "bg-red-500 text-white";
+    case "หนัก":
+      return "bg-orange-400 text-white";
+    case "ปานกลาง":
+      return "bg-yellow-400 text-gray-900";
+    case "เล็กน้อย":
+      return "bg-blue-400 text-white";
+    case "สูง":
+      return "bg-red-500 text-white";
+    case "กลาง":
+      return "bg-yellow-400 text-gray-900";
+    case "ต่ำ":
+      return "bg-green-400 text-white";
+    case "น้ำท่วม":
+      return "bg-red-600 text-white";
+    default:
+      return "bg-gray-200 text-gray-600";
   }
 }
 
-// ─────────────────────────────────────────────
-// Custom Tooltip
-// ─────────────────────────────────────────────
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const isForecast = payload[0]?.payload?.isForecast;
+    const val = payload[0]?.payload?.value;
     return (
       <div className="rounded-lg border border-blue-100 bg-white px-3 py-2 shadow-lg text-xs">
         <p className="font-semibold text-gray-700">
@@ -124,8 +165,10 @@ const CustomTooltip = ({ active, payload, label }: any) => {
             </span>
           )}
         </p>
-        <p className="text-blue-600 font-bold mt-0.5">
-          {payload[0].value} มม.
+        <p
+          className={`font-bold mt-0.5 ${isForecast ? "text-purple-600" : "text-blue-600"}`}
+        >
+          {val} มม.
         </p>
       </div>
     );
@@ -133,35 +176,15 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-// ─────────────────────────────────────────────
-// Custom dot — สีม่วงสำหรับ forecast
-// ─────────────────────────────────────────────
-const CustomDot = (props: any) => {
-  const { cx, cy, payload } = props;
-  if (!cx || !cy) return null;
-  const color = payload.isForecast ? "#a855f7" : "#3b82f6";
-  return <circle cx={cx} cy={cy} r={3} fill={color} stroke="white" strokeWidth={1} />;
-};
-
-const CustomActiveDot = (props: any) => {
-  const { cx, cy, payload } = props;
-  if (!cx || !cy) return null;
-  const color = payload.isForecast ? "#a855f7" : "#3b82f6";
-  return <circle cx={cx} cy={cy} r={5} fill={color} stroke="white" strokeWidth={1.5} />;
-};
-
-// ─────────────────────────────────────────────
-// ChartModal
-// ─────────────────────────────────────────────
 interface ChartModalProps {
   station: WaterData;
   onClose: () => void;
 }
 
 const ChartModal = ({ station, onClose }: ChartModalProps) => {
-  const [data, setData]       = useState<HourlyPoint[]>([]);
+  const [data, setData] = useState<HourlyPoint[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [runTime, setRunTime] = useState<string | null>(null);
 
   useEffect(() => {
@@ -170,13 +193,12 @@ const ChartModal = ({ station, onClose }: ChartModalProps) => {
       setLoading(false);
       return;
     }
-
     const fetchData = async () => {
       setLoading(true);
       setError(null);
       try {
         const res = await fetch(
-          `/api/rain/forecast-timeseries?station_code=${station.stationCode}&limit=500`
+          `/api/rain/forecast-timeseries?station_code=${station.stationCode}&limit=500`,
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json: ForecastResponse = await res.json();
@@ -188,13 +210,21 @@ const ChartModal = ({ station, onClose }: ChartModalProps) => {
         setLoading(false);
       }
     };
-
     fetchData();
   }, [station.stationCode]);
 
-  const currentLabel       = data.find((d) => d.isCurrent)?.label ?? "";
-  const firstForecastLabel = data.find((d) => d.isForecast)?.label ?? "";
-  const tickLabels         = data.filter((_, i) => i % 3 === 0).map((d) => d.label);
+  // ── สัดส่วน 3:2 แล้ว sample ทุก 6 จุด ──
+  const ratioData = sliceByRatio(data);
+  const displayData = ratioData.filter((_, i) => i % 2 === 0);
+
+  const currentLabel =
+    displayData.find((d) => d.isCurrent)?.label ??
+    data.find((d) => d.isCurrent)?.label ??
+    "";
+  const firstForecastLabel = displayData.find((d) => d.isForecast)?.label ?? "";
+  const tickLabels = displayData
+    .filter((_, i) => i % 6 === 0)
+    .map((d) => d.label);
 
   return (
     <div
@@ -216,10 +246,19 @@ const ChartModal = ({ station, onClose }: ChartModalProps) => {
           <button
             onClick={onClose}
             className="ml-4 mt-0.5 flex-shrink-0 rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-            aria-label="ปิด"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -230,8 +269,12 @@ const ChartModal = ({ station, onClose }: ChartModalProps) => {
           <span>อัปเดตล่าสุด: {station.time}</span>
           {runTime && (
             <span className="text-purple-500">
-              รันโมเดล: {new Date(runTime).toLocaleString("th-TH", {
-                day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit"
+              รันโมเดล:{" "}
+              {new Date(runTime).toLocaleString("th-TH", {
+                day: "2-digit",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit",
               })}
             </span>
           )}
@@ -245,15 +288,18 @@ const ChartModal = ({ station, onClose }: ChartModalProps) => {
         {/* Legend */}
         <div className="flex items-center gap-4 px-5 pt-3 text-xs text-gray-500">
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2.5 w-2.5 rounded-full bg-blue-500" />
+            <span className="inline-block h-3 w-4 rounded-sm bg-blue-500" />
             ข้อมูลย้อนหลัง
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2.5 w-2.5 rounded-full bg-purple-500" />
+            <span className="inline-block h-3 w-4 rounded-sm bg-purple-400 opacity-75" />
             พยากรณ์ล่วงหน้า
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-0.5 w-5 bg-red-400" style={{ borderTop: "2px dashed #f87171" }} />
+            <span
+              className="inline-block h-0.5 w-5"
+              style={{ borderTop: "2px dashed #f87171" }}
+            />
             ปัจจุบัน
           </span>
         </div>
@@ -267,9 +313,24 @@ const ChartModal = ({ station, onClose }: ChartModalProps) => {
           {loading ? (
             <div className="flex h-[220px] items-center justify-center">
               <div className="flex flex-col items-center gap-2 text-sm text-gray-400">
-                <svg className="h-6 w-6 animate-spin text-blue-400" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                <svg
+                  className="h-6 w-6 animate-spin text-blue-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8z"
+                  />
                 </svg>
                 กำลังโหลดข้อมูล...
               </div>
@@ -277,27 +338,38 @@ const ChartModal = ({ station, onClose }: ChartModalProps) => {
           ) : error ? (
             <div className="flex h-[220px] items-center justify-center">
               <div className="flex flex-col items-center gap-1 text-sm text-red-400">
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                  />
                 </svg>
                 {error}
               </div>
             </div>
-          ) : data.length === 0 ? (
+          ) : displayData.length === 0 ? (
             <div className="flex h-[220px] items-center justify-center text-sm text-gray-400">
               ไม่มีข้อมูลสถานีนี้
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={data} margin={{ top: 8, right: 10, left: -10, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="rainGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+              <ComposedChart
+                data={displayData}
+                margin={{ top: 8, right: 10, left: -10, bottom: 5 }}
+                barCategoryGap="20%"
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="#f0f0f0"
+                  vertical={false}
+                />
 
                 <XAxis
                   dataKey="label"
@@ -316,7 +388,6 @@ const ChartModal = ({ station, onClose }: ChartModalProps) => {
 
                 <Tooltip content={<CustomTooltip />} />
 
-                {/* เส้นแดงประ = ปัจจุบัน */}
                 {currentLabel && (
                   <ReferenceLine
                     x={currentLabel}
@@ -333,7 +404,6 @@ const ChartModal = ({ station, onClose }: ChartModalProps) => {
                   />
                 )}
 
-                {/* เส้นม่วงประ = เริ่ม forecast */}
                 {firstForecastLabel && firstForecastLabel !== currentLabel && (
                   <ReferenceLine
                     x={firstForecastLabel}
@@ -343,24 +413,25 @@ const ChartModal = ({ station, onClose }: ChartModalProps) => {
                   />
                 )}
 
-                {/* พื้นที่ใต้กราฟ */}
-                <Area
-                  type="monotone"
-                  dataKey="value"
-                  stroke="none"
-                  fill="url(#rainGradient)"
+                {/* แท่ง actual — น้ำเงิน */}
+                <Bar
+                  dataKey="actual"
+                  name="ย้อนหลัง"
+                  fill="#3b82f6"
+                  radius={[3, 3, 0, 0]}
+                  maxBarSize={40}
                 />
 
-                {/* เส้นกราฟ */}
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  dot={<CustomDot />}
-                  activeDot={<CustomActiveDot />}
+                {/* แท่ง forecast — ม่วง */}
+                <Bar
+                  dataKey="forecast"
+                  name="พยากรณ์"
+                  fill="#a855f7"
+                  radius={[3, 3, 0, 0]}
+                  maxBarSize={40}
+                  opacity={0.75}
                 />
-              </LineChart>
+              </ComposedChart>
             </ResponsiveContainer>
           )}
         </div>
@@ -379,15 +450,14 @@ const ChartModal = ({ station, onClose }: ChartModalProps) => {
   );
 };
 
-// ─────────────────────────────────────────────
-// WaterTable (main export)
-// ─────────────────────────────────────────────
 interface WaterTableProps {
   data: WaterData[];
 }
 
 const WaterTable = ({ data }: WaterTableProps) => {
-  const [selectedStation, setSelectedStation] = useState<WaterData | null>(null);
+  const [selectedStation, setSelectedStation] = useState<WaterData | null>(
+    null,
+  );
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -415,7 +485,10 @@ const WaterTable = ({ data }: WaterTableProps) => {
           <tbody>
             {data.length === 0 ? (
               <tr>
-                <td colSpan={5} className="py-12 text-center text-sm text-gray-400">
+                <td
+                  colSpan={5}
+                  className="py-12 text-center text-sm text-gray-400"
+                >
                   ไม่มีข้อมูล
                 </td>
               </tr>
@@ -425,9 +498,13 @@ const WaterTable = ({ data }: WaterTableProps) => {
                   key={idx}
                   className="border-b border-gray-100 transition-colors hover:bg-blue-50/40"
                 >
-                  <td className="px-4 py-3 font-medium text-gray-800">{row.station}</td>
+                  <td className="px-4 py-3 font-medium text-gray-800">
+                    {row.station}
+                  </td>
                   <td className="px-4 py-3 text-gray-500">{row.location}</td>
-                  <td className="px-4 py-3 text-center text-gray-600">{row.time}</td>
+                  <td className="px-4 py-3 text-center text-gray-600">
+                    {row.time}
+                  </td>
                   <td className="px-4 py-3 text-center">
                     <span
                       className={`inline-flex items-center justify-center rounded-md px-2.5 py-1 text-sm font-bold min-w-[48px] ${statusColor(row.status)}`}
@@ -438,11 +515,20 @@ const WaterTable = ({ data }: WaterTableProps) => {
                   <td className="px-2 py-3 text-center">
                     <button
                       onClick={() => setSelectedStation(row)}
-                      title="ดูกราฟรายชั่วโมง"
                       className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 p-1.5 text-blue-500 transition-all hover:bg-blue-100 hover:text-blue-700 hover:border-blue-300 hover:scale-110 active:scale-95"
                     >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                        />
                       </svg>
                     </button>
                   </td>
