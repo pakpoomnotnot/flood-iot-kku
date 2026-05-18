@@ -89,17 +89,28 @@ const staticStations = [
 ];
 
 // ─────────────────────────────────────────────
-// Helpers
+// เกณฑ์ปริมาณฝนสะสม (มม./วัน)
+// ปกติ      : 0.1 – 10.0
+// เฝ้าระวัง  : 10.1 – 35.0
+// เตือนภัย  : 35.1 – 90.0
+// วิกฤติ    : > 90.1
 // ─────────────────────────────────────────────
-const getRainColor = (value: number) => {
-  if (value > 90) return "#7F1D1D";
-  if (value > 70) return "#DC2626";
-  if (value > 50) return "#F87171";
-  if (value > 35) return "#FB923C";
-  if (value > 20) return "#FDE047";
-  if (value > 10) return "#BEF264";
-  if (value > 0) return "#86EFAC";
-  return "#BFDBFE";
+const getRainStatus = (
+  value: number,
+): "วิกฤติ" | "เตือนภัย" | "เฝ้าระวัง" | "ปกติ" | "ไม่มีฝน" => {
+  if (value > 90.0) return "วิกฤติ";
+  if (value > 35.0) return "เตือนภัย";
+  if (value > 10.0) return "เฝ้าระวัง";
+  if (value > 0) return "ปกติ";
+  return "ไม่มีฝน";
+};
+
+const getRainColor = (value: number): string => {
+  if (value > 90.0) return "#b71c1c"; // วิกฤติ — แดงเข้ม
+  if (value > 35.0) return "#ef6c00"; // เตือนภัย — ส้ม
+  if (value > 10.0) return "#fbc02d"; // เฝ้าระวัง — เหลือง
+  if (value > 0) return "#2e7d32"; // ปกติ — เขียว
+  return "#90caf9"; // ไม่มีฝน — ฟ้าอ่อน
 };
 
 const CLOUD_RAIN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/></svg>`;
@@ -143,8 +154,8 @@ function toHourlyPoints(items: ForecastItem[]): HourlyPoint[] {
       new Date(b.forecast_datetime).getTime(),
   );
 
-  let closestIdx = 0;
-  let minDiff = Infinity;
+  let closestIdx = 0,
+    minDiff = Infinity;
   sorted.forEach((item, i) => {
     const diff = Math.abs(
       new Date(item.forecast_datetime).getTime() - now.getTime(),
@@ -159,13 +170,8 @@ function toHourlyPoints(items: ForecastItem[]): HourlyPoint[] {
 
   return sorted.map((item, i) => {
     const t = new Date(item.forecast_datetime);
-    const label = `${t.getDate()}-${t.toLocaleString("en", { month: "short" })} ${t
-      .getHours()
-      .toString()
-      .padStart(2, "0")}:00`;
-
+    const label = `${t.getDate()}-${t.toLocaleString("en", { month: "short" })} ${t.getHours().toString().padStart(2, "0")}:00`;
     const isForecast = item.lead_hour > 0;
-
     return {
       label,
       value: item.rainfall_mm,
@@ -181,22 +187,15 @@ function toHourlyPoints(items: ForecastItem[]): HourlyPoint[] {
   });
 }
 
-// ─────────────────────────────────────────────
-// ตัดข้อมูลให้ได้อัตราส่วน actual:forecast = 3:2
-// ─────────────────────────────────────────────
 function sliceByRatio(points: HourlyPoint[]): HourlyPoint[] {
   const actualPoints = points.filter((p) => p.actual !== null);
   const forecastPoints = points.filter((p) => p.forecast !== null);
-
   if (actualPoints.length === 0 || forecastPoints.length === 0) return points;
-
   const unit = Math.min(
     Math.floor(actualPoints.length / 3),
     Math.floor(forecastPoints.length / 2),
   );
-
   if (unit === 0) return points;
-
   const keepActualLabels = new Set(
     actualPoints.slice(-(unit * 3)).map((p) => p.label),
   );
@@ -204,7 +203,6 @@ function sliceByRatio(points: HourlyPoint[]): HourlyPoint[] {
     forecastPoints.slice(0, unit * 2).map((p) => p.label),
   );
   const keepLabels = new Set([...keepActualLabels, ...keepForecastLabels]);
-
   return points.filter((p) => keepLabels.has(p.label));
 }
 
@@ -283,18 +281,19 @@ const ChartModal: FC<ChartModalProps> = ({
       minute: "2-digit",
     });
 
-  // สัดส่วน 3:2 แล้ว sample ทุก 2 จุด
   const ratioData = sliceByRatio(data);
   const displayData = ratioData.filter((_, i) => i % 2 === 0);
-
   const currentLabel =
     displayData.find((d) => d.isCurrent)?.label ??
     data.find((d) => d.isCurrent)?.label ??
     "";
-  const firstForecastLabel = displayData.find((d) => d.isForecast)?.label ?? "";
+  const firstForecastLbl = displayData.find((d) => d.isForecast)?.label ?? "";
   const tickLabels = displayData
     .filter((_, i) => i % 6 === 0)
     .map((d) => d.label);
+
+  const status = getRainStatus(rainValue);
+  const statusColor = getRainColor(rainValue);
 
   return (
     <div
@@ -309,13 +308,13 @@ const ChartModal: FC<ChartModalProps> = ({
         <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-gray-100">
           <div>
             <h2 className="text-base font-bold text-gray-800">
-              กราฟฝน — {station.name}
+              กราฟฝนสะสม — {station.name}
             </h2>
             <p className="text-xs text-gray-400 mt-0.5">ID: {station.id}</p>
           </div>
           <button
             onClick={onClose}
-            className="ml-4 mt-0.5 flex-shrink-0 rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            className="ml-4 mt-0.5 flex-shrink-0 rounded-full p-1.5 text-gray-400 hover:bg-gray-100 transition-colors"
           >
             <svg
               className="h-4 w-4"
@@ -341,8 +340,11 @@ const ChartModal: FC<ChartModalProps> = ({
               รันโมเดล: {formatTime(runTime)}
             </span>
           )}
-          <span className="ml-auto font-semibold text-blue-700">
-            ฝนสะสม 1 ชม.: {rainValue.toFixed(1)} มม.
+          <span
+            className="ml-auto inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white"
+            style={{ backgroundColor: statusColor }}
+          >
+            {status} — {rainValue.toFixed(1)} มม.
           </span>
         </div>
 
@@ -368,9 +370,8 @@ const ChartModal: FC<ChartModalProps> = ({
         {/* Chart */}
         <div className="px-4 pt-2 pb-5">
           <p className="text-[11px] font-medium text-gray-400 mb-2 uppercase tracking-wide">
-            ปริมาณน้ำฝนรายชั่วโมง (มม.)
+            ปริมาณน้ำฝนสะสมรายชั่วโมง (มม.)
           </p>
-
           {loading ? (
             <div className="flex h-[220px] items-center justify-center">
               <div className="flex flex-col items-center gap-2 text-sm text-gray-400">
@@ -432,7 +433,6 @@ const ChartModal: FC<ChartModalProps> = ({
                   strokeWidth={1.5}
                   vertical={false}
                 />
-
                 <XAxis
                   dataKey="label"
                   ticks={tickLabels}
@@ -440,15 +440,54 @@ const ChartModal: FC<ChartModalProps> = ({
                   tickLine={false}
                   axisLine={false}
                 />
-
                 <YAxis
                   tick={{ fontSize: 10, fill: "#9ca3af" }}
                   tickLine={false}
                   axisLine={false}
                   unit=" มม."
                 />
-
                 <Tooltip content={<CustomTooltip />} />
+
+                {/* เส้น threshold */}
+                <ReferenceLine
+                  y={10.0}
+                  stroke="#2e7d32"
+                  strokeWidth={1}
+                  strokeDasharray="4 3"
+                  label={{
+                    value: "ปกติ/เฝ้าระวัง",
+                    position: "right",
+                    fontSize: 8,
+                    fill: "#2e7d32",
+                    fontWeight: 600,
+                  }}
+                />
+                <ReferenceLine
+                  y={35.0}
+                  stroke="#fbc02d"
+                  strokeWidth={1}
+                  strokeDasharray="4 3"
+                  label={{
+                    value: "เฝ้าระวัง/เตือนภัย",
+                    position: "right",
+                    fontSize: 8,
+                    fill: "#e65100",
+                    fontWeight: 600,
+                  }}
+                />
+                <ReferenceLine
+                  y={90.0}
+                  stroke="#ef6c00"
+                  strokeWidth={1}
+                  strokeDasharray="4 3"
+                  label={{
+                    value: "เตือนภัย/วิกฤติ",
+                    position: "right",
+                    fontSize: 8,
+                    fill: "#b71c1c",
+                    fontWeight: 600,
+                  }}
+                />
 
                 {currentLabel && (
                   <ReferenceLine
@@ -465,17 +504,15 @@ const ChartModal: FC<ChartModalProps> = ({
                     }}
                   />
                 )}
-
-                {firstForecastLabel && firstForecastLabel !== currentLabel && (
+                {firstForecastLbl && firstForecastLbl !== currentLabel && (
                   <ReferenceLine
-                    x={firstForecastLabel}
+                    x={firstForecastLbl}
                     stroke="#a855f7"
                     strokeWidth={1}
                     strokeDasharray="3 3"
                   />
                 )}
 
-                {/* แท่ง actual — น้ำเงิน */}
                 <Bar
                   dataKey="actual"
                   name="ย้อนหลัง"
@@ -483,8 +520,6 @@ const ChartModal: FC<ChartModalProps> = ({
                   radius={[3, 3, 0, 0]}
                   maxBarSize={40}
                 />
-
-                {/* แท่ง forecast — ม่วง */}
                 <Bar
                   dataKey="forecast"
                   name="พยากรณ์"
@@ -498,7 +533,6 @@ const ChartModal: FC<ChartModalProps> = ({
           )}
         </div>
 
-        {/* Footer */}
         <div className="flex justify-end px-5 pb-4">
           <button
             onClick={onClose}
@@ -593,6 +627,21 @@ const MapComponent: FC = () => {
     time: string,
   ): string => {
     const color = getRainColor(value);
+    const status = getRainStatus(value);
+    const timeStr =
+      time === "-"
+        ? "-"
+        : (() => {
+            try {
+              return new Date(time).toLocaleTimeString("th-TH", {
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+            } catch {
+              return time;
+            }
+          })();
+
     return `
       <div class="modern-popup">
         <div class="popup-close-btn" onclick="this.closest('.maplibregl-popup').remove()">
@@ -601,20 +650,30 @@ const MapComponent: FC = () => {
           </svg>
         </div>
         <div class="popup-location-header" style="background:linear-gradient(135deg,${color}30 0%,${color}10 100%);">
-          <div class="station-type-badge" style="background:${color};">
-            ${CLOUD_RAIN_SVG}<span>สถานีวัดฝน</span>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+            <div class="station-type-badge" style="background:${color};">
+              ${CLOUD_RAIN_SVG}<span>สถานีวัดฝน</span>
+            </div>
+            <span class="rain-status-badge" style="background:${color}20;color:${color};border:1px solid ${color}40;">
+              ${status}
+            </span>
           </div>
           <h3 class="location-name">${station.name}</h3>
           <div class="location-area">ID: ${station.id}</div>
         </div>
         <div class="popup-content-body">
-          <div class="data-label">ปริมาณฝนสะสม 1 ชม. (ล่าสุด)</div>
-          <div class="data-value-box">
-            <span class="data-number" style="color:${value > 0 ? "#1F2937" : "#9CA3AF"}">${value.toFixed(1)}</span>
+          <div class="data-label">ปริมาณน้ำฝนสะสม 1 ชม. (ล่าสุด)</div>
+          <div class="data-value-box" style="border-color:${color}40;">
+            <span class="data-number" style="color:${value > 0 ? color : "#9CA3AF"}">${value.toFixed(1)}</span>
             <span class="data-unit">มม.</span>
           </div>
           <div class="popup-footer-row">
-            <div class="data-timestamp">อัพเดท: ${time}</div>
+            <div class="data-timestamp">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+              <span>${timeStr}</span>
+            </div>
             <button class="chart-btn" data-station-id="${station.id}" title="ดูกราฟรายชั่วโมง">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
@@ -648,18 +707,19 @@ const MapComponent: FC = () => {
       }
 
       el.addEventListener("click", () => {
-        const mockData = generateMockStationData({
-          id: station.id,
-          name: station.name,
-          no: station.no,
-          location: {
-            latitude: station.lat,
-            longitude: station.long,
-            area: "Khon Kaen",
-          },
-          sensors: [],
-        });
-        setSelectedStationData(mockData);
+        setSelectedStationData(
+          generateMockStationData({
+            id: station.id,
+            name: station.name,
+            no: station.no,
+            location: {
+              latitude: station.lat,
+              longitude: station.long,
+              area: "Khon Kaen",
+            },
+            sensors: [],
+          }),
+        );
       });
 
       popup.on("open", () => {
@@ -732,6 +792,24 @@ const MapComponent: FC = () => {
     }
   };
 
+  // Legend segments ตามเกณฑ์ใหม่
+  const legendSegments = [
+    { range: "0.1–10.0", label: "ปกติ", color: "#2e7d32", textColor: "#fff" },
+    {
+      range: "10.1–35.0",
+      label: "เฝ้าระวัง",
+      color: "#fbc02d",
+      textColor: "#333",
+    },
+    {
+      range: "35.1–90.0",
+      label: "เตือนภัย",
+      color: "#ef6c00",
+      textColor: "#fff",
+    },
+    { range: "> 90.1", label: "วิกฤติ", color: "#b71c1c", textColor: "#fff" },
+  ];
+
   return (
     <div className="relative w-full h-full bg-gray-900 font-sans rounded-xl overflow-hidden flex flex-col">
       {/* ── Map ── */}
@@ -787,46 +865,43 @@ const MapComponent: FC = () => {
       <div className="flex-shrink-0 bg-white border-t border-gray-300 px-3 pt-1.5 pb-2">
         <div className="flex justify-end mb-1">
           <span className="text-[10px] text-gray-500">
-            เวลาข้อมูลล่าสุด:{" "}
+            ปริมาณน้ำฝนสะสม (มม./วัน) — อัปเดต:{" "}
             <span className="font-semibold text-blue-700">
               {lastUpdate === "-" ? "-" : formatTime(lastUpdate)}
             </span>
           </span>
         </div>
+
+        {/* สีแถบ */}
         <div className="flex w-full rounded-sm overflow-hidden border border-gray-300">
-          {[
-            { range: ">0-10", color: "#81d4fa" },
-            { range: ">10-20", color: "#d0f8ce" },
-            { range: ">20-35", color: "#7cb342" },
-            { range: ">35-50", color: "#fdd835" },
-            { range: ">50-70", color: "#f57f17" },
-            { range: ">70-90", color: "#8d6e63" },
-            { range: ">90", color: "#bf360c" },
-          ].map((seg, i) => (
+          {legendSegments.map((seg, i) => (
             <div
               key={i}
               className="flex-1 flex items-center justify-center py-2"
               style={{ backgroundColor: seg.color }}
             >
-              <span className="text-[9px] font-bold text-gray-800 whitespace-nowrap">
+              <span
+                className="text-[9px] font-bold whitespace-nowrap"
+                style={{ color: seg.textColor }}
+              >
                 {seg.range}
               </span>
             </div>
           ))}
         </div>
+
+        {/* label */}
         <div className="flex w-full mt-0.5">
-          <div className="flex-[2] text-center text-[10px] font-semibold text-gray-700 border-r border-gray-300">
-            เล็กน้อย
-          </div>
-          <div className="flex-[2] text-center text-[10px] font-semibold text-gray-700 border-r border-gray-300">
-            ปานกลาง
-          </div>
-          <div className="flex-[2] text-center text-[10px] font-semibold text-gray-700 border-r border-gray-300">
-            หนัก
-          </div>
-          <div className="flex-[1] text-center text-[10px] font-semibold text-gray-700">
-            หนักมาก
-          </div>
+          {legendSegments.map((seg, i) => (
+            <div
+              key={i}
+              className={`flex-1 text-center text-[10px] font-semibold text-gray-700 ${
+                i < legendSegments.length - 1 ? "border-r border-gray-300" : ""
+              }`}
+            >
+              {seg.label}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -884,11 +959,18 @@ const MapComponent: FC = () => {
           color: white;
           font-size: 10px;
           font-weight: 600;
-          margin-bottom: 8px;
         }
         .station-type-badge svg {
           width: 12px;
           height: 12px;
+        }
+        .rain-status-badge {
+          display: inline-flex;
+          align-items: center;
+          padding: 2px 8px;
+          border-radius: 20px;
+          font-size: 10px;
+          font-weight: 700;
         }
         .location-name {
           font-size: 15px;
@@ -938,7 +1020,13 @@ const MapComponent: FC = () => {
           justify-content: space-between;
         }
         .data-timestamp {
+          display: flex;
+          align-items: center;
+          gap: 5px;
           font-size: 10px;
+          color: #9ca3af;
+        }
+        .data-timestamp svg {
           color: #9ca3af;
         }
         .chart-btn {
