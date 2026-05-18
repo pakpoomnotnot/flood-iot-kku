@@ -1,7 +1,7 @@
 "use client";
 import React from 'react';
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Area, AreaChart, ReferenceLine } from 'recharts';
-import { TrendingUp, AlertTriangle, BarChart3 } from 'lucide-react';
+import { ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Area, AreaChart, ReferenceLine } from 'recharts';
+import { BarChart3 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface PredictionData {
@@ -27,13 +27,11 @@ export const PredictionChart: React.FC<PredictionChartProps> = ({
   unit = 'ซม.',
   height = 400 
 }) => {
-  // Calculate statistics
   const currentValue = data[0]?.predicted || 0;
   const maxPredicted = Math.max(...data.map(d => d.predicted));
   const minPredicted = Math.min(...data.map(d => d.predicted));
   const avgPredicted = data.reduce((sum, d) => sum + d.predicted, 0) / data.length;
 
-  // Determine risk level
   const getRiskLevel = (value: number) => {
     if (value >= 80) return { level: 'วิกฤต', color: '#EF4444' };
     if (value >= 50) return { level: 'เฝ้าระวัง', color: '#F59E0B' };
@@ -41,6 +39,18 @@ export const PredictionChart: React.FC<PredictionChartProps> = ({
   };
 
   const risk = getRiskLevel(currentValue);
+
+  const tooltipFormatter = (value: unknown, name: unknown): [string, string] => {
+    if (value === undefined || value === null || name === undefined) {
+      return ['N/A', 'Unknown'];
+    }
+    const numValue = typeof value === 'number' ? value : parseFloat(String(value));
+    if (name === 'predicted') return [`${numValue.toFixed(1)} ${unit}`, 'คาดการณ์'];
+    if (name === 'upperBound') return [`${numValue.toFixed(1)} ${unit}`, 'บน'];
+    if (name === 'lowerBound') return [`${numValue.toFixed(1)} ${unit}`, 'ล่าง'];
+    if (name === 'actual') return [`${numValue.toFixed(1)} ${unit}`, 'จริง'];
+    return [String(value), String(name)];
+  };
 
   return (
     <Card className="border-0 shadow-none">
@@ -128,18 +138,8 @@ export const PredictionChart: React.FC<PredictionChartProps> = ({
                   fontSize: '12px'
                 }}
                 labelStyle={{ fontWeight: 'bold', color: '#1f2937', marginBottom: '4px', fontSize: '11px' }}
-                formatter={(value: number | undefined, name: string | undefined) => {
-                  // ✅ แก้ไข: เพิ่ม type guard
-                  if (value === undefined || value === null || name === undefined) {
-                    return ['N/A', 'Unknown'];
-                  }
-                  
-                  if (name === 'predicted') return [`${value.toFixed(1)} ${unit}`, 'คาดการณ์'];
-                  if (name === 'upperBound') return [`${value.toFixed(1)} ${unit}`, 'บน'];
-                  if (name === 'lowerBound') return [`${value.toFixed(1)} ${unit}`, 'ล่าง'];
-                  if (name === 'actual') return [`${value.toFixed(1)} ${unit}`, 'จริง'];
-                  return [value.toString(), name];
-                }}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                formatter={tooltipFormatter as any}
               />
               
               {/* Confidence interval */}
@@ -164,12 +164,12 @@ export const PredictionChart: React.FC<PredictionChartProps> = ({
               
               {/* Actual data line (if available) */}
               {data[0]?.actual !== undefined && (
-                <Line
+                <Area
                   type="monotone"
                   dataKey="actual"
                   stroke="#10B981"
                   strokeWidth={2}
-                  dot={{ fill: '#10B981', r: 3 }}
+                  fill="none"
                   strokeDasharray="5 5"
                 />
               )}
@@ -224,42 +224,36 @@ export const PredictionChart: React.FC<PredictionChartProps> = ({
   );
 };
 
-// Helper function to generate prediction data
 export const generatePredictionData = (stationId: string, hours: number = 48): PredictionData[] => {
   const now = new Date();
   const data: PredictionData[] = [];
   
-  // Start with current value (simulated)
-  let currentValue = 45 + Math.random() * 20; // Random between 45-65
+  let currentValue = 45 + Math.random() * 20;
   
   for (let i = 0; i < hours; i++) {
     const time = new Date(now.getTime() + i * 60 * 60 * 1000);
     const hour = time.getHours();
     
-    // Simulate prediction with some variation
-    // Higher values during night/early morning (simulating rain accumulation)
     const timeFactor = hour >= 2 && hour <= 6 ? 1.2 : hour >= 14 && hour <= 18 ? 1.1 : 1.0;
     const randomVariation = (Math.random() - 0.5) * 5;
     
     currentValue = Math.max(0, currentValue + randomVariation * timeFactor);
     
-    // Add some trend (gradual increase for demonstration)
     if (i > 24) {
-      currentValue += 0.3; // Gradual increase after 24 hours
+      currentValue += 0.3;
     }
     
     const predicted = Math.max(0, currentValue);
-    const confidence = 5 + Math.random() * 3; // Confidence interval
+    const confidence = 5 + Math.random() * 3;
     
     data.push({
       time: time.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
       predicted: Math.round(predicted * 10) / 10,
       upperBound: Math.round((predicted + confidence) * 10) / 10,
       lowerBound: Math.round((predicted - confidence) * 10) / 10,
-      // Show actual data for first 12 hours (past data)
       ...(i < 12 ? { actual: Math.round((predicted + (Math.random() - 0.5) * 2) * 10) / 10 } : {})
     });
   }
   
   return data;
-}
+};
