@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 export async function GET() {
   try {
     // เรียก API ภายนอก
-    const response = await fetch("http://10.198.110.39:9000/rain/max-summary");
+    const response = await fetch("http://10.198.110.39:9001/rain/max-summary");
     
     if (!response.ok) {
       return NextResponse.json(

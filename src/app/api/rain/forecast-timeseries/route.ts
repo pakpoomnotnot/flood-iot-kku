@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BASE_URL = "http://10.198.110.39:9000";
+const BASE_URL = "http://10.198.110.39:9001";
 
 /* ---------- station whitelist ---------- */
 const STATIONS = {
