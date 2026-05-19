@@ -101,7 +101,7 @@ const getRainStatus = (
   if (value > 90.0) return "วิกฤติ";
   if (value > 35.0) return "เตือนภัย";
   if (value > 10.0) return "เฝ้าระวัง";
-  if (value > 0) return "ปกติ";
+  if (value >= 0) return "ปกติ";
   return "ไม่มีฝน";
 };
 
@@ -794,7 +794,7 @@ const MapComponent: FC = () => {
 
   // Legend segments ตามเกณฑ์ใหม่
   const legendSegments = [
-    { range: "0.1–10.0", label: "ปกติ", color: "#2e7d32", textColor: "#fff" },
+    { range: "0.0–10.0", label: "ปกติ", color: "#2e7d32", textColor: "#fff" },
     {
       range: "10.1–35.0",
       label: "เฝ้าระวัง",
