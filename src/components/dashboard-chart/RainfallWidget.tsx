@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { BsCloudRainFill } from 'react-icons/bs';
+import { getRainStationNameMap } from '@/lib/rain-stations';
 
 // Types for API response
 interface StationData {
@@ -34,23 +35,7 @@ const RainfallWidget = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   // Station name mapping - memoized
-  const stationNames = useMemo((): Record<string, string> => ({
-    "SNK_HOSP": "โรงพยาบาลศรีนครินทร์",
-    "KKC_MUN": "เทศบาลนครขอนแก่น",
-    "BKN": "บึงแก่นนคร",
-    "BTS": "บึงทุ่งสร้าง",
-    "NLP": "หนองเล็งเปีย",
-    "BNK": "บึงหนองโคตร",
-    "SIL_MUN": "เทศบาลเมืองศิลา",
-    "UNE_MC": "ศูนย์อุตุฯ ภาคตะวันออกเฉียงเหนือตอนบน",
-    "MKO_MUN": "เทศบาลเมืองเก่า",
-    "NEU": "มหาวิทยาลัยภาคตะวันออกเฉียงเหนือ",
-    "UNE_SH": "บ้านพักพนักงานอุตุฯ",
-    "KKC_SP": "อุทยานวิทยาศาสตร์ มข.",
-    "BSV": "หมู่บ้านสีวลี",
-    "RMUTI": "มหาวิทยาลัยเทคโนโลยีราชมงคลอีสาน",
-    "KKC_BL": "โรงเรียนสอนคนตาบอด"
-  }), []);
+  const stationNames = useMemo((): Record<string, string> => getRainStationNameMap(), []);
 
   // Calculate top 3 rainfall stations - memoized
   const topRainfall = useMemo((): RainfallItem[] => {

@@ -121,7 +121,7 @@ const LAV_DATA: Record<string, LavInfo> = {
   Lake_03: {
     name_th: "บึงแก่นนคร",
     name_en: "Bueng Kaen Nakhon",
-    maxLevel: 152.0,
+    maxLevel: 153.0,
     maxVol: 1800273.44,
     maxArea: 604444.6,
     table: [
@@ -141,7 +141,7 @@ const LAV_DATA: Record<string, LavInfo> = {
   Lake_05: {
     name_th: "บึงหนองโคตร",
     name_en: "Bueng Nong Khot",
-    maxLevel: 155.0,
+    maxLevel: 155.6,
     maxVol: 7042958.829,
     maxArea: 1091408.3,
     table: [

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { Wifi, ChevronUp, ChevronDown } from "lucide-react";
 import { useLakeData } from "../dashboard-chart/water_value/useLakeData";
+import { getRainStationNameMap } from "@/lib/rain-stations";
 
 // Types for API response
 interface StationData {
@@ -63,23 +64,7 @@ export const DashboardHeader = () => {
 
   // Station name mapping - memoized
   const stationNames = useMemo(
-    (): Record<string, string> => ({
-      SNK_HOSP: "โรงพยาบาลศรีนครินทร์",
-      KKC_MUN: "เทศบาลนครขอนแก่น",
-      BKN: "บึงแก่นนคร",
-      BTS: "บึงทุ่งสร้าง",
-      NLP: "หนองเล็งเปีย",
-      BNK: "บึงหนองโคตร",
-      SIL_MUN: "เทศบาลเมืองศิลา",
-      UNE_MC: "ศูนย์อุตุนิยมวิทยากาคตะวันออกเฉียงเหนือตอนบน",
-      MKO_MUN: "เทศบาลเมืองเก่า",
-      NEU: "มหาวิทยาลัยภาคตะวันออกเฉียงเหนือ",
-      UNE_SH: "บ้านพักพนักงานอุตุฯ",
-      KKC_SP: "อุทยานวิทยาศาสตร์มหาวิทยาลัยขอนแก่น",
-      BSV: "หมู่บ้านสีวลี",
-      RMUTI: "มหาวิทยาลัยเทคโนโลยีราชมงคลอิสาน วิทยาเขตขอนแก่น",
-      KKC_BL: "โรงเรียนสอนคนตาบอด",
-    }),
+    (): Record<string, string> => getRainStationNameMap(),
     [],
   );
 

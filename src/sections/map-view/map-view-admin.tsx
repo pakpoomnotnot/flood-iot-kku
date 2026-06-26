@@ -15,6 +15,19 @@ import MapComponentAnalytics from "@/components/map/map_analytics";
 import MapComponentFlood from "@/components/map/map_flood_area";
 import FloodDashboard from "@/components/map/map_help";
 import { DashboardNavAdmin } from "@/components/layout/dashboard-nav-admin";
+import { RAIN_STATIONS } from "@/lib/rain-stations";
+import {
+  LAKE_CONFIG,
+  getPondFreeboard,
+  getPondStatusThai,
+  type LakeId,
+} from "@/lib/lake-thresholds";
+import {
+  getPipeLevelStatusThai,
+  getRoadLevelStatusThai,
+} from "@/lib/water-level-status";
+import type { TelemetryApiResponse } from "@/lib/telemetry-types";
+import type { TelemetryStationResult } from "@/app/api/lib/fetchTelemetryReading";
 
 // --- 0. Interface ---
 interface WaterData {
@@ -68,29 +81,29 @@ const RAINFALL_TABS: { key: RainfallTab; label: string }[] = [
 
 // --- 2. ข้อมูล Metadata สถานีฝน ---
 const STATION_METADATA = [
-  { id: "SNK_HOSP", name: "โรงพยาบาลศรีนครินทร์",        location: "ต. ในเมือง อ. เมือง" },
-  { id: "KKC_MUN",  name: "เทศบาลนครขอนแก่น",            location: "ต. ในเมือง อ. เมือง" },
-  { id: "BKN",      name: "บึงแก่นนคร",                  location: "ต. ในเมือง อ. เมือง" },
-  { id: "BTS",      name: "บึงทุ่งสร้าง",                 location: "ต. ในเมือง อ. เมือง" },
-  { id: "NLP",      name: "หนองเลิงเปือย",                location: "อ. เมือง" },
-  { id: "BNK",      name: "บึงหนองโคตร",                  location: "ต. บ้านเป็ด อ. เมือง" },
-  { id: "SIL_MUN",  name: "เทศบาลเมืองศิลา",              location: "ต. ศิลา อ. เมือง" },
-  { id: "UNE_MC",   name: "ศูนย์อุตุนิยมวิทยาฯ",          location: "ต. ในเมือง อ. เมือง" },
-  { id: "MKO_MUN",  name: "เทศบาลเมืองเก่า",              location: "ต. เมืองเก่า อ. เมือง" },
-  { id: "NEU",      name: "ม.ภาคตะวันออกเฉียงเหนือ",     location: "ต. ในเมือง อ. เมือง" },
-  { id: "UNE_SH",   name: "บ้านพักพนักงานอุตุฯ",          location: "ต. ในเมือง อ. เมือง" },
-  { id: "KKC_SP",   name: "อุทยานวิทยาศาสตร์ มข.",        location: "ต. ในเมือง อ. เมือง" },
-  { id: "BSV",      name: "หมู่บ้านสีวลี",                location: "ต. บ้านเป็ด อ. เมือง" },
-  { id: "RMUTI",    name: "มทร.อีสาน ขอนแก่น",           location: "ต. ในเมือง อ. เมือง" },
-  { id: "KKC_BL",   name: "โรงเรียนสอนคนตาบอด",          location: "ต. ในเมือง อ. เมือง" },
+  { id: "SNK_HOSP", name: RAIN_STATIONS.SNK_HOSP.name,        location: "ต. ในเมือง อ. เมือง" },
+  { id: "KKC_MUN",  name: RAIN_STATIONS.KKC_MUN.name,            location: "ต. ในเมือง อ. เมือง" },
+  { id: "BKN",      name: RAIN_STATIONS.BKN.name,                  location: "ต. ในเมือง อ. เมือง" },
+  { id: "BTS",      name: RAIN_STATIONS.BTS.name,                 location: "ต. ในเมือง อ. เมือง" },
+  { id: "NLP",      name: RAIN_STATIONS.NLP.name,                location: "อ. เมือง" },
+  { id: "BNK",      name: RAIN_STATIONS.BNK.name,                  location: "ต. บ้านเป็ด อ. เมือง" },
+  { id: "SIL_MUN",  name: RAIN_STATIONS.SIL_MUN.name,              location: "ต. ศิลา อ. เมือง" },
+  { id: "UNE_MC",   name: RAIN_STATIONS.UNE_MC.name,          location: "ต. ในเมือง อ. เมือง" },
+  { id: "MKO_MUN",  name: RAIN_STATIONS.MKO_MUN.name,              location: "ต. เมืองเก่า อ. เมือง" },
+  { id: "NEU",      name: RAIN_STATIONS.NEU.name,     location: "ต. ในเมือง อ. เมือง" },
+  { id: "UNE_SH",   name: RAIN_STATIONS.UNE_SH.name,          location: "ต. ในเมือง อ. เมือง" },
+  { id: "KKC_SP",   name: RAIN_STATIONS.KKC_SP.name,        location: "ต. ในเมือง อ. เมือง" },
+  { id: "BSV",      name: RAIN_STATIONS.BSV.name,                location: "ต. บ้านเป็ด อ. เมือง" },
+  { id: "RMUTI",    name: RAIN_STATIONS.RMUTI.name,           location: "ต. ในเมือง อ. เมือง" },
+  { id: "KKC_BL",   name: RAIN_STATIONS.KKC_BL.name,          location: "ต. ในเมือง อ. เมือง" },
 ];
 
-// --- 3. Metadata บึง (maxLevel = ระดับขอบบึง ม.รทก.) ---
-const LAKE_META = [
-  { lakeId: "Lake_03", name: "บึงแก่นนคร",    location: "ต. ในเมือง อ. เมือง",  maxLevel: 152.0 },
-  { lakeId: "Lake_02", name: "บึงทุ่งสร้าง",  location: "ต. ในเมือง อ. เมือง",  maxLevel: 150.0 },
-  { lakeId: "Lake_05", name: "บึงหนองโคตร",   location: "ต. บ้านเป็ด อ. เมือง", maxLevel: 155.0 },
-  { lakeId: "Lake_06", name: "หนองเลิงเปือย", location: "อ. เมือง",              maxLevel: 151.5 },
+// --- 3. Metadata บึง ---
+const LAKE_META: { lakeId: LakeId; name: string; location: string }[] = [
+  { lakeId: "Lake_03", name: "บึงแก่นนคร",    location: "ต. ในเมือง อ. เมือง" },
+  { lakeId: "Lake_02", name: "บึงทุ่งสร้าง",  location: "ต. ในเมือง อ. เมือง" },
+  { lakeId: "Lake_05", name: "บึงหนองโคตร",   location: "ต. บ้านเป็ด อ. เมือง" },
+  { lakeId: "Lake_06", name: "หนองเลิงเปือย", location: "อ. เมือง" },
 ];
 
 // --- 4. Mock Data สำหรับแต่ละ Tab ฝน ---
@@ -113,23 +126,31 @@ const getRainfallMockData = (_tab: RainfallTab): WaterData[] => {
   }));
 };
 
-// --- 5. Mock Data สำหรับ drainage และ roads ---
-const dataByView: Record<string, WaterData[]> = {
-  drainage: [
-    { station: "ประตูระบายน้ำที่ 5 (ในท่อก่อนเข้า ปตร.5)", location: "ต. ในเมือง อ. เมือง", level: 0, bankLevel: 0, status: "ปกติ", diff: 0, time: "14:30 น." },
-    { station: "ถนนหมอชาญอุทิศ",                           location: "ต. ในเมือง อ. เมือง", level: 0, bankLevel: 0, status: "ปกติ", diff: 0, time: "14:30 น." },
-    { station: "ศูนย์วิจัยและเพาะเลี้ยงสัตว์น้ำจืด",       location: "ต. บ้านค้อ อ. เมือง", level: 0, bankLevel: 0, status: "ปกติ", diff: 0, time: "14:30 น." },
-    { station: "สะพานบ้านทุ่งเศรษฐี",                      location: "ต. บ้านค้อ อ. เมือง", level: 0, bankLevel: 0, status: "ปกติ", diff: 0, time: "14:30 น." },
-    { station: "หน้าร้านจิ้มจุ่มริมคลอง",                  location: "ต. บ้านค้อ อ. เมือง", level: 0, bankLevel: 0, status: "ปกติ", diff: 0, time: "14:30 น." },
-    { station: "ซอยเทพารักษ์",                             location: "ต. ในเมือง อ. เมือง", level: 0, bankLevel: 0, status: "ปกติ", diff: 0, time: "14:30 น." },
-    { station: "หน้าโรงพยาบาลขอนแก่นราม",                  location: "ต. ในเมือง อ. เมือง", level: 0, bankLevel: 0, status: "ปกติ", diff: 0, time: "14:30 น." },
-  ],
-  roads: [
-    { station: "ถนนศรีจันทร์",         location: "ต. ในเมือง อ. เมือง", level: 0, bankLevel: 0, status: "ปกติ", diff: 0, time: "14:30 น." },
-    { station: "ถนนมิตรภาพ",           location: "ต. ในเมือง อ. เมือง", level: 0, bankLevel: 0, status: "ปกติ", diff: 0, time: "14:30 น." },
-    { station: "ถนนหน้ามหาวิทยาลัย",  location: "ต. ในเมือง อ. เมือง", level: 0, bankLevel: 0, status: "ปกติ", diff: 0, time: "14:30 น." },
-  ],
-};
+// --- 5. Helper แปลง telemetry → WaterData ---
+const telemetryToWaterData = (
+  stations: TelemetryStationResult[],
+  getStatus: (levelM: number | undefined) => string,
+): WaterData[] =>
+  stations.map((station) => {
+    const levelM = station.status === "ok" ? station.water_level_m : undefined;
+    const timeDisplay = (() => {
+      if (!station.date_time) return "—";
+      const d = new Date(station.date_time.replace(" ", "T"));
+      if (isNaN(d.getTime())) return "—";
+      return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")} น.`;
+    })();
+
+    return {
+      station: station.name_th,
+      location: station.location.area,
+      level: levelM ?? 0,
+      bankLevel: 0,
+      diff: 0,
+      status: getStatus(levelM),
+      time: timeDisplay,
+      stationCode: station.map_id ?? station.station_id,
+    };
+  });
 
 // ============================================================
 // Component: RainfallTabBar
@@ -172,6 +193,8 @@ const MapViewAdmin = () => {
   const [realRainfallData, setRealRainfallData] = useState<WaterData[]>([]);
   const [rainfallTab, setRainfallTab]           = useState<RainfallTab>("1hr");
   const [lakesData, setLakesData]               = useState<LakeApiItem[]>([]);
+  const [pipeData, setPipeData]                 = useState<TelemetryStationResult[]>([]);
+  const [roadData, setRoadData]                 = useState<TelemetryStationResult[]>([]);
 
   // --- ดึงข้อมูลฝน 1hr ---
   const fetchRainData = async () => {
@@ -231,11 +254,38 @@ const MapViewAdmin = () => {
     }
   };
 
+  const fetchPipeData = async () => {
+    try {
+      const res = await fetch("/api/water/pipe");
+      if (!res.ok) throw new Error(`API ตอบกลับ ${res.status}`);
+      const json: TelemetryApiResponse = await res.json();
+      setPipeData(json.stations ?? []);
+    } catch (error) {
+      console.error("Error fetching pipe data:", error);
+    }
+  };
+
+  const fetchRoadData = async () => {
+    try {
+      const res = await fetch("/api/water/road");
+      if (!res.ok) throw new Error(`API ตอบกลับ ${res.status}`);
+      const json: TelemetryApiResponse = await res.json();
+      setRoadData(json.stations ?? []);
+    } catch (error) {
+      console.error("Error fetching road data:", error);
+    }
+  };
+
   useEffect(() => {
     fetchRainData();
     fetchLakesData();
-    // refresh บึงทุก 15 นาที
-    const interval = setInterval(fetchLakesData, 15 * 60 * 1000);
+    fetchPipeData();
+    fetchRoadData();
+    const interval = setInterval(() => {
+      fetchLakesData();
+      fetchPipeData();
+      fetchRoadData();
+    }, 15 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -249,14 +299,10 @@ const MapViewAdmin = () => {
 
     return LAKE_META.map((meta) => {
       const lake       = lakesData.find((l) => l.lake_id === meta.lakeId);
-      const waterLevel = lake?.water_level ?? 0;
-      const freeboard  = parseFloat((meta.maxLevel - waterLevel).toFixed(2));
-
-      // status จาก freeboard ตาม LAKE_THRESHOLDS
-      let status = "ปกติ";
-      if      (freeboard < 0.5)  status = "วิกฤต";
-      else if (freeboard < 1.0)  status = "เตือนภัย";
-      else if (freeboard < 1.5)  status = "เฝ้าระวัง";
+      const waterLevel = lake?.water_level;
+      const cfg        = LAKE_CONFIG[meta.lakeId];
+      const freeboard  = getPondFreeboard(meta.lakeId, waterLevel) ?? 0;
+      const status     = getPondStatusThai(meta.lakeId, waterLevel);
 
       // ใช้เวลาจาก API ถ้ามี
       let timeDisplay = timeStr;
@@ -273,9 +319,9 @@ const MapViewAdmin = () => {
       return {
         station:     meta.name,
         location:    meta.location,
-        level:       waterLevel,        // ระดับน้ำ ม.รทก.
-        bankLevel:   meta.maxLevel,     // ระดับขอบบึง ม.รทก.
-        diff:        freeboard,         // freeboard (ระยะห่างจากขอบ)
+        level:       waterLevel ?? 0,
+        bankLevel:   cfg.maxLevel,
+        diff:        freeboard,
         status,
         time:        timeDisplay,
         stationCode: meta.lakeId,       // ใช้ lake_id เป็น stationCode
@@ -290,8 +336,8 @@ const MapViewAdmin = () => {
         if (rainfallTab === "1hr" && realRainfallData.length > 0) return realRainfallData;
         return getRainfallMockData(rainfallTab);
       case "ponds":    return getLakesTableData();
-      case "drainage": return dataByView.drainage ?? [];
-      case "roads":    return dataByView.roads ?? [];
+      case "drainage": return telemetryToWaterData(pipeData, getPipeLevelStatusThai);
+      case "roads":    return telemetryToWaterData(roadData, getRoadLevelStatusThai);
       default:         return [];
     }
   };

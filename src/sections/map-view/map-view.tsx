@@ -14,6 +14,7 @@ import MapComponentRoads from "@/components/map/map_road";
 import MapComponentAnalytics from "@/components/map/map_analytics";
 import MapComponentFlood from "@/components/map/map_flood_area";
 import FloodDashboard from "@/components/map/map_help";
+import { RAIN_STATIONS } from "@/lib/rain-stations";
 
 // --- 0. แก้ไข Interface ให้ตรงกับที่ WaterTable ต้องการ (Strict Number) ---
 interface WaterData {
@@ -29,21 +30,21 @@ interface WaterData {
 
 // --- 1. ข้อมูล Metadata ---
 const STATION_METADATA = [
-  { id: "SNK_HOSP", name: "โรงพยาบาลศรีนครินทร์", location: "ต. ในเมือง อ. เมือง" },
-  { id: "KKC_MUN", name: "เทศบาลนครขอนแก่น", location: "ต. ในเมือง อ. เมือง" },
-  { id: "BKN", name: "บึงแก่นนคร", location: "ต. ในเมือง อ. เมือง" },
-  { id: "BTS", name: "บึงทุ่งสร้าง", location: "ต. ในเมือง อ. เมือง" },
-  { id: "NLP", name: "หนองเลิงเปือย", location: "อ. เมือง" },
-  { id: "BNK", name: "บึงหนองโคตร", location: "ต. บ้านเป็ด อ. เมือง" },
-  { id: "SIL_MUN", name: "เทศบาลเมืองศิลา", location: "ต. ศิลา อ. เมือง" },
-  { id: "UNE_MC", name: "ศูนย์อุตุนิยมวิทยาฯ", location: "ต. ในเมือง อ. เมือง" },
-  { id: "MKO_MUN", name: "เทศบาลเมืองเก่า", location: "ต. เมืองเก่า อ. เมือง" },
-  { id: "NEU", name: "ม.ภาคตะวันออกเฉียงเหนือ", location: "ต. ในเมือง อ. เมือง" },
-  { id: "UNE_SH", name: "บ้านพักพนักงานอุตุฯ", location: "ต. ในเมือง อ. เมือง" },
-  { id: "KKC_SP", name: "อุทยานวิทยาศาสตร์ มข.", location: "ต. ในเมือง อ. เมือง" },
-  { id: "BSV", name: "หมู่บ้านสีวลี", location: "ต. บ้านเป็ด อ. เมือง" },
-  { id: "RMUTI", name: "มทร.อีสาน ขอนแก่น", location: "ต. ในเมือง อ. เมือง" },
-  { id: "KKC_BL", name: "โรงเรียนสอนคนตาบอด", location: "ต. ในเมือง อ. เมือง" },
+  { id: "SNK_HOSP", name: RAIN_STATIONS.SNK_HOSP.name, location: "ต. ในเมือง อ. เมือง" },
+  { id: "KKC_MUN", name: RAIN_STATIONS.KKC_MUN.name, location: "ต. ในเมือง อ. เมือง" },
+  { id: "BKN", name: RAIN_STATIONS.BKN.name, location: "ต. ในเมือง อ. เมือง" },
+  { id: "BTS", name: RAIN_STATIONS.BTS.name, location: "ต. ในเมือง อ. เมือง" },
+  { id: "NLP", name: RAIN_STATIONS.NLP.name, location: "อ. เมือง" },
+  { id: "BNK", name: RAIN_STATIONS.BNK.name, location: "ต. บ้านเป็ด อ. เมือง" },
+  { id: "SIL_MUN", name: RAIN_STATIONS.SIL_MUN.name, location: "ต. ศิลา อ. เมือง" },
+  { id: "UNE_MC", name: RAIN_STATIONS.UNE_MC.name, location: "ต. ในเมือง อ. เมือง" },
+  { id: "MKO_MUN", name: RAIN_STATIONS.MKO_MUN.name, location: "ต. เมืองเก่า อ. เมือง" },
+  { id: "NEU", name: RAIN_STATIONS.NEU.name, location: "ต. ในเมือง อ. เมือง" },
+  { id: "UNE_SH", name: RAIN_STATIONS.UNE_SH.name, location: "ต. ในเมือง อ. เมือง" },
+  { id: "KKC_SP", name: RAIN_STATIONS.KKC_SP.name, location: "ต. ในเมือง อ. เมือง" },
+  { id: "BSV", name: RAIN_STATIONS.BSV.name, location: "ต. บ้านเป็ด อ. เมือง" },
+  { id: "RMUTI", name: RAIN_STATIONS.RMUTI.name, location: "ต. ในเมือง อ. เมือง" },
+  { id: "KKC_BL", name: RAIN_STATIONS.KKC_BL.name, location: "ต. ในเมือง อ. เมือง" },
 ];
 
 // Mock Data เดิม (ใส่ Type ให้ถูกต้อง)

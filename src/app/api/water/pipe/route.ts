@@ -1,20 +1,23 @@
 import { NextResponse } from "next/server";
-import { fetchCsvData } from "../../lib/fetchCsv";
-
-const BASE =
-  "http://10.101.111.123:8080/transfer_data/flow_result_hms/1hr_3km_f72hr/";
+import { fetchTelemetryStations } from "../../lib/fetchTelemetryReading";
+import { PIPE_TELEMETRY_STATIONS } from "@/lib/telemetry-stations";
 
 export async function GET() {
-  const pattern = /Junction_fcst_72hr_step1hr_(\d+_\d+)\.csv/g;
+  const stations = await fetchTelemetryStations("pipe", PIPE_TELEMETRY_STATIONS);
 
-  const data = await fetchCsvData(BASE, pattern);
-
-  if (!data)
-    return NextResponse.json({ status: "error", message: "no junction files" });
-
-  return NextResponse.json({
-    status: "success",
-    type: "road",
-    ...data,
-  });
+  return NextResponse.json(
+    {
+      fetched_at: new Date().toISOString(),
+      status: "success",
+      type: "pipe",
+      count: stations.length,
+      stations,
+    },
+    {
+      status: 200,
+      headers: {
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+      },
+    },
+  );
 }

@@ -23,6 +23,7 @@ import {
   ChevronDown,
   Eye,
 } from "lucide-react";
+import { RAIN_STATIONS } from "@/lib/rain-stations";
 import { generateOfficialPDFReport } from "./pdfGenerator";
 import HecRasFinalCode from "./water-way";
 
@@ -179,45 +180,45 @@ export const pdfReports: PDFReport[] = [
 export const rainStations = [
   {
     stationCode: "BKN",
-    nameTh: "บึงแก่นนคร",
-    lat: 16.419,
-    long: 102.836,
+    nameTh: RAIN_STATIONS.BKN.name,
+    lat: RAIN_STATIONS.BKN.lat,
+    long: RAIN_STATIONS.BKN.lon,
     past24h: "ไม่มีข้อมูล",
     forecast24h: "ไม่มีข้อมูล",
     forecast72h: "ไม่มีข้อมูล",
   },
   {
     stationCode: "BNK",
-    nameTh: "บึงหนองโคตร",
-    lat: 16.429,
-    long: 102.805,
+    nameTh: RAIN_STATIONS.BNK.name,
+    lat: RAIN_STATIONS.BNK.lat,
+    long: RAIN_STATIONS.BNK.lon,
     past24h: "ไม่มีข้อมูล",
     forecast24h: "ไม่มีข้อมูล",
     forecast72h: "ไม่มีข้อมูล",
   },
   {
     stationCode: "BSV",
-    nameTh: "หมู่บ้านสีวลี",
-    lat: 16.436,
-    long: 102.785,
+    nameTh: RAIN_STATIONS.BSV.name,
+    lat: RAIN_STATIONS.BSV.lat,
+    long: RAIN_STATIONS.BSV.lon,
     past24h: "ไม่มีข้อมูล",
     forecast24h: "ไม่มีข้อมูล",
     forecast72h: "ไม่มีข้อมูล",
   },
   {
     stationCode: "BTS",
-    nameTh: "บึงทุ่งสร้าง",
-    lat: 16.452,
-    long: 102.855,
+    nameTh: RAIN_STATIONS.BTS.name,
+    lat: RAIN_STATIONS.BTS.lat,
+    long: RAIN_STATIONS.BTS.lon,
     past24h: "ไม่มีข้อมูล",
     forecast24h: "ไม่มีข้อมูล",
     forecast72h: "ไม่มีข้อมูล",
   },
   {
     stationCode: "KKC_BL",
-    nameTh: "โรงเรียนสอนคนตาบอด",
-    lat: 16.442,
-    long: 102.808,
+    nameTh: RAIN_STATIONS.KKC_BL.name,
+    lat: RAIN_STATIONS.KKC_BL.lat,
+    long: RAIN_STATIONS.KKC_BL.lon,
     past24h: "ไม่มีข้อมูล",
     forecast24h: "ไม่มีข้อมูล",
     forecast72h: "ไม่มีข้อมูล",

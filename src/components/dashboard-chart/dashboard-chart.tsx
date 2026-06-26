@@ -10,10 +10,13 @@ import {
   CloudDrizzle,
   XCircle,
 } from "lucide-react";
+import {
+  LAKE_CONFIG,
+  getPondStatus,
+} from "@/lib/lake-thresholds";
+import { bucketPipeLevels, bucketRoadLevels } from "@/lib/water-level-status";
+import type { TelemetryApiResponse } from "@/lib/telemetry-types";
 
-/* ----------------------------
-   สีของหมวดหมู่ — ระบบสีเดียวกันทุก chart
-   ---------------------------- */
 const COLOR = {
   critical: "#d32f2f",
   warning:  "#ef6c00",
@@ -21,34 +24,6 @@ const COLOR = {
   normal:   "#2e7d32",
   nodata:   "#9e9e9e",
 };
-
-/* ----------------------------
-   maxLevel และ watchThreshold ของแต่ละบึง
-   (ตาม LAKE_THRESHOLDS ใน map_swamp.tsx)
-   freeboard = maxLevel − water_level
-   วิกฤต   : freeboard < 0.50 ม.
-   เตือนภัย : freeboard < 1.00 ม.
-   เฝ้าระวัง: freeboard < watchFB  (Lake_05 = 1.75, อื่นๆ = 1.50)
-   ปกติ    : freeboard >= watchFB
-   ---------------------------- */
-const LAKE_CONFIG: Record<string, { maxLevel: number; watchFB: number }> = {
-  Lake_02: { maxLevel: 150.0, watchFB: 1.50 },
-  Lake_03: { maxLevel: 152.0, watchFB: 1.50 },
-  Lake_05: { maxLevel: 155.0, watchFB: 1.75 },
-  Lake_06: { maxLevel: 151.5, watchFB: 1.50 },
-};
-
-type PondStatus = "critical" | "warning" | "watch" | "normal" | "nodata";
-
-function getPondStatus(lakeId: string, waterLevel: number | undefined): PondStatus {
-  const cfg = LAKE_CONFIG[lakeId];
-  if (!cfg || waterLevel == null || isNaN(waterLevel) || waterLevel === 0) return "nodata";
-  const fb = cfg.maxLevel - waterLevel;
-  if (fb < 0.50)      return "critical";
-  if (fb < 1.00)      return "warning";
-  if (fb < cfg.watchFB) return "watch";
-  return "normal";
-}
 
 /* ----------------------------
    Interface ข้อมูล API บึง
@@ -404,9 +379,13 @@ export default function Dashboard() {
   const fetchPipe = async () => {
     try {
       const res  = await fetch("/api/water/pipe");
-      const json = await res.json();
-      if (json?.status === "success" && Array.isArray(json.rows) && json.rows.length > 0) {
-        const stats = bucketPipeOrRoadValues(json.rows[json.rows.length - 1]);
+      const json: TelemetryApiResponse = await res.json();
+      if (json?.status === "success" && Array.isArray(json.stations)) {
+        const stats = bucketPipeLevels(
+          json.stations.map((s) =>
+            s.status === "ok" ? s.water_level_m : undefined,
+          ),
+        );
         setPipeChart([
           { name: "วิกฤต",       value: stats.critical, color: COLOR.critical, iconLevel: 5 },
           { name: "แจ้งเตือน",   value: stats.alert,    color: COLOR.warning,  iconLevel: 4 },
@@ -427,9 +406,13 @@ export default function Dashboard() {
   const fetchRoad = async () => {
     try {
       const res  = await fetch("/api/water/road");
-      const json = await res.json();
-      if (json?.status === "success" && Array.isArray(json.rows) && json.rows.length > 0) {
-        const stats = bucketPipeOrRoadValues(json.rows[json.rows.length - 1]);
+      const json: TelemetryApiResponse = await res.json();
+      if (json?.status === "success" && Array.isArray(json.stations)) {
+        const stats = bucketRoadLevels(
+          json.stations.map((s) =>
+            s.status === "ok" ? s.water_level_m : undefined,
+          ),
+        );
         setRoadChart([
           { name: "วิกฤต",       value: stats.critical, color: COLOR.critical, iconLevel: 5 },
           { name: "แจ้งเตือน",   value: stats.alert,    color: COLOR.warning,  iconLevel: 4 },

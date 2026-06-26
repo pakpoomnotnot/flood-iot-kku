@@ -10,6 +10,8 @@ import {
 } from "recharts";
 import stationsData from "./stations_complete.json";
 import { useStation, generateMockStationData } from "@/contexts/station-context";
+import type { TelemetryStationResult } from "@/app/api/lib/fetchTelemetryReading";
+import { getPipeMarkerColor, formatTelemetryTime } from "@/lib/water-level-status";
 
 // ─────────────────────────────────────────────
 // SVG Icons
@@ -223,6 +225,7 @@ const MapComponentDrainage: FC = () => {
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const map          = useRef<Map | null>(null);
   const markersRef   = useRef<Marker[]>([]);
+  const telemetryRef = useRef<Record<string, TelemetryStationResult>>({});
 
   const [currentStyle, setCurrentStyle]   = useState<BasemapStyleKey>("topo");
   const [isLoaded, setIsLoaded]           = useState(false);
@@ -244,10 +247,12 @@ const MapComponentDrainage: FC = () => {
     el.className = "custom-marker-wrapper";
     const prefix = stationId.substring(0, 2) as keyof typeof stationTypeConfig;
     const config = stationTypeConfig[prefix] || { color: "#6B7280", icon: ICONS.mapPin };
-    const waterLevel  = Math.random() * 2 + 0.5;
-    const waterHeight = Math.min((waterLevel / 3) * 100, 100);
+    const reading = telemetryRef.current[stationId];
+    const levelM = reading?.status === "ok" ? (reading.water_level_m ?? 0) : 0;
+    const markerColor = reading?.status === "ok" ? getPipeMarkerColor(levelM) : config.color;
+    const waterHeight = Math.min((levelM / 3) * 100, 100);
     el.innerHTML = `
-      <div class="custom-marker-animated" style="--marker-color: ${config.color}; --water-height: ${waterHeight}%;">
+      <div class="custom-marker-animated" style="--marker-color: ${markerColor}; --water-height: ${waterHeight}%;">
         <div class="marker-water-container">
           <div class="marker-water-wave"></div>
           <div class="marker-water-fill"></div>
@@ -263,19 +268,14 @@ const MapComponentDrainage: FC = () => {
   const createPopupContent = (station: Station): string => {
     const prefix   = station.id.substring(0, 2) as keyof typeof stationTypeConfig;
     const typeInfo = stationTypeConfig[prefix] || { label: "อื่นๆ", color: "#6B7280", icon: ICONS.tag };
+    const reading  = telemetryRef.current[station.id];
+    const hasData  = reading?.status === "ok" && reading.water_level_m != null;
+    const mockValue = hasData ? reading!.water_level_m! : 0;
+    const mockUnit  = "ม.";
+    const mockLabel = "ระดับน้ำในท่อ";
+    const timeLabel = hasData ? formatTelemetryTime(reading!.date_time) : "ไม่มีข้อมูล";
 
-    let mockValue = 0;
-    let mockUnit  = "";
-    let mockLabel = "";
-    switch (prefix) {
-      case "RF": mockValue = Math.random() * 50;      mockUnit = "มม."; mockLabel = "ปริมาณฝนสะสม";   break;
-      case "WP": mockValue = Math.random() * 2 + 0.5; mockUnit = "ม.";  mockLabel = "ระดับน้ำในท่อ";   break;
-      case "WR": mockValue = Math.random() * 0.8;     mockUnit = "ม.";  mockLabel = "ระดับน้ำท่วมถนน"; break;
-      case "PW": mockValue = Math.random() * 5 + 1;   mockUnit = "ม.";  mockLabel = "ระดับน้ำในบึง";   break;
-      default:   mockValue = 0; mockUnit = ""; mockLabel = "ข้อมูล";
-    }
-
-    const waterHeight = prefix === "WP" ? Math.min((mockValue / 3) * 100, 100) : 50;
+    const waterHeight = Math.min((mockValue / 3) * 100, 100);
 
     return `
       <div class="modern-popup">
@@ -330,7 +330,7 @@ const MapComponentDrainage: FC = () => {
           <div class="popup-footer-row">
             <div class="data-timestamp">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              <span>4 ธ.ค. 2568 14:30</span>
+              <span>${timeLabel}</span>
             </div>
             ${prefix === "WP" ? `
             <button class="drain-chart-btn" data-station-id="${station.id}" data-level="${mockValue.toFixed(2)}" title="ดูกราฟระดับน้ำในท่อ">
@@ -383,6 +383,26 @@ const MapComponentDrainage: FC = () => {
       });
     });
   };
+
+  useEffect(() => {
+    const loadTelemetry = async () => {
+      try {
+        const res = await fetch("/api/water/pipe");
+        const json = await res.json();
+        const map: Record<string, TelemetryStationResult> = {};
+        for (const station of json.stations ?? []) {
+          if (station.map_id) map[station.map_id] = station;
+        }
+        telemetryRef.current = map;
+        if (isLoaded) addStationMarkers();
+      } catch (error) {
+        console.error("Error loading pipe telemetry:", error);
+      }
+    };
+    loadTelemetry();
+    const interval = setInterval(loadTelemetry, 15 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [isLoaded]);
 
   useEffect(() => {
     if (map.current || !mapContainer.current) return;

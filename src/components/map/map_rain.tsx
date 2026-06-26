@@ -18,75 +18,18 @@ import {
   useStation,
   generateMockStationData,
 } from "@/contexts/station-context";
+import {
+  RAIN_STATIONS,
+  RAIN_STATION_DISPLAY_ORDER,
+} from "@/lib/rain-stations";
 
-// ─────────────────────────────────────────────
-// Static station coordinates
-// ─────────────────────────────────────────────
-const staticStations = [
-  {
-    no: 1,
-    lat: 16.466,
-    long: 102.831,
-    id: "SNK_HOSP",
-    name: "โรงพยาบาลศรีนครินทร์",
-  },
-  {
-    no: 2,
-    lat: 16.429,
-    long: 102.829,
-    id: "KKC_MUN",
-    name: "เทศบาลนครขอนแก่น",
-  },
-  { no: 3, lat: 16.419, long: 102.836, id: "BKN", name: "บึงแก่นนคร" },
-  { no: 4, lat: 16.452, long: 102.855, id: "BTS", name: "บึงทุ่งสร้าง" },
-  { no: 5, lat: 16.43, long: 102.877, id: "NLP", name: "หนองเลิงเปือย" },
-  { no: 6, lat: 16.429, long: 102.805, id: "BNK", name: "บึงหนองโคตร" },
-  { no: 7, lat: 16.473, long: 102.849, id: "SIL_MUN", name: "เทศบาลเมืองศิลา" },
-  {
-    no: 8,
-    lat: 16.463,
-    long: 102.786,
-    id: "UNE_MC",
-    name: "ศูนย์อุตุนิยมวิทยาภาคตะวันออกเฉียงเหนือตอนบน",
-  },
-  { no: 9, lat: 16.402, long: 102.788, id: "MKO_MUN", name: "เทศบาลเมืองเก่า" },
-  {
-    no: 10,
-    lat: 16.422,
-    long: 102.814,
-    id: "NEU",
-    name: "มหาวิทยาลัยภาคตะวันออกเฉียงเหนือ",
-  },
-  {
-    no: 11,
-    lat: 16.446,
-    long: 102.832,
-    id: "UNE_SH",
-    name: "บ้านพักพนักงานอุตุฯ",
-  },
-  {
-    no: 12,
-    lat: 16.456,
-    long: 102.819,
-    id: "KKC_SP",
-    name: "อุทยานวิทยาศาสตร์ มหาวิทยาลัยขอนแก่น",
-  },
-  { no: 13, lat: 16.436, long: 102.785, id: "BSV", name: "หมู่บ้านสีวลี" },
-  {
-    no: 14,
-    lat: 16.434,
-    long: 102.861,
-    id: "RMUTI",
-    name: "มหาวิทยาลัยราชมงคลอีสาน วิทยาเขตขอนแก่น",
-  },
-  {
-    no: 15,
-    lat: 16.442,
-    long: 102.808,
-    id: "KKC_BL",
-    name: "โรงเรียนสอนคนตาบอด",
-  },
-];
+const staticStations = RAIN_STATION_DISPLAY_ORDER.map((id, index) => ({
+  no: index + 1,
+  lat: RAIN_STATIONS[id].lat,
+  long: RAIN_STATIONS[id].lon,
+  id,
+  name: RAIN_STATIONS[id].name,
+}));
 
 // ─────────────────────────────────────────────
 // เกณฑ์ปริมาณฝนสะสม (มม./วัน)

@@ -12,6 +12,7 @@ import {
   ReferenceLine,
   ResponsiveContainer,
 } from "recharts";
+import { getPondStatus } from "@/lib/lake-thresholds";
 
 // ─────────────────────────────────────────────
 // Interfaces
@@ -58,7 +59,7 @@ const LAV_DATA: Record<string, LavInfo> = {
   },
   Lake_03: {
     name_th:  "บึงแก่นนคร",
-    maxLevel: 152.0,
+    maxLevel: 153.0,
     maxVol:   1800273.44,
     maxArea:  604444.6,
     table: [
@@ -77,7 +78,7 @@ const LAV_DATA: Record<string, LavInfo> = {
   },
   Lake_05: {
     name_th:  "บึงหนองโคตร",
-    maxLevel: 155.0,
+    maxLevel: 155.6,
     maxVol:   7042958.829,
     maxArea:  1091408.3,
     table: [
@@ -188,7 +189,33 @@ function pondStatusColor(status: string) {
     case "วิกฤต":    return "bg-red-600 text-white";
     case "เตือนภัย": return "bg-orange-500 text-white";
     case "เฝ้าระวัง": return "bg-yellow-400 text-gray-900";
+    case "ไม่มีข้อมูล": return "bg-gray-200 text-gray-600";
     default:          return "bg-emerald-500 text-white";
+  }
+}
+
+function pondFreeboardCellColor(lakeId: string | undefined, waterLevel: number): string {
+  switch (getPondStatus(lakeId ?? "", waterLevel)) {
+    case "critical":
+      return "bg-red-100 text-red-700 border border-red-200";
+    case "warning":
+      return "bg-orange-100 text-orange-700 border border-orange-200";
+    case "watch":
+      return "bg-yellow-100 text-yellow-700 border border-yellow-200";
+    case "normal":
+      return "bg-emerald-100 text-emerald-700 border border-emerald-200";
+    default:
+      return "bg-gray-100 text-gray-500 border border-gray-200";
+  }
+}
+
+function pondFreeboardTextColor(lakeId: string | undefined, waterLevel: number): string {
+  switch (getPondStatus(lakeId ?? "", waterLevel)) {
+    case "critical": return "text-red-600";
+    case "warning":  return "text-orange-500";
+    case "watch":    return "text-yellow-600";
+    case "normal":   return "text-emerald-600";
+    default:         return "text-gray-500";
   }
 }
 
@@ -502,7 +529,7 @@ const PondChartModal = ({ station, onClose }: PondChartModalProps) => {
           {[
             { label: "ระดับน้ำ",     value: `${station.level.toFixed(2)} ม.รทก.`, color: "text-blue-700" },
             { label: "ระดับขอบบึง",  value: `${station.bankLevel.toFixed(2)} ม.รทก.`, color: "text-gray-600" },
-            { label: "ระยะห่างขอบ", value: `${station.diff.toFixed(2)} ม.`, color: station.diff < 0.5 ? "text-red-600" : station.diff < 1.0 ? "text-orange-500" : "text-emerald-600" },
+            { label: "ระยะห่างขอบ", value: `${station.diff.toFixed(2)} ม.`, color: pondFreeboardTextColor(station.stationCode, station.level) },
             { label: "% ความจุ",    value: lavInfo ? `${lav.pct.toFixed(1)} %` : "—", color: lav.pct >= 80 ? "text-red-600" : lav.pct >= 50 ? "text-orange-500" : "text-emerald-600" },
           ].map((item) => (
             <div key={item.label} className="flex flex-col items-center bg-white rounded-xl py-2 px-1 shadow-sm border border-gray-100">
@@ -625,22 +652,18 @@ const WaterTable = ({ data, mode = "default" }: WaterTableProps) => {
                     <span className="inline-flex items-center justify-center rounded-md px-2.5 py-1 text-sm font-bold min-w-[60px] bg-white border border-gray-200 text-gray-800">
                       {mode === "pond"
                         ? row.level > 0 ? row.level.toFixed(2) : "—"
-                        : row.level}
+                        : mode === "default"
+                          ? row.status === "ไม่มีข้อมูล"
+                            ? "—"
+                            : row.level.toFixed(2)
+                          : row.level}
                     </span>
                   </td>
 
                   {/* freeboard (เฉพาะ pond) */}
                   {mode === "pond" && (
                     <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex items-center justify-center rounded-md px-2.5 py-1 text-sm font-bold min-w-[52px]
-                        ${row.diff < 0.5
-                          ? "bg-red-100 text-red-700 border border-red-200"
-                          : row.diff < 1.0
-                            ? "bg-orange-100 text-orange-700 border border-orange-200"
-                            : row.diff < 1.5
-                              ? "bg-yellow-100 text-yellow-700 border border-yellow-200"
-                              : "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                        }`}>
+                      <span className={`inline-flex items-center justify-center rounded-md px-2.5 py-1 text-sm font-bold min-w-[52px] ${pondFreeboardCellColor(row.stationCode, row.level)}`}>
                         {row.diff > 0 ? row.diff.toFixed(2) : "—"}
                       </span>
                     </td>

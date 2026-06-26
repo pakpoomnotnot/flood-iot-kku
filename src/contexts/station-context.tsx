@@ -1,24 +1,8 @@
 "use client";
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { RAIN_STATIONS } from '@/lib/rain-stations';
 
-// Station location data - ข้อมูลพิกัดสถานี
-const STATION_LOCATIONS = {
-  SNK_HOSP: { name: "โรงพยาบาลศรีนครินทร์", lat: 16.466, lon: 102.831 },
-  KKC_MUN: { name: "เทศบาลนครขอนแก่น", lat: 16.429, lon: 102.829 },
-  BKN: { name: "บึงแก่นนคร", lat: 16.419, lon: 102.836 },
-  BTS: { name: "บึงทุ่งสร้าง", lat: 16.452, lon: 102.855 },
-  NLP: { name: "หนองเลิงเปือย", lat: 16.43, lon: 102.877 },
-  BNK: { name: "บึงหนองโคตร", lat: 16.429, lon: 102.805 },
-  SIL_MUN: { name: "เทศบาลเมืองศิลา", lat: 16.473, lon: 102.849 },
-  UNE_MC: { name: "ศูนย์อุตุนิยมวิทยาภาคตะวันออกเฉียงเหนือตอนบน", lat: 16.463, lon: 102.786 },
-  MKO_MUN: { name: "เทศบาลเมืองเก่า", lat: 16.402, lon: 102.788 },
-  NEU: { name: "มหาวิทยาลัยภาคตะวันออกเฉียงเหนือ", lat: 16.422, lon: 102.814 },
-  UNE_SH: { name: "บ้านพักพนักงานอุตุฯ", lat: 16.446, lon: 102.832 },
-  KKC_SP: { name: "อุทยานวิทยาศาสตร์ มหาวิทยาลัยขอนแก่น", lat: 16.456, lon: 102.819 },
-  BSV: { name: "หมู่บ้านสีวลี", lat: 16.436, lon: 102.785 },
-  RMUTI: { name: "มหาวิทยาลัยราชมงคลอีสาน วิทยาเขตขอนแก่น", lat: 16.434, lon: 102.861 },
-  KKC_BL: { name: "โรงเรียนสอนคนตาบอด", lat: 16.442, lon: 102.808 },
-};
+const STATION_LOCATIONS = RAIN_STATIONS;
 
 // Station data interface
 interface Station {
