@@ -1,17 +1,14 @@
 "use client";
 
-import React, { useEffect, useRef, useState, FC, useMemo } from "react";
+import React, { useEffect, useRef, useState, FC } from "react";
 import { Layers, Map as MapIcon, Droplets } from "lucide-react";
 import maplibregl, { Map, Marker, Popup, ScaleControl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ReferenceLine, ResponsiveContainer,
-} from "recharts";
 import stationsData from "./stations_complete.json";
 import { useStation, generateMockStationData } from "@/contexts/station-context";
 import type { TelemetryStationResult } from "@/app/api/lib/fetchTelemetryReading";
 import { getPipeMarkerColor, formatTelemetryTime } from "@/lib/water-level-status";
+import { TelemetryHistoryChartModal } from "@/components/telemetry/telemetry-history-chart-modal";
 
 // ─────────────────────────────────────────────
 // SVG Icons
@@ -69,154 +66,6 @@ const LEVEL_LABELS = [
   { label: "ปานกลาง",  span: 2 },
   { label: "วิกฤต",    span: 2 },
 ];
-
-// ─────────────────────────────────────────────
-// Mock hourly drainage data (bar chart)
-// ─────────────────────────────────────────────
-interface HourlyPoint { label: string; value: number; }
-
-function generateMockDrainageLevel(currentLevel: number): HourlyPoint[] {
-  const now = new Date();
-  let prev = Math.max(0.1, currentLevel - Math.random() * 0.8);
-  return Array.from({ length: 24 }, (_, i) => {
-    const t = new Date(now.getTime() - (23 - i) * 3_600_000);
-    const label = `${t.getDate()}-${t.toLocaleString("en", { month: "short" })} ${t
-      .getHours().toString().padStart(2, "0")}:00`;
-    const delta = (Math.random() - 0.45) * 0.25;
-    prev = Math.max(0, Math.min(3.5, prev + delta));
-    if (i === 23) prev = currentLevel;
-    return { label, value: parseFloat(prev.toFixed(2)) };
-  });
-}
-
-// ─────────────────────────────────────────────
-// สีแท่งตามระดับน้ำ
-// ─────────────────────────────────────────────
-const getDrainageBarColor = (value: number) => {
-  if (value > 2.5) return "#DC2626";
-  if (value > 2.0) return "#FB923C";
-  if (value > 1.5) return "#3B82F6";
-  if (value > 1.0) return "#60A5FA";
-  if (value > 0.5) return "#93C5FD";
-  return "#DBEAFE";
-};
-
-// ─────────────────────────────────────────────
-// Custom Tooltip
-// ─────────────────────────────────────────────
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="rounded-lg border border-blue-100 bg-white px-3 py-2 shadow-lg text-xs">
-      <p className="font-semibold text-gray-700">{label}</p>
-      <p className="text-blue-600 font-bold mt-0.5">{payload[0].value} ม.</p>
-    </div>
-  );
-};
-
-// ─────────────────────────────────────────────
-// Chart Modal (กราฟแท่ง)
-// ─────────────────────────────────────────────
-interface ChartModalProps {
-  station: Station;
-  currentLevel: number;
-  onClose: () => void;
-}
-
-const ChartModal: FC<ChartModalProps> = ({ station, currentLevel, onClose }) => {
-  const data         = useMemo(() => generateMockDrainageLevel(currentLevel), [station.id]);
-  const currentLabel = data[data.length - 1]?.label ?? "";
-  const tickLabels   = data.filter((_, i) => i % 4 === 0).map((d) => d.label);
-
-  // Custom bar with dynamic color
-  const CustomBar = (props: any) => {
-    const { x, y, width, height, value } = props;
-    return <rect x={x} y={y} width={width} height={height} fill={getDrainageBarColor(value)} rx={2} ry={2} />;
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="relative w-full max-w-2xl mx-4 rounded-2xl bg-white shadow-2xl border border-blue-100 overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-gray-100">
-          <div>
-            <h2 className="text-base font-bold text-gray-800">กราฟระดับน้ำในท่อ — {station.name}</h2>
-            <p className="text-xs text-gray-400 mt-0.5">{station.location.area}</p>
-          </div>
-          <button onClick={onClose} className="ml-4 mt-0.5 flex-shrink-0 rounded-full p-1.5 text-gray-400 hover:bg-gray-100 transition-colors">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Sub-header */}
-        <div className="flex items-center gap-4 px-5 py-2.5 bg-blue-50/60 text-xs text-gray-500 border-b border-blue-100">
-          <span>📍 {station.location.area}</span>
-          <span className="ml-auto font-semibold text-blue-700">
-            ระดับน้ำปัจจุบัน: {currentLevel.toFixed(2)} ม.
-          </span>
-        </div>
-
-        {/* Chart */}
-        <div className="px-4 pt-4 pb-3">
-          <p className="text-[11px] font-medium text-gray-400 mb-3 uppercase tracking-wide">
-            ระดับน้ำในท่อ (ม.) — 24 ชั่วโมงย้อนหลัง
-          </p>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 5 }} barCategoryGap="20%">
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-              <XAxis dataKey="label" ticks={tickLabels} tick={{ fontSize: 10, fill: "#9ca3af" }} tickLine={false} axisLine={false} />
-              <YAxis domain={[0, 3.5]} tick={{ fontSize: 10, fill: "#9ca3af" }} tickLine={false} axisLine={false} unit=" ม." />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: "#eff6ff" }} />
-
-              {/* Threshold lines */}
-              <ReferenceLine y={1.5} stroke="#3B82F6" strokeWidth={1} strokeDasharray="5 4"
-                label={{ value: "ปานกลาง", position: "right", fontSize: 9, fill: "#3B82F6", fontWeight: 600 }} />
-              <ReferenceLine y={2.5} stroke="#DC2626" strokeWidth={1} strokeDasharray="5 4"
-                label={{ value: "วิกฤต", position: "right", fontSize: 9, fill: "#DC2626", fontWeight: 600 }} />
-
-              {/* เส้นแดงปัจจุบัน */}
-              <ReferenceLine
-                x={currentLabel}
-                stroke="#ef4444"
-                strokeWidth={1.5}
-                strokeDasharray="4 3"
-                label={{ value: "ปัจจุบัน", position: "top", fontSize: 9, fill: "#ef4444", fontWeight: 600 }}
-              />
-
-              <Bar dataKey="value" shape={<CustomBar />} maxBarSize={18} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Color legend */}
-        <div className="flex items-center gap-3 px-5 pb-4 pt-1 border-t border-gray-50 flex-wrap">
-          {[
-            { label: "ปกติ (0-0.5)",     color: "#DBEAFE" },
-            { label: "0.5-1.5",           color: "#60A5FA" },
-            { label: "ปานกลาง (1.5-2.5)", color: "#3B82F6" },
-            { label: "วิกฤต (>2.5)",      color: "#DC2626" },
-          ].map((s) => (
-            <div key={s.label} className="flex items-center gap-1 text-[10px] text-gray-500">
-              <span className="w-3 h-3 rounded-sm inline-block border border-gray-200" style={{ backgroundColor: s.color }} />
-              {s.label}
-            </div>
-          ))}
-          <button onClick={onClose} className="ml-auto rounded-lg bg-gray-100 px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-200 transition-colors font-medium">
-            ปิด
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // ─────────────────────────────────────────────
 // Main MapComponentDrainage
@@ -506,8 +355,11 @@ const MapComponentDrainage: FC = () => {
 
       {/* ── Chart Modal ── */}
       {chartStation && (
-        <ChartModal
-          station={chartStation}
+        <TelemetryHistoryChartModal
+          category="pipe"
+          stationCode={chartStation.id}
+          title={`กราฟระดับน้ำในท่อ — ${chartStation.name}`}
+          subtitle={chartStation.location.area}
           currentLevel={chartLevel}
           onClose={() => setChartStation(null)}
         />

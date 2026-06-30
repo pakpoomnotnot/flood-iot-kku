@@ -311,8 +311,9 @@ const getStatusFromValue = (sensorType: string, value: number): 'normal' | 'warn
       if (value >= 50) return 'warning';
       return 'normal';
     case 'rainfall':
-      if (value >= 20) return 'critical';
-      if (value >= 10) return 'warning';
+      // ใช้เกณฑ์ฝน (mm/ชม.) แบบเดียวกับตาราง UI
+      if (value >= 40) return 'critical';
+      if (value >= 20) return 'warning';
       return 'normal';
     case 'temperature':
       if (value >= 40 || value <= 10) return 'critical';

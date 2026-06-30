@@ -218,9 +218,9 @@ const MapViewAdmin = () => {
         const formattedData: WaterData[] = STATION_METADATA.map((meta) => {
           const value = rainValues[meta.id] ?? 0;
           let statusText = "ไม่มีฝน";
-          if (value > 90)      statusText = "หนักมาก";
-          else if (value > 35) statusText = "หนัก";
-          else if (value > 10) statusText = "ปานกลาง";
+          if (value > 40)      statusText = "หนักมาก";
+          else if (value > 30) statusText = "หนัก";
+          else if (value > 20) statusText = "ปานกลาง";
           else if (value > 0)  statusText = "เล็กน้อย";
 
           return {
@@ -439,6 +439,13 @@ const MapViewAdmin = () => {
                     <WaterTable
                       data={getCurrentData()}
                       mode={getTableMode()}
+                      telemetryCategory={
+                        activeView === "drainage"
+                          ? "pipe"
+                          : activeView === "roads"
+                            ? "road"
+                            : undefined
+                      }
                     />
                   </div>
                 </div>

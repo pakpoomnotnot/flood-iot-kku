@@ -66,6 +66,36 @@ function rowToReading(row: Record<string, string>): TelemetryReading {
   };
 }
 
+export async function fetchTelemetryHistory(
+  category: "pipe" | "road",
+  stationId: string,
+  hours = 24,
+): Promise<TelemetryReading[]> {
+  const url = `${TELEMETRY_BASE_URL}/${category}/${stationId}.csv`;
+
+  const res = await fetch(url, {
+    next: { revalidate: 60 },
+    signal: AbortSignal.timeout(30_000),
+  });
+
+  if (!res.ok) {
+    throw new Error(`CSV fetch failed: ${res.status} ${res.statusText} — ${url}`);
+  }
+
+  const rows = parseCsv(await res.text());
+  if (rows.length === 0) return [];
+
+  const cutoff = Date.now() - hours * 3_600_000;
+
+  return rows
+    .map(rowToReading)
+    .filter((reading) => {
+      const t = new Date(reading.date_time.replace(" ", "T")).getTime();
+      return !isNaN(t) && t >= cutoff;
+    })
+    .sort((a, b) => a.date_time.localeCompare(b.date_time));
+}
+
 export async function fetchLatestTelemetryReading(
   category: "lake" | "pipe" | "road",
   stationId: string,

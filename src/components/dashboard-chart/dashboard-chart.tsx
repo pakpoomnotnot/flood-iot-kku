@@ -288,9 +288,9 @@ function bucketRainValues(values: number[]) {
   let veryHeavy = 0, heavy = 0, moderate = 0, light = 0, none = 0;
   values.forEach((val) => {
     if (isNaN(val) || val === 0) none++;
-    else if (val <= 10) light++;
-    else if (val <= 35) moderate++;
-    else if (val <= 90) heavy++;
+    else if (val <= 20) light++;        // ปกติ 0-20
+    else if (val <= 30) moderate++;     // เฝ้าระวัง 20.1-30
+    else if (val <= 40) heavy++;        // เตือนภัย 30.1-40
     else veryHeavy++;
   });
   return { veryHeavy, heavy, moderate, light, none };

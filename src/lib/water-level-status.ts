@@ -30,7 +30,7 @@ export function getRoadLevelStatusThai(levelM: number | undefined): RoadLevelSta
   if (levelM == null || isNaN(levelM)) return "ไม่มีข้อมูล";
   if (levelM > 0.69) return "น้ำท่วม";
   if (levelM > 0.46) return "สูง";
-  if (levelM > 0.34) return "กลาง";
+  if (levelM > 0.23) return "กลาง";
   if (levelM > 0.11) return "ต่ำ";
   return "ปกติ";
 }
@@ -95,7 +95,7 @@ export function bucketRoadLevels(levels: Array<number | undefined>) {
     }
     if (levelM > 0.69) stats.critical++;
     else if (levelM > 0.46) stats.alert++;
-    else if (levelM > 0.34) stats.watch++;
+    else if (levelM > 0.23) stats.watch++;
     else stats.normal++;
   });
   return stats;

@@ -32,26 +32,26 @@ const staticStations = RAIN_STATION_DISPLAY_ORDER.map((id, index) => ({
 }));
 
 // ─────────────────────────────────────────────
-// เกณฑ์ปริมาณฝนสะสม (มม./วัน)
-// ปกติ      : 0.1 – 10.0
-// เฝ้าระวัง  : 10.1 – 35.0
-// เตือนภัย  : 35.1 – 90.0
-// วิกฤติ    : > 90.1
+// เกณฑ์ปริมาณฝน (มม./ชม.)
+// ปกติ      : 0.0 – 20.0
+// เฝ้าระวัง  : 20.1 – 30.0
+// เตือนภัย  : 30.1 – 40.0
+// วิกฤติ    : > 40.0
 // ─────────────────────────────────────────────
 const getRainStatus = (
   value: number,
 ): "วิกฤติ" | "เตือนภัย" | "เฝ้าระวัง" | "ปกติ" | "ไม่มีฝน" => {
-  if (value > 90.0) return "วิกฤติ";
-  if (value > 35.0) return "เตือนภัย";
-  if (value > 10.0) return "เฝ้าระวัง";
-  if (value >= 0) return "ปกติ";
+  if (value > 40.0) return "วิกฤติ";
+  if (value > 30.0) return "เตือนภัย";
+  if (value > 20.0) return "เฝ้าระวัง";
+  if (value > 0) return "ปกติ";
   return "ไม่มีฝน";
 };
 
 const getRainColor = (value: number): string => {
-  if (value > 90.0) return "#b71c1c"; // วิกฤติ — แดงเข้ม
-  if (value > 35.0) return "#ef6c00"; // เตือนภัย — ส้ม
-  if (value > 10.0) return "#fbc02d"; // เฝ้าระวัง — เหลือง
+  if (value > 40.0) return "#b71c1c"; // วิกฤติ — แดงเข้ม
+  if (value > 30.0) return "#ef6c00"; // เตือนภัย — ส้ม
+  if (value > 20.0) return "#fbc02d"; // เฝ้าระวัง — เหลือง
   if (value > 0) return "#2e7d32"; // ปกติ — เขียว
   return "#90caf9"; // ไม่มีฝน — ฟ้าอ่อน
 };
@@ -737,20 +737,20 @@ const MapComponent: FC = () => {
 
   // Legend segments ตามเกณฑ์ใหม่
   const legendSegments = [
-    { range: "0.0–10.0", label: "ปกติ", color: "#2e7d32", textColor: "#fff" },
+    { range: "0.0–20.0", label: "ปกติ", color: "#2e7d32", textColor: "#fff" },
     {
-      range: "10.1–35.0",
+      range: "20.1–30.0",
       label: "เฝ้าระวัง",
       color: "#fbc02d",
       textColor: "#333",
     },
     {
-      range: "35.1–90.0",
+      range: "30.1–40.0",
       label: "เตือนภัย",
       color: "#ef6c00",
       textColor: "#fff",
     },
-    { range: "> 90.1", label: "วิกฤติ", color: "#b71c1c", textColor: "#fff" },
+    { range: "> 40.0", label: "วิกฤติ", color: "#b71c1c", textColor: "#fff" },
   ];
 
   return (

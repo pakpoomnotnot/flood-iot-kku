@@ -1,17 +1,14 @@
 "use client";
 
-import React, { useEffect, useRef, useState, FC, useMemo } from "react";
+import React, { useEffect, useRef, useState, FC } from "react";
 import { Layers, Map as MapIcon, Droplets, ShieldAlert } from "lucide-react";
 import maplibregl, { Map, Marker, Popup, ScaleControl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  Tooltip, ReferenceLine, ResponsiveContainer,
-} from "recharts";
 import stationsData from "./stations_complete.json";
 import { useStation, generateMockStationData } from "@/contexts/station-context";
 import type { TelemetryStationResult } from "@/app/api/lib/fetchTelemetryReading";
 import { getRoadMarkerColor, formatTelemetryTime } from "@/lib/water-level-status";
+import { TelemetryHistoryChartModal } from "@/components/telemetry/telemetry-history-chart-modal";
 
 // ─────────────────────────────────────────────
 // SVG Icons
@@ -69,143 +66,6 @@ const LEVEL_LABELS = [
   { label: "อันตราย", span: 1 },
   { label: "วิกฤต",   span: 1 },
 ];
-
-// ─────────────────────────────────────────────
-// Mock hourly road flood data
-// ─────────────────────────────────────────────
-interface HourlyPoint { label: string; value: number; }
-
-function generateMockRoadFlood(currentLevel: number): HourlyPoint[] {
-  const now = new Date();
-  let prev = Math.max(0, currentLevel - Math.random() * 0.3);
-  return Array.from({ length: 24 }, (_, i) => {
-    const t = new Date(now.getTime() - (23 - i) * 3_600_000);
-    const label = `${t.getDate()}-${t.toLocaleString("en", { month: "short" })} ${t
-      .getHours().toString().padStart(2, "0")}:00`;
-    const delta = (Math.random() - 0.48) * 0.08;
-    prev = Math.max(0, Math.min(1.2, prev + delta));
-    if (i === 23) prev = currentLevel;
-    return { label, value: parseFloat(prev.toFixed(3)) };
-  });
-}
-
-// ─────────────────────────────────────────────
-// Custom Tooltip
-// ─────────────────────────────────────────────
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (!active || !payload?.length) return null;
-  const v = payload[0].value;
-  const color = v > 0.8 ? "#DC2626" : v > 0.6 ? "#F87171" : v > 0.4 ? "#FB923C" : v > 0.2 ? "#CA8A04" : "#16A34A";
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-lg text-xs">
-      <p className="font-semibold text-gray-600 mb-1">{label}</p>
-      <p className="font-bold" style={{ color }}>{v} ม.</p>
-    </div>
-  );
-};
-
-// ─────────────────────────────────────────────
-// Chart Modal (กราฟเส้น)
-// ─────────────────────────────────────────────
-interface ChartModalProps {
-  station: Station;
-  currentLevel: number;
-  onClose: () => void;
-}
-
-const ChartModal: FC<ChartModalProps> = ({ station, currentLevel, onClose }) => {
-  const data         = useMemo(() => generateMockRoadFlood(currentLevel), [station.id]);
-  const currentLabel = data[data.length - 1]?.label ?? "";
-  const tickLabels   = data.filter((_, i) => i % 4 === 0).map((d) => d.label);
-
-  return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="relative w-full max-w-2xl mx-4 rounded-2xl bg-white shadow-2xl border border-red-100 overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-gray-100">
-          <div>
-            <h2 className="text-base font-bold text-gray-800">กราฟน้ำท่วมถนน — {station.name}</h2>
-            <p className="text-xs text-gray-400 mt-0.5">{station.location.area}</p>
-          </div>
-          <button onClick={onClose} className="ml-4 mt-0.5 flex-shrink-0 rounded-full p-1.5 text-gray-400 hover:bg-gray-100 transition-colors">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Sub-header */}
-        <div className="flex items-center gap-4 px-5 py-2.5 bg-red-50/60 text-xs text-gray-500 border-b border-red-100">
-          <span>{station.location.area}</span>
-          <span className="ml-auto font-semibold text-red-600">
-            ระดับน้ำปัจจุบัน: {currentLevel.toFixed(2)} ม.
-          </span>
-        </div>
-
-        {/* Chart */}
-        <div className="px-4 pt-4 pb-3">
-          <p className="text-[11px] font-medium text-gray-400 mb-3 uppercase tracking-wide">
-            ระดับน้ำท่วมถนน (ม.) — 24 ชั่วโมงย้อนหลัง
-          </p>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={data} margin={{ top: 10, right: 60, left: -10, bottom: 5 }}>
-              <defs>
-                <linearGradient id="roadGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#EF4444" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#EF4444" stopOpacity={0.03} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-              <XAxis dataKey="label" ticks={tickLabels} tick={{ fontSize: 10, fill: "#9ca3af" }} tickLine={false} axisLine={false} />
-              <YAxis domain={[0, 1.2]} tick={{ fontSize: 10, fill: "#9ca3af" }} tickLine={false} axisLine={false} unit=" ม." />
-              <Tooltip content={<CustomTooltip />} />
-
-              {/* Threshold lines */}
-              <ReferenceLine y={0.2} stroke="#CA8A04" strokeWidth={1} strokeDasharray="5 4"
-                label={{ value: "ระวัง", position: "right", fontSize: 9, fill: "#CA8A04", fontWeight: 600 }} />
-              <ReferenceLine y={0.6} stroke="#EA580C" strokeWidth={1} strokeDasharray="5 4"
-                label={{ value: "อันตราย", position: "right", fontSize: 9, fill: "#EA580C", fontWeight: 600 }} />
-              <ReferenceLine y={0.8} stroke="#DC2626" strokeWidth={1} strokeDasharray="5 4"
-                label={{ value: "วิกฤต", position: "right", fontSize: 9, fill: "#DC2626", fontWeight: 600 }} />
-
-              {/* เส้นปัจจุบัน */}
-              <ReferenceLine
-                x={currentLabel}
-                stroke="#ef4444"
-                strokeWidth={1.5}
-                strokeDasharray="4 3"
-                label={{ value: "ปัจจุบัน", position: "top", fontSize: 9, fill: "#ef4444", fontWeight: 600 }}
-              />
-
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke="#EF4444"
-                strokeWidth={2.5}
-                fill="url(#roadGradient)"
-                dot={false}
-                activeDot={{ r: 4, fill: "#EF4444", strokeWidth: 2, stroke: "#fff" }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end px-5 pb-4 border-t border-gray-50 pt-3">
-          <button onClick={onClose} className="rounded-lg bg-gray-100 px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-200 transition-colors font-medium">
-            ปิด
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // ─────────────────────────────────────────────
 // Main MapComponentRoads
@@ -503,8 +363,11 @@ const MapComponentRoads: FC = () => {
 
       {/* ── Chart Modal ── */}
       {chartStation && (
-        <ChartModal
-          station={chartStation}
+        <TelemetryHistoryChartModal
+          category="road"
+          stationCode={chartStation.id}
+          title={`กราฟน้ำท่วมถนน — ${chartStation.name}`}
+          subtitle={chartStation.location.area}
           currentLevel={chartLevel}
           onClose={() => setChartStation(null)}
         />

@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { getPondStatus } from "@/lib/lake-thresholds";
+import { TelemetryHistoryChartModal } from "@/components/telemetry/telemetry-history-chart-modal";
 
 // ─────────────────────────────────────────────
 // Interfaces
@@ -227,6 +228,7 @@ function statusColor(status: string, mode: "rainfall" | "pond" | "default") {
     case "สูง":    return "bg-red-500 text-white";
     case "กลาง":   return "bg-yellow-400 text-gray-900";
     case "ต่ำ":    return "bg-green-400 text-white";
+    case "ปกติ":  return "bg-green-400 text-white";
     case "น้ำท่วม": return "bg-red-600 text-white";
     default:        return "bg-gray-200 text-gray-600";
   }
@@ -588,9 +590,10 @@ const PondChartModal = ({ station, onClose }: PondChartModalProps) => {
 interface WaterTableProps {
   data: WaterData[];
   mode?: "rainfall" | "pond" | "default";
+  telemetryCategory?: "pipe" | "road";
 }
 
-const WaterTable = ({ data, mode = "default" }: WaterTableProps) => {
+const WaterTable = ({ data, mode = "default", telemetryCategory }: WaterTableProps) => {
   const [selectedStation, setSelectedStation] = useState<WaterData | null>(null);
 
   // คอลัมน์ header ตาม mode
@@ -699,8 +702,22 @@ const WaterTable = ({ data, mode = "default" }: WaterTableProps) => {
       {selectedStation && mode === "pond" && (
         <PondChartModal station={selectedStation} onClose={() => setSelectedStation(null)} />
       )}
-      {selectedStation && mode !== "pond" && (
+      {selectedStation && mode === "rainfall" && (
         <RainfallChartModal station={selectedStation} onClose={() => setSelectedStation(null)} />
+      )}
+      {selectedStation && mode === "default" && telemetryCategory && selectedStation.stationCode && (
+        <TelemetryHistoryChartModal
+          category={telemetryCategory}
+          stationCode={selectedStation.stationCode}
+          title={
+            telemetryCategory === "pipe"
+              ? `กราฟระดับน้ำในท่อ — ${selectedStation.station}`
+              : `กราฟน้ำท่วมถนน — ${selectedStation.station}`
+          }
+          subtitle={selectedStation.location}
+          currentLevel={selectedStation.level}
+          onClose={() => setSelectedStation(null)}
+        />
       )}
     </div>
   );
