@@ -1,217 +1,241 @@
 "use client";
 
-import React, { useEffect, useRef, useState, FC } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState, FC } from "react";
 import {
-  Map as MapIcon, Layers, Droplets, CloudRain,
-  ShieldAlert, Waves, Eye, EyeOff, Calendar,
+  Map as MapIcon,
+  Layers,
+  Eye,
+  EyeOff,
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
 } from "lucide-react";
-import maplibregl, { Map, Marker, Popup, ScaleControl } from "maplibre-gl";
+import maplibregl, { Map, ScaleControl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import stationsData from "./stations_complete.json";
-import { useStation, generateMockStationData } from "@/contexts/station-context";
+import type { FloodMapDayGroup, FloodMapFrame } from "@/lib/flood-map-catalog";
+import {
+  geotiffToImageOverlay,
+  type FloodImageOverlay,
+} from "@/lib/flood-geotiff-render";
 
-// ─────────────────────────────────────────────
-// SVG Icons
-// ─────────────────────────────────────────────
-const ICONS = {
-  droplets:    `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`,
-  shieldAlert: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>`,
-  waves:       `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/></svg>`,
-  cloudRain:   `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/></svg>`,
-  mapPin:      `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
-  tag:         `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.432 0l6.568-6.568a2.426 2.426 0 0 0 0-3.432l-8.704-8.704z"/><circle cx="8.5" cy="8.5" r="1.5"/></svg>`,
-};
+const FLOOD_SOURCE_ID = "flood-image-source";
+const FLOOD_LAYER_ID = "flood-image-layer";
 
-// ─────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────
-interface BasemapConfig { name: string; style: string; icon: string; }
+interface BasemapConfig {
+  name: string;
+  style: string;
+  icon: string;
+}
 type BasemapStyleKey = "hybrid" | "topo";
-interface Station {
-  id: string; no: number; name: string;
-  location: { latitude: number; longitude: number; area: string };
-  sensors: Array<{ type: string; name: string; range: string; unit: string; frequency: string }>;
-}
-interface StationsData {
-  project: string; projectName: string;
-  stationTypes: Array<{ type: string; name: string; stations: Station[] }>;
-}
 
-// ─────────────────────────────────────────────
-// Legend segments (ระดับน้ำท่วม)
-// ─────────────────────────────────────────────
 const LEGEND_SEGMENTS = [
-  { range: "0-0.11",    color: "#81d4fa" },
+  { range: "0-0.11", color: "#81d4fa" },
   { range: ">0.11-0.23", color: "#d0f8ce" },
   { range: ">0.23-0.34", color: "#7cb342" },
   { range: ">0.34-0.46", color: "#fdd835" },
   { range: ">0.46-0.57", color: "#f57f17" },
   { range: ">0.57-0.69", color: "#8d6e63" },
-  { range: ">0.69",      color: "#bf360c" },
+  { range: ">0.69", color: "#bf360c" },
 ];
 
 const LEVEL_LABELS = [
   { label: "ปลอดภัย", span: 1 },
-  { label: "ระวัง",   span: 2 },
+  { label: "ระวัง", span: 2 },
   { label: "อันตราย", span: 1 },
-  { label: "วิกฤต",   span: 1 },
+  { label: "วิกฤต", span: 1 },
 ];
 
-// ─────────────────────────────────────────────
-// Main MapComponentAnalytics
-// ─────────────────────────────────────────────
-const MapComponentAnalytics: FC = () => {
+const MapComponentFlood: FC = () => {
   const mapContainer = useRef<HTMLDivElement | null>(null);
-  const map          = useRef<Map | null>(null);
-  const markersRef   = useRef<Marker[]>([]);
+  const map = useRef<Map | null>(null);
+  const overlayCache = useRef<globalThis.Map<string, FloodImageOverlay>>(
+    new globalThis.Map(),
+  );
+  const hasFitBounds = useRef(false);
 
-  const [currentStyle, setCurrentStyle]       = useState<BasemapStyleKey>("topo");
-  const [isLoaded, setIsLoaded]               = useState(false);
-  const [isSwitcherOpen, setSwitcherOpen]     = useState(false);
-  const [showCoverageLayer, setShowCoverage]  = useState(true);
-  const [dateIndex, setDateIndex]             = useState(0);
+  const [currentStyle, setCurrentStyle] = useState<BasemapStyleKey>("topo");
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isSwitcherOpen, setSwitcherOpen] = useState(false);
+  const [showFloodLayer, setShowFloodLayer] = useState(true);
+  const [dayGroups, setDayGroups] = useState<FloodMapDayGroup[]>([]);
+  const [flatIndex, setFlatIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [framesLoading, setFramesLoading] = useState(true);
+  const [frameRendering, setFrameRendering] = useState(false);
 
-  const { setSelectedStationData } = useStation();
-
-  const API_KEY      = "yYduxrRP3C81U2fRFNIU";
-  const TILE_API_KEY = "4EQdBsRp0yXvq5SIE4kf1mFOI3cAl6GFZBkLI5upxceF2huIDSOTpCRdIIyU3v84";
-  const TILE_MAP_ID  = "696656d2377df7824d3f7247";
-
-  const availableDates = ["15 สิงหาคม 2568"];
+  const API_KEY = "yYduxrRP3C81U2fRFNIU";
 
   const basemaps: Record<BasemapStyleKey, BasemapConfig> = {
-    hybrid: { name: "Hybrid",      style: `https://api.maptiler.com/maps/hybrid/style.json?key=${API_KEY}`,  icon: "🌍" },
-    topo:   { name: "Topographic", style: `https://api.maptiler.com/maps/topo-v2/style.json?key=${API_KEY}`, icon: "🏔️" },
+    hybrid: {
+      name: "Hybrid",
+      style: `https://api.maptiler.com/maps/hybrid/style.json?key=${API_KEY}`,
+      icon: "🌍",
+    },
+    topo: {
+      name: "Topographic",
+      style: `https://api.maptiler.com/maps/topo-v2/style.json?key=${API_KEY}`,
+      icon: "🏔️",
+    },
   };
 
-  const stationTypeConfig = {
-    WP: { color: "#3B82F6", label: "ท่อระบายน้ำ",   icon: ICONS.droplets    },
-    WR: { color: "#EF4444", label: "ระดับน้ำบนถนน", icon: ICONS.shieldAlert },
-    PW: { color: "#10B981", label: "บึง/หนองน้ำ",    icon: ICONS.waves       },
-    RF: { color: "#8B5CF6", label: "ปริมาณฝน",       icon: ICONS.cloudRain   },
-  };
+  const totalFrames = useMemo(
+    () => dayGroups.reduce((sum, g) => sum + g.frames.length, 0),
+    [dayGroups],
+  );
 
-  // ── Marker ──
-  const createMarkerElement = (stationId: string): HTMLDivElement => {
-    const el = document.createElement("div");
-    el.className = "custom-marker-wrapper";
-    const prefix = stationId.substring(0, 2) as keyof typeof stationTypeConfig;
-    const config = stationTypeConfig[prefix] || { color: "#6B7280", icon: ICONS.mapPin };
-    el.innerHTML = `<div class="custom-marker" style="background:${config.color};border:3px solid white;">${config.icon}</div>`;
-    return el;
-  };
+  const flatToIndices = useCallback(
+    (flat: number) => {
+      let remaining = flat;
+      for (let d = 0; d < dayGroups.length; d++) {
+        const len = dayGroups[d].frames.length;
+        if (remaining < len) return { dayIndex: d, hourIndex: remaining };
+        remaining -= len;
+      }
+      const lastDay = Math.max(0, dayGroups.length - 1);
+      const lastHour = Math.max(0, (dayGroups[lastDay]?.frames.length ?? 1) - 1);
+      return { dayIndex: lastDay, hourIndex: lastHour };
+    },
+    [dayGroups],
+  );
 
-  // ── Popup ──
-  const createPopupContent = (station: Station): string => {
-    const prefix   = station.id.substring(0, 2) as keyof typeof stationTypeConfig;
-    const typeInfo = stationTypeConfig[prefix] || { label: "อื่นๆ", color: "#6B7280", icon: ICONS.tag };
+  const indicesToFlat = useCallback(
+    (dayIndex: number, hourIndex: number) => {
+      let flat = 0;
+      for (let i = 0; i < dayIndex; i++) flat += dayGroups[i]?.frames.length ?? 0;
+      return flat + hourIndex;
+    },
+    [dayGroups],
+  );
 
-    let mockValue = "N/A";
-    let mockUnit  = "";
-    let mockLabel = "ข้อมูล";
-    switch (prefix) {
-      case "RF": mockValue = (Math.random() * 50).toFixed(1);      mockUnit = "มม."; mockLabel = "ปริมาณฝนสะสม";   break;
-      case "WP": mockValue = (Math.random() * 2 + 0.5).toFixed(2); mockUnit = "ม.";  mockLabel = "ระดับน้ำในท่อ";   break;
-      case "WR": mockValue = (Math.random() * 0.8).toFixed(2);     mockUnit = "ม.";  mockLabel = "ระดับน้ำท่วมถนน"; break;
-      case "PW": mockValue = (Math.random() * 5 + 1).toFixed(2);   mockUnit = "ม.";  mockLabel = "ระดับน้ำในบึง";   break;
+  const { dayIndex, hourIndex } = flatToIndices(flatIndex);
+  const currentDay = dayGroups[dayIndex] ?? null;
+  const currentFrame: FloodMapFrame | null = currentDay?.frames[hourIndex] ?? null;
+
+  const removeFloodLayer = useCallback(() => {
+    if (!map.current) return;
+    if (map.current.getLayer(FLOOD_LAYER_ID)) map.current.removeLayer(FLOOD_LAYER_ID);
+    if (map.current.getSource(FLOOD_SOURCE_ID)) map.current.removeSource(FLOOD_SOURCE_ID);
+  }, []);
+
+  const loadOverlay = useCallback(async (frame: FloodMapFrame): Promise<FloodImageOverlay> => {
+    const cached = overlayCache.current.get(frame.proxyPath);
+    if (cached) return cached;
+
+    const res = await fetch(
+      `/api/flood-maps/cog?path=${encodeURIComponent(frame.proxyPath)}`,
+    );
+    if (!res.ok) {
+      throw new Error(`โหลดไฟล์ไม่สำเร็จ (${res.status})`);
     }
 
-    return `
-      <div class="modern-popup">
-        <div class="popup-close-btn" onclick="this.closest('.maplibregl-popup').remove()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </div>
-        <div class="popup-location-header" style="background: linear-gradient(135deg, ${typeInfo.color}15 0%, ${typeInfo.color}05 100%);">
-          <div class="station-type-badge" style="background: ${typeInfo.color};">
-            ${typeInfo.icon}<span>${typeInfo.label}</span>
-          </div>
-          <h3 class="location-name">${station.name}</h3>
-          <div class="location-area">${station.location.area}</div>
-        </div>
-        <div class="popup-content-body">
-          <div class="data-label">${mockLabel}</div>
-          <div class="data-value-box">
-            <span class="data-number">${mockValue}</span>
-            <span class="data-unit">${mockUnit}</span>
-          </div>
-          <div class="data-timestamp">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <span>อัพเดท: 4 ธ.ค. 2568 14:30</span>
-          </div>
-          <div class="detail-link">
-            <span>ดูรายละเอียดเพิ่มเติม</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-          </div>
-        </div>
-      </div>
-    `;
-  };
+    const overlay = await geotiffToImageOverlay(await res.arrayBuffer());
+    overlayCache.current.set(frame.proxyPath, overlay);
+    return overlay;
+  }, []);
 
-  // ── Tile layer ──
-  const addTileLayer = () => {
-    if (!map.current) return;
-    if (map.current.getLayer("coverage-layer"))  map.current.removeLayer("coverage-layer");
-    if (map.current.getSource("coverage-tiles")) map.current.removeSource("coverage-tiles");
+  const showFloodFrame = useCallback(
+    async (frame: FloodMapFrame) => {
+      if (!map.current || !isLoaded) return;
 
-    map.current.addSource("coverage-tiles", {
-      type: "raster",
-      tiles: [`https://vallaris.kku.ac.th/core/api/maps/coverage/1.0-beta/maps/${TILE_MAP_ID}/tms/{z}/{x}/{y}?api_key=${TILE_API_KEY}`],
-      tileSize: 256, minzoom: 0, maxzoom: 24,
-    });
-    map.current.addLayer({ id: "coverage-layer", type: "raster", source: "coverage-tiles", paint: { "raster-opacity": 0.7 } });
-  };
+      setFrameRendering(true);
+      setLoadError(null);
 
-  const toggleCoverageLayer = () => {
-    if (!map.current?.getLayer("coverage-layer")) return;
-    const next = !showCoverageLayer;
-    map.current.setLayoutProperty("coverage-layer", "visibility", next ? "visible" : "none");
-    setShowCoverage(next);
-  };
+      try {
+        const overlay = await loadOverlay(frame);
+        removeFloodLayer();
 
-  // ── Markers ──
-  const addStationMarkers = () => {
-    if (!map.current) return;
-    markersRef.current.forEach((m) => m.remove());
-    markersRef.current = [];
+        map.current.addSource(FLOOD_SOURCE_ID, {
+          type: "image",
+          url: overlay.dataUrl,
+          coordinates: overlay.coordinates,
+        });
 
-    const data = stationsData as StationsData;
-    data.stationTypes.forEach((st) => {
-      st.stations.forEach((station) => {
-        const prefix = station.id.substring(0, 2);
-        if (prefix !== "") return; // analytics map ไม่แสดง marker (เหมือนเดิม)
+        map.current.addLayer({
+          id: FLOOD_LAYER_ID,
+          type: "raster",
+          source: FLOOD_SOURCE_ID,
+          paint: { "raster-opacity": 0.85, "raster-fade-duration": 0 },
+        });
 
-        const el    = createMarkerElement(station.id);
-        const popup = new Popup({ offset: 35, closeButton: false }).setHTML(createPopupContent(station));
-        const marker = new Marker({ element: el })
-          .setLngLat([station.location.longitude, station.location.latitude])
-          .setPopup(popup);
-        if (map.current) { marker.addTo(map.current); markersRef.current.push(marker); }
-        el.addEventListener("click", () => setSelectedStationData(generateMockStationData(station)));
-      });
-    });
-  };
+        if (!showFloodLayer) {
+          map.current.setLayoutProperty(FLOOD_LAYER_ID, "visibility", "none");
+        }
+
+        if (!hasFitBounds.current) {
+          const { west, south, east, north } = overlay.bounds;
+          map.current.fitBounds(
+            [
+              [west, south],
+              [east, north],
+            ],
+            { padding: 48, duration: 800 },
+          );
+          hasFitBounds.current = true;
+        }
+      } catch (e) {
+        setLoadError(e instanceof Error ? e.message : "แสดงผลแผนที่ไม่สำเร็จ");
+      } finally {
+        setFrameRendering(false);
+      }
+    },
+    [isLoaded, loadOverlay, removeFloodLayer, showFloodLayer],
+  );
+
+  useEffect(() => {
+    const loadFrames = async () => {
+      setFramesLoading(true);
+      setLoadError(null);
+      try {
+        const res = await fetch("/api/flood-maps/timeseries?days=7");
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+        const groups: FloodMapDayGroup[] = json.dayGroups ?? [];
+        setDayGroups(groups);
+        const total = groups.reduce((sum, g) => sum + g.frames.length, 0);
+        setFlatIndex(Math.max(0, total - 1));
+      } catch (e) {
+        setLoadError(e instanceof Error ? e.message : "โหลดข้อมูลไม่สำเร็จ");
+      } finally {
+        setFramesLoading(false);
+      }
+    };
+
+    loadFrames();
+  }, []);
+
+  useEffect(() => {
+    if (!currentFrame || !isLoaded) return;
+    showFloodFrame(currentFrame);
+  }, [currentFrame, isLoaded, showFloodFrame]);
+
+  useEffect(() => {
+    if (!isPlaying || totalFrames <= 1) return;
+    const timer = setInterval(() => {
+      setFlatIndex((i) => (i + 1) % totalFrames);
+    }, 1200);
+    return () => clearInterval(timer);
+  }, [isPlaying, totalFrames]);
 
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
+
     map.current = new Map({
       container: mapContainer.current,
       style: basemaps[currentStyle].style,
-      center: [102.82, 16.44],
-      zoom: 12,
+      center: [102.835, 16.432],
+      zoom: 11,
       attributionControl: false,
     });
+
     map.current.addControl(new ScaleControl(), "bottom-left");
-    map.current.on("load", () => {
-      setIsLoaded(true);
-      addTileLayer();
-      addStationMarkers();
+    map.current.on("load", () => setIsLoaded(true));
+    map.current.on("mousedown", () => {
+      if (isSwitcherOpen) setSwitcherOpen(false);
     });
-    map.current.on("mousedown", () => { if (isSwitcherOpen) setSwitcherOpen(false); });
+
     return () => {
-      markersRef.current.forEach((m) => m.remove());
-      markersRef.current = [];
       map.current?.remove();
       map.current = null;
     };
@@ -222,117 +246,279 @@ const MapComponentAnalytics: FC = () => {
     setCurrentStyle(styleKey);
     map.current.setStyle(basemaps[styleKey].style);
     map.current.once("style.load", () => {
-      addTileLayer();
-      addStationMarkers();
-      if (!showCoverageLayer && map.current?.getLayer("coverage-layer")) {
-        map.current.setLayoutProperty("coverage-layer", "visibility", "none");
+      if (currentFrame) showFloodFrame(currentFrame);
+      if (!showFloodLayer && map.current?.getLayer(FLOOD_LAYER_ID)) {
+        map.current.setLayoutProperty(FLOOD_LAYER_ID, "visibility", "none");
       }
     });
     setSwitcherOpen(false);
   };
 
+  const toggleFloodLayer = () => {
+    if (!map.current?.getLayer(FLOOD_LAYER_ID)) return;
+    const next = !showFloodLayer;
+    map.current.setLayoutProperty(
+      FLOOD_LAYER_ID,
+      "visibility",
+      next ? "visible" : "none",
+    );
+    setShowFloodLayer(next);
+  };
+
+  const selectDay = (index: number) => {
+    setIsPlaying(false);
+    const group = dayGroups[index];
+    if (!group) return;
+    setFlatIndex(indicesToFlat(index, group.frames.length - 1));
+  };
+
+  const selectHour = (index: number) => {
+    setIsPlaying(false);
+    setFlatIndex(indicesToFlat(dayIndex, index));
+  };
+
+  const stepFrame = (delta: number) => {
+    if (totalFrames <= 1) return;
+    setIsPlaying(false);
+    setFlatIndex((i) => {
+      const next = i + delta;
+      if (next < 0) return totalFrames - 1;
+      if (next >= totalFrames) return 0;
+      return next;
+    });
+  };
+
   return (
-    <div className="relative w-full h-full bg-gray-900 font-sans rounded-xl overflow-hidden flex flex-col">
+    <div className="relative flex h-full w-full flex-col overflow-hidden rounded-xl bg-gray-900 font-sans">
+      <div className="relative min-h-0 flex-1">
+        <div ref={mapContainer} className="h-full w-full" />
 
-      {/* ── Map area ── */}
-      <div className="relative flex-1 min-h-0">
-        <div ref={mapContainer} className="w-full h-full" />
-
-        {!isLoaded && (
-          <div className="absolute inset-0 bg-slate-800/60 backdrop-blur-sm flex items-center justify-center z-50">
+        {(!isLoaded || framesLoading) && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-800/60 backdrop-blur-sm">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto" />
-              <p className="text-white text-lg mt-4 font-semibold">กำลังโหลดแผนที่...</p>
+              <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-cyan-400" />
+              <p className="mt-4 text-lg font-semibold text-white">
+                {framesLoading ? "กำลังโหลดรายการแผนที่..." : "กำลังโหลดแผนที่..."}
+              </p>
             </div>
           </div>
         )}
 
-        {/* Basemap switcher */}
-        <div className="absolute top-4 right-4 z-40">
+        {frameRendering && isLoaded && !framesLoading && (
+          <div className="absolute left-4 top-4 z-40 rounded-lg bg-white/90 px-3 py-2 text-xs text-blue-700 shadow">
+            กำลังประมวลผลภาพ...
+          </div>
+        )}
+
+        {loadError && (
+          <div className="absolute left-4 top-4 z-40 max-w-sm rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600 shadow">
+            {loadError}
+          </div>
+        )}
+
+        <div className="absolute right-4 top-4 z-40">
           <div className="relative">
             <button
               onClick={() => setSwitcherOpen(!isSwitcherOpen)}
               disabled={!isLoaded}
-              className={`flex items-center justify-center w-12 h-12 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isLoaded ? "opacity-50 cursor-not-allowed" : ""}`}
+              className={`flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg transition-all hover:bg-gray-100 ${
+                !isLoaded ? "cursor-not-allowed opacity-50" : ""
+              }`}
             >
               <Layers className="h-6 w-6 text-gray-700" />
             </button>
             {isSwitcherOpen && isLoaded && (
-              <div className="absolute right-0 top-full mt-2 w-64 bg-white/90 backdrop-blur-md rounded-xl shadow-2xl border border-gray-200/50 p-3">
-                <div className="flex items-center space-x-2 mb-3 px-1">
+              <div className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-gray-200/50 bg-white/90 p-3 shadow-2xl backdrop-blur-md">
+                <div className="mb-3 flex items-center space-x-2 px-1">
                   <MapIcon className="h-5 w-5 text-gray-600" />
                   <h3 className="text-sm font-semibold text-gray-800">เลือกรูปแบบแผนที่</h3>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  {(Object.entries(basemaps) as [BasemapStyleKey, BasemapConfig][]).map(([key, bm]) => (
-                    <button key={key} onClick={() => switchBasemap(key)}
-                      className={`flex flex-col items-center justify-center p-3 rounded-lg text-xs font-medium h-20 transition-all ${
-                        currentStyle === key ? "bg-blue-500 text-white ring-2 ring-blue-300 shadow-md" : "bg-gray-50/50 hover:bg-blue-100/80 text-gray-700"
-                      }`}
-                    >
-                      <span className="text-2xl mb-1">{bm.icon}</span>
-                      <span>{bm.name}</span>
-                    </button>
-                  ))}
+                  {(Object.entries(basemaps) as [BasemapStyleKey, BasemapConfig][]).map(
+                    ([key, bm]) => (
+                      <button
+                        key={key}
+                        onClick={() => switchBasemap(key)}
+                        className={`flex h-20 flex-col items-center justify-center rounded-lg p-3 text-xs font-medium transition-all ${
+                          currentStyle === key
+                            ? "bg-blue-500 text-white shadow-md ring-2 ring-blue-300"
+                            : "bg-gray-50/50 text-gray-700 hover:bg-blue-100/80"
+                        }`}
+                      >
+                        <span className="mb-1 text-2xl">{bm.icon}</span>
+                        <span>{bm.name}</span>
+                      </button>
+                    ),
+                  )}
                 </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* Eye toggle */}
-        <div className="absolute top-20 right-4 z-40">
+        <div className="absolute right-4 top-20 z-40">
           <button
-            onClick={toggleCoverageLayer}
-            disabled={!isLoaded}
-            className={`flex items-center justify-center w-12 h-12 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isLoaded ? "opacity-50 cursor-not-allowed" : ""} ${showCoverageLayer ? "ring-2 ring-blue-400" : ""}`}
-            title={showCoverageLayer ? "ซ่อน Coverage Layer" : "แสดง Coverage Layer"}
+            onClick={toggleFloodLayer}
+            disabled={!isLoaded || !currentFrame}
+            className={`flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg transition-all hover:bg-gray-100 ${
+              showFloodLayer ? "ring-2 ring-blue-400" : ""
+            } ${!isLoaded ? "cursor-not-allowed opacity-50" : ""}`}
+            title={showFloodLayer ? "ซ่อนชั้นข้อมูลน้ำท่วม" : "แสดงชั้นข้อมูลน้ำท่วม"}
           >
-            {showCoverageLayer
-              ? <Eye className="h-6 w-6 text-blue-600" />
-              : <EyeOff className="h-6 w-6 text-gray-500" />}
+            {showFloodLayer ? (
+              <Eye className="h-6 w-6 text-blue-600" />
+            ) : (
+              <EyeOff className="h-6 w-6 text-gray-500" />
+            )}
           </button>
         </div>
 
-        {/* Timeline Slider — อยู่บนแผนที่ ไม่ถูก legend บัง */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 w-[350px]">
-          <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-gray-200/50 p-4">
-            <div className="flex items-center gap-3 mb-2">
-              <Calendar className="h-5 w-5 text-blue-600 flex-shrink-0" />
-              <div className="flex-1">
-                <div className="text-xs text-gray-500 font-medium">วันที่ภาพถ่าย</div>
-                <div className="text-sm font-bold text-gray-800">{availableDates[dateIndex]}</div>
+        <div className="absolute bottom-4 left-1/2 z-40 w-[min(440px,calc(100%-2rem))] -translate-x-1/2">
+          <div className="rounded-xl border border-gray-200/50 bg-white/95 px-3 py-2.5 shadow-2xl backdrop-blur-md">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-[10px] font-medium text-gray-500">
+                  พื้นที่เสี่ยงน้ำท่วม — 7 วันย้อนหลัง
+                </div>
+                <div className="truncate text-sm font-bold text-gray-800">
+                  {currentFrame?.displayLabel ?? "—"}
+                </div>
               </div>
+              <button
+                onClick={() => setIsPlaying((p) => !p)}
+                disabled={totalFrames <= 1}
+                className="flex-shrink-0 rounded-lg bg-blue-600 p-1.5 text-white hover:bg-blue-700 disabled:opacity-40"
+                title={isPlaying ? "หยุด" : "เล่นอัตโนมัติ"}
+              >
+                {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+              </button>
             </div>
-            <div className="relative">
-              <input
-                type="range" min="0" max={availableDates.length - 1} value={dateIndex}
-                onChange={(e) => setDateIndex(parseInt(e.target.value))}
-                disabled={!isLoaded || availableDates.length <= 1}
-                className="timeline-slider w-full h-2 bg-blue-100 rounded-lg appearance-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-              />
-              <div className="flex justify-between mt-2 text-xs text-gray-400">
-                <span>เก่าสุด</span><span>ล่าสุด</span>
+
+            {/* แถบเลือกวัน */}
+            <div className="mb-2 flex items-end justify-center gap-1">
+              {dayGroups.map((group, i) => {
+                const isActive = dayIndex === i;
+                const dayNum = group.dayKey.slice(6, 8);
+                return (
+                  <button
+                    key={group.dayKey}
+                    type="button"
+                    onClick={() => selectDay(i)}
+                    disabled={!isLoaded}
+                    className="group flex flex-col items-center gap-0.5 disabled:opacity-40"
+                    title={group.dayLabel}
+                  >
+                    <div
+                      className={`w-2.5 rounded-sm transition-all duration-200 ${
+                        isActive
+                          ? "h-6 bg-blue-600 shadow-sm"
+                          : "h-3 bg-blue-200 group-hover:h-4 group-hover:bg-blue-400"
+                      }`}
+                    />
+                    <span
+                      className={`text-[8px] leading-none ${
+                        isActive ? "font-bold text-blue-700" : "text-gray-400"
+                      }`}
+                    >
+                      {parseInt(dayNum, 10)}
+                    </span>
+                    <span
+                      className={`text-[7px] leading-none ${
+                        isActive ? "text-blue-500" : "text-gray-300"
+                      }`}
+                    >
+                      {group.weekday}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* แถบเลือกช่วงเวลา (ทุก 3 ชม.) */}
+            {currentDay && currentDay.frames.length > 0 && (
+              <div className="border-t border-gray-100 pt-2">
+                <div className="mb-1 text-center text-[9px] text-gray-400">
+                  ช่วงเวลา — {currentDay.dayLabel}
+                </div>
+                <div className="flex items-end justify-center gap-0.5">
+                  {currentDay.frames.map((frame, i) => {
+                    const isActive = hourIndex === i;
+                    return (
+                      <button
+                        key={frame.id}
+                        type="button"
+                        onClick={() => selectHour(i)}
+                        disabled={!isLoaded}
+                        className="group flex flex-col items-center gap-0.5 disabled:opacity-40"
+                        title={frame.displayLabel}
+                      >
+                        <div
+                          className={`w-1.5 rounded-sm transition-all duration-200 ${
+                            isActive
+                              ? "h-5 bg-orange-500 shadow-sm"
+                              : "h-2.5 bg-orange-200 group-hover:h-3.5 group-hover:bg-orange-400"
+                          }`}
+                        />
+                        <span
+                          className={`text-[7px] leading-none ${
+                            isActive ? "font-bold text-orange-600" : "text-gray-400"
+                          }`}
+                        >
+                          {frame.timeLabel}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
+
+            {totalFrames > 1 && (
+              <div className="mt-1.5 flex items-center justify-center gap-2">
+                <button
+                  onClick={() => stepFrame(-1)}
+                  className="rounded p-1 text-gray-500 hover:bg-gray-100"
+                  title="ก่อนหน้า"
+                >
+                  <SkipBack className="h-3 w-3" />
+                </button>
+                <span className="text-[10px] text-gray-400">
+                  {flatIndex + 1} / {totalFrames}
+                </span>
+                <button
+                  onClick={() => stepFrame(1)}
+                  className="rounded p-1 text-gray-500 hover:bg-gray-100"
+                  title="ถัดไป"
+                >
+                  <SkipForward className="h-3 w-3" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* ── Legend แถบล่างสุด ── */}
-      <div className="flex-shrink-0 bg-white border-t border-gray-300 px-3 pt-1.5 pb-2">
-        <div className="flex w-full rounded-sm overflow-hidden border border-gray-300">
+      <div className="flex-shrink-0 border-t border-gray-300 bg-white px-3 pb-2 pt-1.5">
+        <div className="flex w-full overflow-hidden rounded-sm border border-gray-300">
           {LEGEND_SEGMENTS.map((seg, i) => (
-            <div key={i} className="flex-1 flex items-center justify-center py-2" style={{ backgroundColor: seg.color }}>
-              <span className="text-[9px] font-bold text-gray-800 whitespace-nowrap">{seg.range}</span>
+            <div
+              key={i}
+              className="flex flex-1 items-center justify-center py-2"
+              style={{ backgroundColor: seg.color }}
+            >
+              <span className="whitespace-nowrap text-[9px] font-bold text-gray-800">
+                {seg.range} ม.
+              </span>
             </div>
           ))}
         </div>
-        <div className="flex w-full mt-0.5">
+        <div className="mt-0.5 flex w-full">
           {LEVEL_LABELS.map((l, i) => (
             <div
               key={i}
-              className={`text-center text-[10px] font-semibold text-gray-700 ${i < LEVEL_LABELS.length - 1 ? "border-r border-gray-300" : ""}`}
+              className={`text-center text-[10px] font-semibold text-gray-700 ${
+                i < LEVEL_LABELS.length - 1 ? "border-r border-gray-300" : ""
+              }`}
               style={{ flex: l.span }}
             >
               {l.label}
@@ -340,47 +526,8 @@ const MapComponentAnalytics: FC = () => {
           ))}
         </div>
       </div>
-
-      {/* ── Global styles ── */}
-      <style jsx global>{`
-        .timeline-slider::-webkit-slider-thumb { appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #3b82f6; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: all 0.2s; }
-        .timeline-slider::-webkit-slider-thumb:hover { background: #2563eb; transform: scale(1.1); box-shadow: 0 4px 8px rgba(0,0,0,0.3); }
-        .timeline-slider::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: #3b82f6; cursor: pointer; border: none; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: all 0.2s; }
-        .timeline-slider::-moz-range-thumb:hover { background: #2563eb; transform: scale(1.1); }
-        .timeline-slider:disabled::-webkit-slider-thumb { background: #9ca3af; cursor: not-allowed; }
-        .timeline-slider:disabled::-moz-range-thumb { background: #9ca3af; cursor: not-allowed; }
-
-        .modern-popup { font-family: system-ui,-apple-system,sans-serif; width: 260px; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.12); position: relative; }
-        .popup-close-btn { position: absolute; top: 10px; right: 10px; width: 24px; height: 24px; border-radius: 50%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; z-index: 10; }
-        .popup-close-btn:hover { background: rgba(0,0,0,0.7); transform: scale(1.05); }
-        .popup-close-btn svg { color: #fff; }
-        .popup-location-header { padding: 16px 14px 12px; border-bottom: 1px solid #E5E7EB; }
-        .station-type-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; color: white; font-size: 10px; font-weight: 600; margin-bottom: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .station-type-badge svg { width: 12px; height: 12px; }
-        .location-name { font-size: 15px; font-weight: 700; color: #111827; margin: 0 0 4px; line-height: 1.3; }
-        .location-area { font-size: 11px; color: #6B7280; font-weight: 500; }
-        .popup-content-body { padding: 14px; background: #F9FAFB; }
-        .data-label { font-size: 10px; color: #6B7280; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
-        .data-value-box { background: white; border: 2px solid #E5E7EB; border-radius: 10px; padding: 12px; display: flex; align-items: baseline; gap: 6px; margin-bottom: 10px; }
-        .data-number { font-size: 32px; font-weight: 800; color: #1F2937; line-height: 1; }
-        .data-unit { font-size: 14px; font-weight: 600; color: #6B7280; }
-        .data-timestamp { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #9CA3AF; margin-bottom: 12px; }
-        .data-timestamp svg { color: #9CA3AF; }
-        .detail-link { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: white; border: 1px solid #E5E7EB; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
-        .detail-link:hover { background: #3B82F6; border-color: #3B82F6; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(59,130,246,0.3); }
-        .detail-link span { font-size: 11px; font-weight: 600; color: #3B82F6; transition: color 0.2s; }
-        .detail-link:hover span { color: white; }
-        .detail-link svg { color: #3B82F6; transition: color 0.2s; }
-        .detail-link:hover svg { color: white; }
-        .custom-marker-wrapper { cursor: pointer; }
-        .custom-marker { width: 36px; height: 36px; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s ease; }
-        .custom-marker-wrapper:hover .custom-marker { transform: scale(1.2); box-shadow: 0 8px 15px rgba(0,0,0,0.2), 0 4px 6px rgba(0,0,0,0.15); }
-        .maplibregl-popup-content { padding: 0; border-radius: 12px; background: transparent; box-shadow: none; }
-        .maplibregl-popup-tip { display: none; }
-        .maplibregl-popup-close-button { display: none; }
-      `}</style>
     </div>
   );
 };
 
-export default MapComponentAnalytics;
+export default MapComponentFlood;
