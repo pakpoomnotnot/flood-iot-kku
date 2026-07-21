@@ -5,35 +5,55 @@ import { Layers, Map as MapIcon, Droplets, ShieldAlert } from "lucide-react";
 import maplibregl, { Map, Marker, Popup, ScaleControl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import stationsData from "./stations_complete.json";
-import { useStation, generateMockStationData } from "@/contexts/station-context";
+import {
+  useStation,
+  generateMockStationData,
+} from "@/contexts/station-context";
 import type { TelemetryStationResult } from "@/app/api/lib/fetchTelemetryReading";
-import { getRoadMarkerColor, formatTelemetryTime } from "@/lib/water-level-status";
+import {
+  getRoadMarkerColor,
+  formatTelemetryTime,
+} from "@/lib/water-level-status";
 import { TelemetryHistoryChartModal } from "@/components/telemetry/telemetry-history-chart-modal";
+import { ROAD_BY_MAP_ID } from "@/lib/telemetry-stations";
 
 // ─────────────────────────────────────────────
 // SVG Icons
 // ─────────────────────────────────────────────
 const ICONS = {
-  droplets:    `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`,
+  droplets: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`,
   shieldAlert: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>`,
-  waves:       `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/></svg>`,
-  cloudRain:   `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/></svg>`,
-  mapPin:      `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
-  tag:         `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.432 0l6.568-6.568a2.426 2.426 0 0 0 0-3.432l-8.704-8.704z"/><circle cx="8.5" cy="8.5" r="1.5"/></svg>`,
+  waves: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/></svg>`,
+  cloudRain: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/></svg>`,
+  mapPin: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`,
+  tag: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.432 0l6.568-6.568a2.426 2.426 0 0 0 0-3.432l-8.704-8.704z"/><circle cx="8.5" cy="8.5" r="1.5"/></svg>`,
 };
 
 // ─────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────
-interface BasemapConfig { name: string; style: string; icon: string; }
+interface BasemapConfig {
+  name: string;
+  style: string;
+  icon: string;
+}
 type BasemapStyleKey = "hybrid" | "topo";
 interface Station {
-  id: string; no: number; name: string;
+  id: string;
+  no: number;
+  name: string;
   location: { latitude: number; longitude: number; area: string };
-  sensors: Array<{ type: string; name: string; range: string; unit: string; frequency: string }>;
+  sensors: Array<{
+    type: string;
+    name: string;
+    range: string;
+    unit: string;
+    frequency: string;
+  }>;
 }
 interface StationsData {
-  project: string; projectName: string;
+  project: string;
+  projectName: string;
   stationTypes: Array<{ type: string; name: string; stations: Station[] }>;
 }
 
@@ -41,10 +61,10 @@ interface StationsData {
 // Station type config
 // ─────────────────────────────────────────────
 const stationTypeConfig = {
-  WP: { color: "#3B82F6", label: "ท่อระบายน้ำ",   icon: ICONS.droplets    },
+  WP: { color: "#3B82F6", label: "ท่อระบายน้ำ", icon: ICONS.droplets },
   WR: { color: "#EF4444", label: "ระดับน้ำบนถนน", icon: ICONS.shieldAlert },
-  PW: { color: "#10B981", label: "บึง/หนองน้ำ",    icon: ICONS.waves       },
-  RF: { color: "#8B5CF6", label: "ปริมาณฝน",       icon: ICONS.cloudRain   },
+  PW: { color: "#10B981", label: "บึง/หนองน้ำ", icon: ICONS.waves },
+  RF: { color: "#8B5CF6", label: "ปริมาณฝน", icon: ICONS.cloudRain },
 };
 
 // ─────────────────────────────────────────────
@@ -54,14 +74,14 @@ const LEGEND_SEGMENTS = [
   { range: "0.00 - 0.05 ม.", color: "#22c55e" }, // เขียว - ปลอดภัย
   { range: "0.06 - 0.15 ม.", color: "#facc15" }, // เหลือง - ระวัง
   { range: "0.16 - 0.20 ม.", color: "#f97316" }, // ส้ม - อันตราย
-  { range: "> 0.20 ม.",      color: "#ef4444" }, // แดง - วิกฤต
+  { range: "> 0.20 ม.", color: "#ef4444" }, // แดง - วิกฤต
 ];
 
 const LEVEL_LABELS = [
   { label: "ปลอดภัย", span: 1 },
-  { label: "ระวัง",   span: 1 },
+  { label: "ระวัง", span: 1 },
   { label: "อันตราย", span: 1 },
-  { label: "วิกฤต",   span: 1 },
+  { label: "วิกฤต", span: 1 },
 ];
 
 // ─────────────────────────────────────────────
@@ -69,22 +89,30 @@ const LEVEL_LABELS = [
 // ─────────────────────────────────────────────
 const MapComponentRoads: FC = () => {
   const mapContainer = useRef<HTMLDivElement | null>(null);
-  const map          = useRef<Map | null>(null);
-  const markersRef   = useRef<Marker[]>([]);
+  const map = useRef<Map | null>(null);
+  const markersRef = useRef<Marker[]>([]);
   const telemetryRef = useRef<Record<string, TelemetryStationResult>>({});
 
-  const [currentStyle, setCurrentStyle]   = useState<BasemapStyleKey>("topo");
-  const [isLoaded, setIsLoaded]           = useState(false);
+  const [currentStyle, setCurrentStyle] = useState<BasemapStyleKey>("topo");
+  const [isLoaded, setIsLoaded] = useState(false);
   const [isSwitcherOpen, setSwitcherOpen] = useState(false);
-  const [chartStation, setChartStation]   = useState<Station | null>(null);
-  const [chartLevel, setChartLevel]       = useState(0);
+  const [chartStation, setChartStation] = useState<Station | null>(null);
+  const [chartLevel, setChartLevel] = useState(0);
 
   const { setSelectedStationData } = useStation();
   const API_KEY = "yYduxrRP3C81U2fRFNIU";
 
   const basemaps: Record<BasemapStyleKey, BasemapConfig> = {
-    hybrid: { name: "Hybrid",      style: `https://api.maptiler.com/maps/hybrid/style.json?key=${API_KEY}`,  icon: "🌍" },
-    topo:   { name: "Topographic", style: `https://api.maptiler.com/maps/topo-v2/style.json?key=${API_KEY}`, icon: "🏔️" },
+    hybrid: {
+      name: "Hybrid",
+      style: `https://api.maptiler.com/maps/hybrid/style.json?key=${API_KEY}`,
+      icon: "🌍",
+    },
+    topo: {
+      name: "Topographic",
+      style: `https://api.maptiler.com/maps/topo-v2/style.json?key=${API_KEY}`,
+      icon: "🏔️",
+    },
   };
 
   // ── Marker ──
@@ -92,10 +120,14 @@ const MapComponentRoads: FC = () => {
     const el = document.createElement("div");
     el.className = "custom-marker-wrapper";
     const prefix = stationId.substring(0, 2) as keyof typeof stationTypeConfig;
-    const config = stationTypeConfig[prefix] || { color: "#6B7280", icon: ICONS.mapPin };
+    const config = stationTypeConfig[prefix] || {
+      color: "#6B7280",
+      icon: ICONS.mapPin,
+    };
     const reading = telemetryRef.current[stationId];
     const levelM = reading?.status === "ok" ? (reading.water_level_m ?? 0) : 0;
-    const markerColor = reading?.status === "ok" ? getRoadMarkerColor(levelM) : config.color;
+    const markerColor =
+      reading?.status === "ok" ? getRoadMarkerColor(levelM) : config.color;
     const waterHeight = Math.min((levelM / 0.8) * 100, 100);
     el.innerHTML = `
       <div class="custom-marker-animated" style="--marker-color: ${markerColor}; --water-height: ${waterHeight}%;">
@@ -112,14 +144,20 @@ const MapComponentRoads: FC = () => {
 
   // ── Popup HTML ──
   const createPopupContent = (station: Station): string => {
-    const prefix   = station.id.substring(0, 2) as keyof typeof stationTypeConfig;
-    const typeInfo = stationTypeConfig[prefix] || { label: "อื่นๆ", color: "#6B7280", icon: ICONS.tag };
-    const reading  = telemetryRef.current[station.id];
-    const hasData  = reading?.status === "ok" && reading.water_level_m != null;
+    const prefix = station.id.substring(0, 2) as keyof typeof stationTypeConfig;
+    const typeInfo = stationTypeConfig[prefix] || {
+      label: "อื่นๆ",
+      color: "#6B7280",
+      icon: ICONS.tag,
+    };
+    const reading = telemetryRef.current[station.id];
+    const hasData = reading?.status === "ok" && reading.water_level_m != null;
     const mockValue = hasData ? reading!.water_level_m! : 0;
-    const mockUnit  = "ม.";
+    const mockUnit = "ม.";
     const mockLabel = "ระดับน้ำท่วมถนน";
-    const timeLabel = hasData ? formatTelemetryTime(reading!.date_time) : "ไม่มีข้อมูล";
+    const timeLabel = hasData
+      ? formatTelemetryTime(reading!.date_time)
+      : "ไม่มีข้อมูล";
 
     const waterHeight = Math.min((mockValue / 0.8) * 100, 100);
 
@@ -139,7 +177,9 @@ const MapComponentRoads: FC = () => {
         </div>
         <div class="popup-content-body">
           <div class="data-label">${mockLabel}</div>
-          ${prefix === "WR" ? `
+          ${
+            prefix === "WR"
+              ? `
           <div class="road-flood-container">
             <div class="road-visualization">
               <div class="road-surface">
@@ -175,24 +215,30 @@ const MapComponentRoads: FC = () => {
               </div>
             </div>
           </div>
-          ` : `
+          `
+              : `
           <div class="data-value-box">
             <span class="data-number">${mockValue.toFixed(2)}</span>
             <span class="data-unit">${mockUnit}</span>
           </div>
-          `}
+          `
+          }
           <div class="popup-footer-row">
             <div class="data-timestamp">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               <span>${timeLabel}</span>
             </div>
-            ${prefix === "WR" ? `
+            ${
+              prefix === "WR"
+                ? `
             <button class="road-chart-btn" data-station-id="${station.id}" data-level="${mockValue.toFixed(3)}" title="ดูกราฟระดับน้ำท่วมถนน">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
               </svg>
             </button>
-            ` : ""}
+            `
+                : ""
+            }
           </div>
         </div>
       </div>
@@ -207,14 +253,34 @@ const MapComponentRoads: FC = () => {
 
     const data = stationsData as StationsData;
     data.stationTypes.forEach((stationType) => {
-      stationType.stations.forEach((station) => {
-        if (station.id.substring(0, 2) !== "WR") return;
-        const el    = createMarkerElement(station.id);
-        const popup = new Popup({ offset: 35, closeButton: false }).setHTML(createPopupContent(station));
+      stationType.stations.forEach((rawStation) => {
+        if (rawStation.id.substring(0, 2) !== "WR") return;
+
+        // ── merge: ใช้ telemetry metadata เป็นแหล่งชื่อ/พิกัดจริง ถ้ามี ──
+        const meta = ROAD_BY_MAP_ID[rawStation.id];
+        const station: Station = meta
+          ? {
+              ...rawStation,
+              name: meta.name,
+              location: {
+                ...rawStation.location,
+                latitude: meta.lat,
+                longitude: meta.lon,
+              },
+            }
+          : rawStation;
+
+        const el = createMarkerElement(station.id);
+        const popup = new Popup({ offset: 35, closeButton: false }).setHTML(
+          createPopupContent(station),
+        );
         const marker = new Marker({ element: el })
           .setLngLat([station.location.longitude, station.location.latitude])
           .setPopup(popup);
-        if (map.current) { marker.addTo(map.current); markersRef.current.push(marker); }
+        if (map.current) {
+          marker.addTo(map.current);
+          markersRef.current.push(marker);
+        }
 
         el.addEventListener("click", () => {
           setSelectedStationData(generateMockStationData(station));
@@ -223,7 +289,7 @@ const MapComponentRoads: FC = () => {
         popup.on("open", () => {
           setTimeout(() => {
             const btn = document.querySelector<HTMLButtonElement>(
-              `.road-chart-btn[data-station-id="${station.id}"]`
+              `.road-chart-btn[data-station-id="${station.id}"]`,
             );
             if (btn) {
               btn.addEventListener("click", (e) => {
@@ -268,8 +334,13 @@ const MapComponentRoads: FC = () => {
       attributionControl: false,
     });
     map.current.addControl(new ScaleControl(), "bottom-left");
-    map.current.on("load", () => { setIsLoaded(true); addStationMarkers(); });
-    map.current.on("mousedown", () => { if (isSwitcherOpen) setSwitcherOpen(false); });
+    map.current.on("load", () => {
+      setIsLoaded(true);
+      addStationMarkers();
+    });
+    map.current.on("mousedown", () => {
+      if (isSwitcherOpen) setSwitcherOpen(false);
+    });
     return () => {
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
@@ -288,7 +359,6 @@ const MapComponentRoads: FC = () => {
 
   return (
     <div className="relative w-full h-full bg-gray-900 font-sans rounded-xl overflow-hidden flex flex-col">
-
       {/* ── Map ── */}
       <div className="relative flex-1 min-h-0">
         <div ref={mapContainer} className="w-full h-full" />
@@ -297,7 +367,9 @@ const MapComponentRoads: FC = () => {
           <div className="absolute inset-0 bg-slate-800/60 backdrop-blur-sm flex items-center justify-center z-50">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto" />
-              <p className="text-white text-lg mt-4 font-semibold">กำลังโหลดแผนที่...</p>
+              <p className="text-white text-lg mt-4 font-semibold">
+                กำลังโหลดแผนที่...
+              </p>
             </div>
           </div>
         )}
@@ -316,13 +388,24 @@ const MapComponentRoads: FC = () => {
               <div className="absolute right-0 top-full mt-2 w-64 bg-white/90 backdrop-blur-md rounded-xl shadow-2xl border border-gray-200/50 p-3">
                 <div className="flex items-center space-x-2 mb-3 px-1">
                   <MapIcon className="h-5 w-5 text-gray-600" />
-                  <h3 className="text-sm font-semibold text-gray-800">เลือกรูปแบบแผนที่</h3>
+                  <h3 className="text-sm font-semibold text-gray-800">
+                    เลือกรูปแบบแผนที่
+                  </h3>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  {(Object.entries(basemaps) as [BasemapStyleKey, BasemapConfig][]).map(([key, bm]) => (
-                    <button key={key} onClick={() => switchBasemap(key)}
+                  {(
+                    Object.entries(basemaps) as [
+                      BasemapStyleKey,
+                      BasemapConfig,
+                    ][]
+                  ).map(([key, bm]) => (
+                    <button
+                      key={key}
+                      onClick={() => switchBasemap(key)}
                       className={`flex flex-col items-center justify-center p-3 rounded-lg text-xs font-medium h-20 transition-all ${
-                        currentStyle === key ? "bg-blue-500 text-white ring-2 ring-blue-300 shadow-md" : "bg-gray-50/50 hover:bg-blue-100/80 text-gray-700"
+                        currentStyle === key
+                          ? "bg-blue-500 text-white ring-2 ring-blue-300 shadow-md"
+                          : "bg-gray-50/50 hover:bg-blue-100/80 text-gray-700"
                       }`}
                     >
                       <span className="text-2xl mb-1">{bm.icon}</span>
@@ -340,8 +423,14 @@ const MapComponentRoads: FC = () => {
       <div className="flex-shrink-0 bg-white border-t border-gray-300 px-3 pt-1.5 pb-2">
         <div className="flex w-full rounded-sm overflow-hidden border border-gray-300">
           {LEGEND_SEGMENTS.map((seg, i) => (
-            <div key={i} className="flex-1 flex items-center justify-center py-2" style={{ backgroundColor: seg.color }}>
-              <span className="text-[9px] font-bold text-gray-800 whitespace-nowrap">{seg.range}</span>
+            <div
+              key={i}
+              className="flex-1 flex items-center justify-center py-2"
+              style={{ backgroundColor: seg.color }}
+            >
+              <span className="text-[9px] font-bold text-gray-800 whitespace-nowrap">
+                {seg.range}
+              </span>
             </div>
           ))}
         </div>
@@ -372,83 +461,596 @@ const MapComponentRoads: FC = () => {
 
       {/* ── Global styles ── */}
       <style jsx global>{`
-        .modern-popup { font-family: system-ui,-apple-system,sans-serif; width: 270px; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.12); position: relative; }
-        .popup-close-btn { position: absolute; top: 10px; right: 10px; width: 24px; height: 24px; border-radius: 50%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; transition: all 0.2s; }
-        .popup-close-btn:hover { background: rgba(0,0,0,0.7); transform: scale(1.05); }
-        .popup-close-btn svg { color: #fff; }
-        .popup-location-header { padding: 16px 14px 12px; border-bottom: 1px solid #E5E7EB; }
-        .station-type-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; color: white; font-size: 10px; font-weight: 600; margin-bottom: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .station-type-badge svg { width: 12px; height: 12px; }
-        .location-name { font-size: 15px; font-weight: 700; color: #111827; margin: 0 0 4px; line-height: 1.3; }
-        .location-area { font-size: 11px; color: #6B7280; font-weight: 500; }
-        .popup-content-body { padding: 14px; background: #F9FAFB; }
-        .data-label { font-size: 10px; color: #6B7280; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
-        .data-value-box { background: white; border: 2px solid #E5E7EB; border-radius: 10px; padding: 12px; display: flex; align-items: baseline; gap: 6px; margin-bottom: 10px; }
-        .data-number { font-size: 32px; font-weight: 800; color: #1F2937; line-height: 1; }
-        .data-unit { font-size: 14px; font-weight: 600; color: #6B7280; }
-        .popup-footer-row { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
-        .data-timestamp { display: flex; align-items: center; gap: 5px; font-size: 10px; color: #9CA3AF; }
-        .data-timestamp svg { color: #9CA3AF; }
+        .modern-popup {
+          font-family:
+            system-ui,
+            -apple-system,
+            sans-serif;
+          width: 270px;
+          background: white;
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+          position: relative;
+        }
+        .popup-close-btn {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          z-index: 10;
+          transition: all 0.2s;
+        }
+        .popup-close-btn:hover {
+          background: rgba(0, 0, 0, 0.7);
+          transform: scale(1.05);
+        }
+        .popup-close-btn svg {
+          color: #fff;
+        }
+        .popup-location-header {
+          padding: 16px 14px 12px;
+          border-bottom: 1px solid #e5e7eb;
+        }
+        .station-type-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 3px 8px;
+          border-radius: 6px;
+          color: white;
+          font-size: 10px;
+          font-weight: 600;
+          margin-bottom: 8px;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .station-type-badge svg {
+          width: 12px;
+          height: 12px;
+        }
+        .location-name {
+          font-size: 15px;
+          font-weight: 700;
+          color: #111827;
+          margin: 0 0 4px;
+          line-height: 1.3;
+        }
+        .location-area {
+          font-size: 11px;
+          color: #6b7280;
+          font-weight: 500;
+        }
+        .popup-content-body {
+          padding: 14px;
+          background: #f9fafb;
+        }
+        .data-label {
+          font-size: 10px;
+          color: #6b7280;
+          margin-bottom: 8px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+        }
+        .data-value-box {
+          background: white;
+          border: 2px solid #e5e7eb;
+          border-radius: 10px;
+          padding: 12px;
+          display: flex;
+          align-items: baseline;
+          gap: 6px;
+          margin-bottom: 10px;
+        }
+        .data-number {
+          font-size: 32px;
+          font-weight: 800;
+          color: #1f2937;
+          line-height: 1;
+        }
+        .data-unit {
+          font-size: 14px;
+          font-weight: 600;
+          color: #6b7280;
+        }
+        .popup-footer-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-top: 8px;
+        }
+        .data-timestamp {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 10px;
+          color: #9ca3af;
+        }
+        .data-timestamp svg {
+          color: #9ca3af;
+        }
 
         /* ปุ่มกราฟเส้น (สีแดง) */
-        .road-chart-btn { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; background: #FEF2F2; border: 1.5px solid #FECACA; color: #EF4444; cursor: pointer; transition: background 0.15s, transform 0.15s; }
-        .road-chart-btn:hover { background: #FEE2E2; transform: scale(1.1); }
-        .road-chart-btn:active { transform: scale(0.95); }
+        .road-chart-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          background: #fef2f2;
+          border: 1.5px solid #fecaca;
+          color: #ef4444;
+          cursor: pointer;
+          transition:
+            background 0.15s,
+            transform 0.15s;
+        }
+        .road-chart-btn:hover {
+          background: #fee2e2;
+          transform: scale(1.1);
+        }
+        .road-chart-btn:active {
+          transform: scale(0.95);
+        }
 
         /* road flood popup */
-        .road-flood-container { margin-bottom: 0; }
-        .road-visualization { position: relative; width: 100%; height: 200px; background: linear-gradient(180deg,#CBD5E1 0%,#94A3B8 100%); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-        .road-surface { position: absolute; bottom: 0; left: 0; right: 0; height: 100%; background: linear-gradient(180deg,#3F3F46 0%,#27272A 100%); display: flex; justify-content: space-around; align-items: center; padding: 0 20px; }
-        .road-marking { width: 6px; height: 40px; background: linear-gradient(180deg,#FBBF24 0%,#F59E0B 100%); border-radius: 3px; box-shadow: 0 0 10px rgba(251,191,36,0.6); animation: markingFade 1.5s ease-in-out infinite; }
-        .road-marking-2 { animation-delay: 0.5s; }
-        .road-marking-3 { animation-delay: 1s; }
-        @keyframes markingFade { 0%,100% { opacity: 0.3; transform: scaleY(0.95); } 50% { opacity: 1; transform: scaleY(1); } }
-        .flood-water { position: absolute; bottom: 0; left: 0; right: 0; height: var(--flood-height); background: linear-gradient(180deg, rgba(14,165,233,0.75) 0%, rgba(2,132,199,0.85) 50%, rgba(3,105,161,0.95) 100%); transition: height 0.8s cubic-bezier(0.4,0,0.2,1); box-shadow: inset 0 -20px 30px rgba(0,0,0,0.2); }
-        .water-flow-road { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
-        .water-wave-road { position: absolute; top: -12px; left: -50%; width: 200%; height: 24px; background: radial-gradient(ellipse at center, rgba(224,242,254,0.95) 0%, rgba(186,230,253,0.8) 40%, rgba(125,211,252,0.5) 70%, transparent 100%); border-radius: 50%; }
-        .wave-1 { animation: roadWave1 3s ease-in-out infinite; filter: drop-shadow(0 2px 4px rgba(14,165,233,0.4)); }
-        .wave-2 { animation: roadWave2 4s ease-in-out infinite; top: -8px; opacity: 0.8; }
-        @keyframes roadWave1 { 0%,100% { transform: translateX(0) translateY(0) scaleY(1); } 50% { transform: translateX(-25%) translateY(-5px) scaleY(1.2); } }
-        @keyframes roadWave2 { 0%,100% { transform: translateX(-10%) translateY(0) scaleY(1); } 50% { transform: translateX(15%) translateY(-4px) scaleY(1.15); } }
-        .water-ripple { position: absolute; width: 50px; height: 50px; border: 3px solid rgba(224,242,254,0.7); border-radius: 50%; animation: rippleExpand 2.5s ease-out infinite; }
-        .ripple-1 { top: 15%; left: 20%; animation-delay: 0s; }
-        .ripple-2 { top: 45%; left: 55%; animation-delay: 0.8s; }
-        .ripple-3 { top: 70%; left: 35%; animation-delay: 1.6s; }
-        @keyframes rippleExpand { 0% { transform: scale(0.3); opacity: 1; border-width: 3px; } 70% { transform: scale(1.5); opacity: 0.4; border-width: 1px; } 100% { transform: scale(2); opacity: 0; border-width: 0; } }
-        .debris { position: absolute; font-size: 20px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); animation: debrisFloat 10s linear infinite; z-index: 5; }
-        .debris-1 { top: 25%; left: -10%; animation-delay: 0s; animation-duration: 10s; }
-        .debris-2 { top: 55%; left: -10%; animation-delay: 3.5s; animation-duration: 12s; }
-        .debris-3 { top: 75%; left: -10%; animation-delay: 7s; animation-duration: 11s; }
-        @keyframes debrisFloat { 0% { left: -10%; transform: translateY(0) rotate(0deg); } 25% { transform: translateY(-15px) rotate(90deg); } 50% { transform: translateY(-5px) rotate(180deg); } 75% { transform: translateY(-12px) rotate(270deg); } 100% { left: 110%; transform: translateY(0) rotate(360deg); } }
-        .flood-level-indicator { position: absolute; right: 12px; top: 12px; bottom: 12px; width: 35px; background: linear-gradient(180deg, rgba(15,23,42,0.85) 0%, rgba(30,41,59,0.9) 100%); border-radius: 18px; overflow: hidden; z-index: 10; border: 2px solid rgba(255,255,255,0.3); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-        .level-bar { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(180deg, rgba(248,113,113,1) 0%, rgba(239,68,68,1) 50%, rgba(220,38,38,1) 100%); transition: height 0.8s cubic-bezier(0.4,0,0.2,1); border-radius: 18px 18px 0 0; animation: levelPulse 2s ease-in-out infinite; }
-        @keyframes levelPulse { 0%,100% { opacity: 0.9; } 50% { opacity: 1; } }
-        .level-marks { position: absolute; top: 0; bottom: 0; left: 0; right: 0; }
-        .level-mark { position: absolute; left: 0; right: 0; height: 2px; background: rgba(255,255,255,0.6); }
-        .level-mark::before { content: ''; position: absolute; left: 0; width: 10px; height: 2px; background: #fff; }
-        .level-mark span { position: absolute; right: -32px; top: -8px; font-size: 9px; font-weight: 800; color: #0F172A; background: rgba(255,255,255,0.95); padding: 2px 5px; border-radius: 4px; transform: translateY(-50%); }
-        .road-level-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 15; display: flex; align-items: baseline; gap: 8px; background: rgba(255,255,255,0.98); padding: 12px 20px; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.25); border: 3px solid #DC2626; animation: textGlow 2s ease-in-out infinite; }
-        @keyframes textGlow { 0%,100% { box-shadow: 0 8px 16px rgba(0,0,0,0.25), 0 0 0 3px rgba(239,68,68,0.5); } 50% { box-shadow: 0 8px 20px rgba(0,0,0,0.3), 0 0 0 3px rgba(239,68,68,0.8), 0 0 20px rgba(239,68,68,0.4); } }
-        .road-level-number { font-size: 38px; font-weight: 900; color: #991B1B; line-height: 1; }
-        .road-level-unit { font-size: 16px; font-weight: 800; color: #DC2626; }
+        .road-flood-container {
+          margin-bottom: 0;
+        }
+        .road-visualization {
+          position: relative;
+          width: 100%;
+          height: 200px;
+          background: linear-gradient(180deg, #cbd5e1 0%, #94a3b8 100%);
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        .road-surface {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 100%;
+          background: linear-gradient(180deg, #3f3f46 0%, #27272a 100%);
+          display: flex;
+          justify-content: space-around;
+          align-items: center;
+          padding: 0 20px;
+        }
+        .road-marking {
+          width: 6px;
+          height: 40px;
+          background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+          border-radius: 3px;
+          box-shadow: 0 0 10px rgba(251, 191, 36, 0.6);
+          animation: markingFade 1.5s ease-in-out infinite;
+        }
+        .road-marking-2 {
+          animation-delay: 0.5s;
+        }
+        .road-marking-3 {
+          animation-delay: 1s;
+        }
+        @keyframes markingFade {
+          0%,
+          100% {
+            opacity: 0.3;
+            transform: scaleY(0.95);
+          }
+          50% {
+            opacity: 1;
+            transform: scaleY(1);
+          }
+        }
+        .flood-water {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: var(--flood-height);
+          background: linear-gradient(
+            180deg,
+            rgba(14, 165, 233, 0.75) 0%,
+            rgba(2, 132, 199, 0.85) 50%,
+            rgba(3, 105, 161, 0.95) 100%
+          );
+          transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: inset 0 -20px 30px rgba(0, 0, 0, 0.2);
+        }
+        .water-flow-road {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+        }
+        .water-wave-road {
+          position: absolute;
+          top: -12px;
+          left: -50%;
+          width: 200%;
+          height: 24px;
+          background: radial-gradient(
+            ellipse at center,
+            rgba(224, 242, 254, 0.95) 0%,
+            rgba(186, 230, 253, 0.8) 40%,
+            rgba(125, 211, 252, 0.5) 70%,
+            transparent 100%
+          );
+          border-radius: 50%;
+        }
+        .wave-1 {
+          animation: roadWave1 3s ease-in-out infinite;
+          filter: drop-shadow(0 2px 4px rgba(14, 165, 233, 0.4));
+        }
+        .wave-2 {
+          animation: roadWave2 4s ease-in-out infinite;
+          top: -8px;
+          opacity: 0.8;
+        }
+        @keyframes roadWave1 {
+          0%,
+          100% {
+            transform: translateX(0) translateY(0) scaleY(1);
+          }
+          50% {
+            transform: translateX(-25%) translateY(-5px) scaleY(1.2);
+          }
+        }
+        @keyframes roadWave2 {
+          0%,
+          100% {
+            transform: translateX(-10%) translateY(0) scaleY(1);
+          }
+          50% {
+            transform: translateX(15%) translateY(-4px) scaleY(1.15);
+          }
+        }
+        .water-ripple {
+          position: absolute;
+          width: 50px;
+          height: 50px;
+          border: 3px solid rgba(224, 242, 254, 0.7);
+          border-radius: 50%;
+          animation: rippleExpand 2.5s ease-out infinite;
+        }
+        .ripple-1 {
+          top: 15%;
+          left: 20%;
+          animation-delay: 0s;
+        }
+        .ripple-2 {
+          top: 45%;
+          left: 55%;
+          animation-delay: 0.8s;
+        }
+        .ripple-3 {
+          top: 70%;
+          left: 35%;
+          animation-delay: 1.6s;
+        }
+        @keyframes rippleExpand {
+          0% {
+            transform: scale(0.3);
+            opacity: 1;
+            border-width: 3px;
+          }
+          70% {
+            transform: scale(1.5);
+            opacity: 0.4;
+            border-width: 1px;
+          }
+          100% {
+            transform: scale(2);
+            opacity: 0;
+            border-width: 0;
+          }
+        }
+        .debris {
+          position: absolute;
+          font-size: 20px;
+          filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+          animation: debrisFloat 10s linear infinite;
+          z-index: 5;
+        }
+        .debris-1 {
+          top: 25%;
+          left: -10%;
+          animation-delay: 0s;
+          animation-duration: 10s;
+        }
+        .debris-2 {
+          top: 55%;
+          left: -10%;
+          animation-delay: 3.5s;
+          animation-duration: 12s;
+        }
+        .debris-3 {
+          top: 75%;
+          left: -10%;
+          animation-delay: 7s;
+          animation-duration: 11s;
+        }
+        @keyframes debrisFloat {
+          0% {
+            left: -10%;
+            transform: translateY(0) rotate(0deg);
+          }
+          25% {
+            transform: translateY(-15px) rotate(90deg);
+          }
+          50% {
+            transform: translateY(-5px) rotate(180deg);
+          }
+          75% {
+            transform: translateY(-12px) rotate(270deg);
+          }
+          100% {
+            left: 110%;
+            transform: translateY(0) rotate(360deg);
+          }
+        }
+        .flood-level-indicator {
+          position: absolute;
+          right: 12px;
+          top: 12px;
+          bottom: 12px;
+          width: 35px;
+          background: linear-gradient(
+            180deg,
+            rgba(15, 23, 42, 0.85) 0%,
+            rgba(30, 41, 59, 0.9) 100%
+          );
+          border-radius: 18px;
+          overflow: hidden;
+          z-index: 10;
+          border: 2px solid rgba(255, 255, 255, 0.3);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        .level-bar {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          background: linear-gradient(
+            180deg,
+            rgba(248, 113, 113, 1) 0%,
+            rgba(239, 68, 68, 1) 50%,
+            rgba(220, 38, 38, 1) 100%
+          );
+          transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+          border-radius: 18px 18px 0 0;
+          animation: levelPulse 2s ease-in-out infinite;
+        }
+        @keyframes levelPulse {
+          0%,
+          100% {
+            opacity: 0.9;
+          }
+          50% {
+            opacity: 1;
+          }
+        }
+        .level-marks {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          left: 0;
+          right: 0;
+        }
+        .level-mark {
+          position: absolute;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background: rgba(255, 255, 255, 0.6);
+        }
+        .level-mark::before {
+          content: "";
+          position: absolute;
+          left: 0;
+          width: 10px;
+          height: 2px;
+          background: #fff;
+        }
+        .level-mark span {
+          position: absolute;
+          right: -32px;
+          top: -8px;
+          font-size: 9px;
+          font-weight: 800;
+          color: #0f172a;
+          background: rgba(255, 255, 255, 0.95);
+          padding: 2px 5px;
+          border-radius: 4px;
+          transform: translateY(-50%);
+        }
+        .road-level-text {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          z-index: 15;
+          display: flex;
+          align-items: baseline;
+          gap: 8px;
+          background: rgba(255, 255, 255, 0.98);
+          padding: 12px 20px;
+          border-radius: 12px;
+          box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);
+          border: 3px solid #dc2626;
+          animation: textGlow 2s ease-in-out infinite;
+        }
+        @keyframes textGlow {
+          0%,
+          100% {
+            box-shadow:
+              0 8px 16px rgba(0, 0, 0, 0.25),
+              0 0 0 3px rgba(239, 68, 68, 0.5);
+          }
+          50% {
+            box-shadow:
+              0 8px 20px rgba(0, 0, 0, 0.3),
+              0 0 0 3px rgba(239, 68, 68, 0.8),
+              0 0 20px rgba(239, 68, 68, 0.4);
+          }
+        }
+        .road-level-number {
+          font-size: 38px;
+          font-weight: 900;
+          color: #991b1b;
+          line-height: 1;
+        }
+        .road-level-unit {
+          font-size: 16px;
+          font-weight: 800;
+          color: #dc2626;
+        }
 
         /* markers */
-        .custom-marker-wrapper { cursor: pointer; }
-        .custom-marker-animated { width: 40px; height: 40px; border-radius: 50%; position: relative; display: flex; justify-content: center; align-items: center; border: 3px solid white; background: var(--marker-color); box-shadow: 0 4px 12px rgba(0,0,0,0.15), 0 2px 6px rgba(0,0,0,0.1); transition: all 0.3s cubic-bezier(0.4,0,0.2,1); overflow: hidden; }
-        .marker-water-container { position: absolute; bottom: 0; left: 0; right: 0; height: var(--water-height); overflow: hidden; border-radius: 0 0 50% 50%; }
-        .marker-water-fill { position: absolute; bottom: 0; left: 0; right: 0; height: 100%; background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.7) 100%); animation: waterShimmer 3s ease-in-out infinite; }
-        .marker-water-wave { position: absolute; top: -10px; left: -50%; width: 200%; height: 20px; background: rgba(255,255,255,0.4); border-radius: 45%; animation: waterWave 4s ease-in-out infinite; }
-        @keyframes waterWave { 0%,100% { transform: translateX(0) translateY(0); } 25% { transform: translateX(-10%) translateY(-2px); } 50% { transform: translateX(0) translateY(-3px); } 75% { transform: translateX(-10%) translateY(-2px); } }
-        @keyframes waterShimmer { 0%,100% { opacity: 0.6; } 50% { opacity: 0.9; } }
-        .marker-icon { position: relative; z-index: 10; color: white; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2)); }
-        .marker-ring { position: absolute; top: -4px; left: -4px; right: -4px; bottom: -4px; border-radius: 50%; border: 2px solid var(--marker-color); opacity: 0; animation: ringPulse 2s cubic-bezier(0.4,0,0.6,1) infinite; }
-        @keyframes ringPulse { 0% { transform: scale(0.95); opacity: 0.8; } 50% { transform: scale(1.1); opacity: 0; } 100% { transform: scale(0.95); opacity: 0; } }
-        .custom-marker-wrapper:hover .custom-marker-animated { transform: scale(1.15); box-shadow: 0 8px 20px rgba(0,0,0,0.25), 0 4px 10px rgba(0,0,0,0.15); }
-        .custom-marker-wrapper:hover .marker-water-wave { animation-duration: 2s; }
-        .custom-marker-wrapper:hover .marker-ring { animation-duration: 1.5s; }
-        .maplibregl-popup-content { padding: 0; border-radius: 12px; background: transparent; box-shadow: none; }
-        .maplibregl-popup-tip { display: none; }
-        .maplibregl-popup-close-button { display: none; }
+        .custom-marker-wrapper {
+          cursor: pointer;
+        }
+        .custom-marker-animated {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          position: relative;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          border: 3px solid white;
+          background: var(--marker-color);
+          box-shadow:
+            0 4px 12px rgba(0, 0, 0, 0.15),
+            0 2px 6px rgba(0, 0, 0, 0.1);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          overflow: hidden;
+        }
+        .marker-water-container {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: var(--water-height);
+          overflow: hidden;
+          border-radius: 0 0 50% 50%;
+        }
+        .marker-water-fill {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 100%;
+          background: linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.3) 0%,
+            rgba(255, 255, 255, 0.5) 50%,
+            rgba(255, 255, 255, 0.7) 100%
+          );
+          animation: waterShimmer 3s ease-in-out infinite;
+        }
+        .marker-water-wave {
+          position: absolute;
+          top: -10px;
+          left: -50%;
+          width: 200%;
+          height: 20px;
+          background: rgba(255, 255, 255, 0.4);
+          border-radius: 45%;
+          animation: waterWave 4s ease-in-out infinite;
+        }
+        @keyframes waterWave {
+          0%,
+          100% {
+            transform: translateX(0) translateY(0);
+          }
+          25% {
+            transform: translateX(-10%) translateY(-2px);
+          }
+          50% {
+            transform: translateX(0) translateY(-3px);
+          }
+          75% {
+            transform: translateX(-10%) translateY(-2px);
+          }
+        }
+        @keyframes waterShimmer {
+          0%,
+          100% {
+            opacity: 0.6;
+          }
+          50% {
+            opacity: 0.9;
+          }
+        }
+        .marker-icon {
+          position: relative;
+          z-index: 10;
+          color: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+        }
+        .marker-ring {
+          position: absolute;
+          top: -4px;
+          left: -4px;
+          right: -4px;
+          bottom: -4px;
+          border-radius: 50%;
+          border: 2px solid var(--marker-color);
+          opacity: 0;
+          animation: ringPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes ringPulse {
+          0% {
+            transform: scale(0.95);
+            opacity: 0.8;
+          }
+          50% {
+            transform: scale(1.1);
+            opacity: 0;
+          }
+          100% {
+            transform: scale(0.95);
+            opacity: 0;
+          }
+        }
+        .custom-marker-wrapper:hover .custom-marker-animated {
+          transform: scale(1.15);
+          box-shadow:
+            0 8px 20px rgba(0, 0, 0, 0.25),
+            0 4px 10px rgba(0, 0, 0, 0.15);
+        }
+        .custom-marker-wrapper:hover .marker-water-wave {
+          animation-duration: 2s;
+        }
+        .custom-marker-wrapper:hover .marker-ring {
+          animation-duration: 1.5s;
+        }
+        .maplibregl-popup-content {
+          padding: 0;
+          border-radius: 12px;
+          background: transparent;
+          box-shadow: none;
+        }
+        .maplibregl-popup-tip {
+          display: none;
+        }
+        .maplibregl-popup-close-button {
+          display: none;
+        }
       `}</style>
     </div>
   );
