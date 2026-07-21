@@ -186,18 +186,89 @@ interface ChartModalProps {
   onClose: () => void;
 }
 
+// ─────────────────────────────────────────────
+// Types สำหรับข้อมูล MQTT จริง
+// ─────────────────────────────────────────────
+interface TelemetryRow {
+  date_time: string;
+  rain_value: number;
+  rain_total: number;
+  rain_daily: number;
+  water_level: number;
+}
+interface TelemetryResponse {
+  station_code: string;
+  count: number;
+  data: TelemetryRow[];
+}
+interface TelemetryPoint {
+  label: string;
+  rain: number;
+  isCurrent: boolean;
+}
+
+function toTelemetryPoints(rows: TelemetryRow[]): TelemetryPoint[] {
+  const sorted = [...rows].sort(
+    (a, b) => new Date(a.date_time).getTime() - new Date(b.date_time).getTime(),
+  );
+  return sorted.map((row, i) => {
+    const t = new Date(row.date_time);
+    const label = `${t.getDate()}-${t.toLocaleString("en", { month: "short" })} ${t
+      .getHours()
+      .toString()
+      .padStart(2, "0")}:${t.getMinutes().toString().padStart(2, "0")}`;
+    return {
+      label,
+      rain: row.rain_value,
+      isCurrent: i === sorted.length - 1,
+    };
+  });
+}
+
+type ChartTab = "actual" | "forecast";
+
 const ChartModal: FC<ChartModalProps> = ({
   station,
   rainValue,
   lastUpdate,
   onClose,
 }) => {
+  const [activeTab, setActiveTab] = useState<ChartTab>("actual"); // แท็บเริ่มต้น: ข้อมูลจริง MQTT
+
+  // ── แท็บ 1: ข้อมูลจริงจาก MQTT ──
+  const [telemetryData, setTelemetryData] = useState<TelemetryPoint[]>([]);
+  const [telemetryLoading, setTelemetryLoading] = useState(true);
+  const [telemetryError, setTelemetryError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeTab !== "actual") return;
+    const fetchTelemetry = async () => {
+      setTelemetryLoading(true);
+      setTelemetryError(null);
+      try {
+        const res = await fetch(
+          `/api/rain/telemetry-history?station_code=${station.id}&hours=24`,
+        );
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json: TelemetryResponse = await res.json();
+        setTelemetryData(toTelemetryPoints(json.data ?? []));
+      } catch (e: any) {
+        setTelemetryError(e.message ?? "โหลดข้อมูล MQTT ไม่สำเร็จ");
+      } finally {
+        setTelemetryLoading(false);
+      }
+    };
+    fetchTelemetry();
+  }, [activeTab, station.id]);
+
+  // ── แท็บ 2: พยากรณ์ (โค้ดเดิมทั้งหมด ไม่แก้ logic) ──
   const [data, setData] = useState<HourlyPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [runTime, setRunTime] = useState<string | null>(null);
 
   useEffect(() => {
+    if (activeTab !== "forecast") return;
     const fetchData = async () => {
       setLoading(true);
       setError(null);
@@ -216,7 +287,7 @@ const ChartModal: FC<ChartModalProps> = ({
       }
     };
     fetchData();
-  }, [station.id]);
+  }, [activeTab, station.id]);
 
   const formatTime = (timestamp: string) =>
     new Date(timestamp).toLocaleTimeString("th-TH", {
@@ -235,6 +306,12 @@ const ChartModal: FC<ChartModalProps> = ({
     .filter((_, i) => i % 6 === 0)
     .map((d) => d.label);
 
+  // ข้อมูล telemetry ทุก 15 นาที (96 จุด/วัน) — thin ลงให้อ่านง่ายบนแกน X
+  const telemetryDisplay = telemetryData.filter((_, i) => i % 2 === 0);
+  const telemetryTicks = telemetryDisplay
+    .filter((_, i) => i % 8 === 0)
+    .map((d) => d.label);
+
   const status = getRainStatus(rainValue);
   const statusColor = getRainColor(rainValue);
 
@@ -247,7 +324,7 @@ const ChartModal: FC<ChartModalProps> = ({
         className="relative w-full max-w-2xl mx-4 rounded-2xl bg-white shadow-2xl border border-blue-100 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
+        {/* Header (เดิม) */}
         <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-gray-100">
           <div>
             <h2 className="text-base font-bold text-gray-800">
@@ -259,29 +336,37 @@ const ChartModal: FC<ChartModalProps> = ({
             onClick={onClose}
             className="ml-4 mt-0.5 flex-shrink-0 rounded-full p-1.5 text-gray-400 hover:bg-gray-100 transition-colors"
           >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 18L18 6M6 6l12 12"
-              />
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        {/* Sub-header */}
+        {/* ── แท็บ ── */}
+        <div className="flex border-b border-gray-100 px-5">
+          {[
+            { key: "actual" as const, label: "ข้อมูลจริง (MQTT)" },
+            { key: "forecast" as const, label: "พยากรณ์" },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.key
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-400 hover:text-gray-600"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Sub-header (เดิม) */}
         <div className="flex flex-wrap gap-3 px-5 py-2.5 bg-blue-50/60 text-xs text-gray-500 border-b border-blue-100">
           <span>อัปเดตล่าสุด: {formatTime(lastUpdate)}</span>
-          {runTime && (
-            <span className="text-purple-500">
-              รันโมเดล: {formatTime(runTime)}
-            </span>
+          {activeTab === "forecast" && runTime && (
+            <span className="text-purple-500">รันโมเดล: {formatTime(runTime)}</span>
           )}
           <span
             className="ml-auto inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white"
@@ -291,196 +376,81 @@ const ChartModal: FC<ChartModalProps> = ({
           </span>
         </div>
 
-        {/* Legend */}
-        <div className="flex items-center gap-4 px-5 pt-3 text-xs text-gray-500">
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-3 w-4 rounded-sm bg-blue-500" />
-            ข้อมูลจริง
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-3 w-4 rounded-sm bg-purple-400 opacity-75" />
-            พยากรณ์ล่วงหน้า
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span
-              className="inline-block w-5"
-              style={{ borderTop: "2px dashed #f87171", height: 0 }}
-            />
-            ปัจจุบัน
-          </span>
-        </div>
-
-        {/* Chart */}
-        <div className="px-4 pt-2 pb-5">
-          <p className="text-[11px] font-medium text-gray-400 mb-2 uppercase tracking-wide">
-            ปริมาณน้ำฝนสะสมรายชั่วโมง (มม.)
-          </p>
-          {loading ? (
-            <div className="flex h-[220px] items-center justify-center">
-              <div className="flex flex-col items-center gap-2 text-sm text-gray-400">
-                <svg
-                  className="h-6 w-6 animate-spin text-blue-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8v8z"
-                  />
-                </svg>
+        {activeTab === "actual" ? (
+          // ─────────────── แท็บ 1: MQTT ───────────────
+          <div className="px-4 pt-4 pb-5">
+            <p className="text-[11px] font-medium text-gray-400 mb-2 uppercase tracking-wide">
+              ปริมาณน้ำฝนรายช่วง 15 นาที — 24 ชั่วโมงย้อนหลัง (จากเซนเซอร์จริง)
+            </p>
+            {telemetryLoading ? (
+              <div className="flex h-[220px] items-center justify-center text-sm text-gray-400">
                 กำลังโหลดข้อมูล...
               </div>
-            </div>
-          ) : error ? (
-            <div className="flex h-[220px] items-center justify-center">
-              <div className="flex flex-col items-center gap-1 text-sm text-red-400">
-                <svg
-                  className="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
-                  />
-                </svg>
-                {error}
+            ) : telemetryError ? (
+              <div className="flex h-[220px] items-center justify-center text-sm text-red-400">
+                {telemetryError}
               </div>
+            ) : telemetryDisplay.length === 0 ? (
+              <div className="flex h-[220px] items-center justify-center text-sm text-gray-400">
+                ไม่มีข้อมูลสถานีนี้
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <ComposedChart data={telemetryDisplay} margin={{ top: 8, right: 10, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis dataKey="label" ticks={telemetryTicks} tick={{ fontSize: 9, fill: "#9ca3af" }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: "#9ca3af" }} tickLine={false} axisLine={false} unit=" มม." />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="rain" name="ฝน (MQTT)" fill="#3b82f6" radius={[3, 3, 0, 0]} maxBarSize={20} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        ) : (
+          // ─────────────── แท็บ 2: พยากรณ์ (เดิมทั้งหมด) ───────────────
+          <>
+            <div className="flex items-center gap-4 px-5 pt-3 text-xs text-gray-500">
+              <span className="flex items-center gap-1.5"><span className="inline-block h-3 w-4 rounded-sm bg-blue-500" />ข้อมูลจริง</span>
+              <span className="flex items-center gap-1.5"><span className="inline-block h-3 w-4 rounded-sm bg-purple-400 opacity-75" />พยากรณ์ล่วงหน้า</span>
+              <span className="flex items-center gap-1.5"><span className="inline-block w-5" style={{ borderTop: "2px dashed #f87171", height: 0 }} />ปัจจุบัน</span>
             </div>
-          ) : displayData.length === 0 ? (
-            <div className="flex h-[220px] items-center justify-center text-sm text-gray-400">
-              ไม่มีข้อมูลสถานีนี้
+            <div className="px-4 pt-2 pb-5">
+              <p className="text-[11px] font-medium text-gray-400 mb-2 uppercase tracking-wide">
+                ปริมาณน้ำฝนสะสมรายชั่วโมง (มม.)
+              </p>
+              {loading ? (
+                <div className="flex h-[220px] items-center justify-center text-sm text-gray-400">กำลังโหลดข้อมูล...</div>
+              ) : error ? (
+                <div className="flex h-[220px] items-center justify-center text-sm text-red-400">{error}</div>
+              ) : displayData.length === 0 ? (
+                <div className="flex h-[220px] items-center justify-center text-sm text-gray-400">ไม่มีข้อมูลสถานีนี้</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <ComposedChart data={displayData} margin={{ top: 8, right: 10, left: -10, bottom: 5 }} barCategoryGap="20%">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" strokeWidth={1.5} vertical={false} />
+                    <XAxis dataKey="label" ticks={tickLabels} tick={{ fontSize: 9, fill: "#9ca3af" }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: "#9ca3af" }} tickLine={false} axisLine={false} unit=" มม." />
+                    <Tooltip content={<CustomTooltip />} />
+                    <ReferenceLine y={10.0} stroke="#2e7d32" strokeWidth={1} strokeDasharray="4 3" label={{ value: "ปกติ/เฝ้าระวัง", position: "right", fontSize: 8, fill: "#2e7d32", fontWeight: 600 }} />
+                    <ReferenceLine y={35.0} stroke="#fbc02d" strokeWidth={1} strokeDasharray="4 3" label={{ value: "เฝ้าระวัง/เตือนภัย", position: "right", fontSize: 8, fill: "#e65100", fontWeight: 600 }} />
+                    <ReferenceLine y={90.0} stroke="#ef6c00" strokeWidth={1} strokeDasharray="4 3" label={{ value: "เตือนภัย/วิกฤติ", position: "right", fontSize: 8, fill: "#b71c1c", fontWeight: 600 }} />
+                    {currentLabel && (
+                      <ReferenceLine x={currentLabel} stroke="#ef4444" strokeWidth={1.5} strokeDasharray="4 3" label={{ value: "ปัจจุบัน", position: "top", fontSize: 10, fill: "#ef4444", fontWeight: 600 }} />
+                    )}
+                    {firstForecastLbl && firstForecastLbl !== currentLabel && (
+                      <ReferenceLine x={firstForecastLbl} stroke="#a855f7" strokeWidth={1} strokeDasharray="3 3" />
+                    )}
+                    <Bar dataKey="actual" name="ย้อนหลัง" fill="#3b82f6" radius={[3, 3, 0, 0]} maxBarSize={40} />
+                    <Bar dataKey="forecast" name="พยากรณ์" fill="#a855f7" radius={[3, 3, 0, 0]} maxBarSize={40} opacity={0.75} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              )}
             </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <ComposedChart
-                data={displayData}
-                margin={{ top: 8, right: 10, left: -10, bottom: 5 }}
-                barCategoryGap="20%"
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#e2e8f0"
-                  strokeWidth={1.5}
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="label"
-                  ticks={tickLabels}
-                  tick={{ fontSize: 9, fill: "#9ca3af" }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 10, fill: "#9ca3af" }}
-                  tickLine={false}
-                  axisLine={false}
-                  unit=" มม."
-                />
-                <Tooltip content={<CustomTooltip />} />
-
-                {/* เส้น threshold */}
-                <ReferenceLine
-                  y={10.0}
-                  stroke="#2e7d32"
-                  strokeWidth={1}
-                  strokeDasharray="4 3"
-                  label={{
-                    value: "ปกติ/เฝ้าระวัง",
-                    position: "right",
-                    fontSize: 8,
-                    fill: "#2e7d32",
-                    fontWeight: 600,
-                  }}
-                />
-                <ReferenceLine
-                  y={35.0}
-                  stroke="#fbc02d"
-                  strokeWidth={1}
-                  strokeDasharray="4 3"
-                  label={{
-                    value: "เฝ้าระวัง/เตือนภัย",
-                    position: "right",
-                    fontSize: 8,
-                    fill: "#e65100",
-                    fontWeight: 600,
-                  }}
-                />
-                <ReferenceLine
-                  y={90.0}
-                  stroke="#ef6c00"
-                  strokeWidth={1}
-                  strokeDasharray="4 3"
-                  label={{
-                    value: "เตือนภัย/วิกฤติ",
-                    position: "right",
-                    fontSize: 8,
-                    fill: "#b71c1c",
-                    fontWeight: 600,
-                  }}
-                />
-
-                {currentLabel && (
-                  <ReferenceLine
-                    x={currentLabel}
-                    stroke="#ef4444"
-                    strokeWidth={1.5}
-                    strokeDasharray="4 3"
-                    label={{
-                      value: "ปัจจุบัน",
-                      position: "top",
-                      fontSize: 10,
-                      fill: "#ef4444",
-                      fontWeight: 600,
-                    }}
-                  />
-                )}
-                {firstForecastLbl && firstForecastLbl !== currentLabel && (
-                  <ReferenceLine
-                    x={firstForecastLbl}
-                    stroke="#a855f7"
-                    strokeWidth={1}
-                    strokeDasharray="3 3"
-                  />
-                )}
-
-                <Bar
-                  dataKey="actual"
-                  name="ย้อนหลัง"
-                  fill="#3b82f6"
-                  radius={[3, 3, 0, 0]}
-                  maxBarSize={40}
-                />
-                <Bar
-                  dataKey="forecast"
-                  name="พยากรณ์"
-                  fill="#a855f7"
-                  radius={[3, 3, 0, 0]}
-                  maxBarSize={40}
-                  opacity={0.75}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          )}
-        </div>
+          </>
+        )}
 
         <div className="flex justify-end px-5 pb-4">
-          <button
-            onClick={onClose}
-            className="rounded-lg bg-gray-100 px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-200 transition-colors font-medium"
-          >
+          <button onClick={onClose} className="rounded-lg bg-gray-100 px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-200 transition-colors font-medium">
             ปิด
           </button>
         </div>
@@ -808,7 +778,7 @@ const MapComponent: FC = () => {
       <div className="flex-shrink-0 bg-white border-t border-gray-300 px-3 pt-1.5 pb-2">
         <div className="flex justify-end mb-1">
           <span className="text-[10px] text-gray-500">
-            ปริมาณน้ำฝนสะสม (มม./วัน) — อัปเดต:{" "}
+            ปริมาณน้ำฝนสะสม (มม./ชม.) — อัปเดต:{" "}
             <span className="font-semibold text-blue-700">
               {lastUpdate === "-" ? "-" : formatTime(lastUpdate)}
             </span>

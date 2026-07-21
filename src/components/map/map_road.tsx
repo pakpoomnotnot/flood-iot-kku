@@ -51,18 +51,15 @@ const stationTypeConfig = {
 // Legend segments (ระดับน้ำท่วมถนน)
 // ─────────────────────────────────────────────
 const LEGEND_SEGMENTS = [
-  { range: "0-0.11",    color: "#81d4fa" },
-  { range: ">0.11-0.23", color: "#d0f8ce" },
-  { range: ">0.23-0.34", color: "#7cb342" },
-  { range: ">0.34-0.46", color: "#fdd835" },
-  { range: ">0.46-0.57", color: "#f57f17" },
-  { range: ">0.57-0.69", color: "#8d6e63" },
-  { range: ">0.69",      color: "#bf360c" },
+  { range: "0.00 - 0.05 ม.", color: "#22c55e" }, // เขียว - ปลอดภัย
+  { range: "0.06 - 0.15 ม.", color: "#facc15" }, // เหลือง - ระวัง
+  { range: "0.16 - 0.20 ม.", color: "#f97316" }, // ส้ม - อันตราย
+  { range: "> 0.20 ม.",      color: "#ef4444" }, // แดง - วิกฤต
 ];
 
 const LEVEL_LABELS = [
   { label: "ปลอดภัย", span: 1 },
-  { label: "ระวัง",   span: 2 },
+  { label: "ระวัง",   span: 1 },
   { label: "อันตราย", span: 1 },
   { label: "วิกฤต",   span: 1 },
 ];

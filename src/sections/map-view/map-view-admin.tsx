@@ -87,7 +87,10 @@ const MapViewAdmin = () => {
         <DashboardHeader />
 
         <div className="flex flex-1 overflow-hidden">
-          <DashboardNavAdmin activeView={activeView} onViewChange={setActiveView} />
+          <DashboardNavAdmin
+            activeView={activeView}
+            onViewChange={setActiveView}
+          />
 
           <div className="relative flex flex-1 flex-col overflow-hidden bg-[#fffaf7]">
             {activeView === "overview" ? (
@@ -115,7 +118,9 @@ const MapViewAdmin = () => {
                   <button
                     onClick={() => setShowTable(false)}
                     className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                      !showTable ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700"
+                      !showTable
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-100 text-gray-700"
                     }`}
                   >
                     แผนที่
@@ -123,7 +128,9 @@ const MapViewAdmin = () => {
                   <button
                     onClick={() => setShowTable(true)}
                     className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                      showTable ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700"
+                      showTable
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-100 text-gray-700"
                     }`}
                   >
                     ตารางข้อมูล
@@ -144,7 +151,10 @@ const MapViewAdmin = () => {
                   }`}
                 >
                   {activeView === "rainfall" && (
-                    <RainfallTabBar activeTab={rainfallTab} onTabChange={setRainfallTab} />
+                    <RainfallTabBar
+                      activeTab={rainfallTab}
+                      onTabChange={setRainfallTab}
+                    />
                   )}
 
                   <div className="min-h-0 flex-1 overflow-auto">
@@ -152,6 +162,9 @@ const MapViewAdmin = () => {
                       data={getCurrentData(activeView)}
                       mode={getTableMode(activeView)}
                       telemetryCategory={getTelemetryCategory(activeView)}
+                      rainfallTab={
+                        activeView === "rainfall" ? rainfallTab : undefined
+                      }
                     />
                   </div>
                 </div>
