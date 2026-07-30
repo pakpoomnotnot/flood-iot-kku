@@ -12,7 +12,9 @@ import {
   ReferenceLine,
   ResponsiveContainer,
 } from "recharts";
-import { getPondStatus } from "@/lib/lake-thresholds";
+import { getPondStatus, getPondColor } from "@/lib/lake-thresholds";
+import { rainUnitLabel, getRainSeverity } from "@/lib/rain-severity";
+import { getPipeLevelColor, getRoadLevelColor } from "@/lib/water-level-status";
 import { TelemetryHistoryChartModal } from "@/components/telemetry/telemetry-history-chart-modal";
 import { useTelemetryHistory } from "@/hooks/use-telemetry-history";
 
@@ -176,26 +178,29 @@ function fmtArea(a: number): string {
 }
 
 // ─────────────────────────────────────────────
-// Status color helpers
+// Status badge color — คำนวณจากค่าดิบผ่าน lib กลางตัวเดียวกับที่ marker บนแผนที่
+// ใช้ (rain-severity / lake-thresholds / water-level-status) ให้สี badge ในตาราง
+// ตรงกับ marker และ legend บนแผนที่เป๊ะๆ ไม่ต้อง maintain เกณฑ์สีแยกซ้ำอีกชุด
 // ─────────────────────────────────────────────
-function rainfallStatusColor(status: string) {
-  switch (status) {
-    case "หนักมาก":  return "bg-red-500 text-white";
-    case "หนัก":     return "bg-orange-400 text-white";
-    case "ปานกลาง": return "bg-yellow-400 text-gray-900";
-    case "เล็กน้อย": return "bg-blue-400 text-white";
-    default:          return "bg-gray-200 text-gray-600";
-  }
-}
+const NO_DATA_BADGE: React.CSSProperties = { backgroundColor: "#e5e7eb", color: "#6b7280" };
 
-function pondStatusColor(status: string) {
-  switch (status) {
-    case "วิกฤต":    return "bg-red-600 text-white";
-    case "เตือนภัย": return "bg-orange-500 text-white";
-    case "เฝ้าระวัง": return "bg-yellow-400 text-gray-900";
-    case "ไม่มีข้อมูล": return "bg-gray-200 text-gray-600";
-    default:          return "bg-emerald-500 text-white";
+function statusBadgeStyle(
+  row: WaterData,
+  mode: "rainfall" | "pond" | "default",
+  telemetryCategory: "pipe" | "road" | undefined,
+  rainfallWindow: RainWindow,
+): React.CSSProperties {
+  if (row.status === "ไม่มีข้อมูล") return NO_DATA_BADGE;
+  if (mode === "rainfall") {
+    const b = getRainSeverity(row.level, rainfallWindow);
+    return { backgroundColor: b.color, color: b.textColor };
   }
+  if (mode === "pond") {
+    const c = getPondColor(row.stationCode ?? "", row.level);
+    return { backgroundColor: c.color, color: c.textColor };
+  }
+  const c = telemetryCategory === "road" ? getRoadLevelColor(row.level) : getPipeLevelColor(row.level);
+  return { backgroundColor: c.color, color: c.textColor };
 }
 
 function pondFreeboardCellColor(lakeId: string | undefined, waterLevel: number): string {
@@ -223,20 +228,6 @@ function pondFreeboardTextColor(lakeId: string | undefined, waterLevel: number):
   }
 }
 
-function statusColor(status: string, mode: "rainfall" | "pond" | "default") {
-  if (mode === "pond")    return pondStatusColor(status);
-  if (mode === "rainfall") return rainfallStatusColor(status);
-  // default (drainage, roads)
-  switch (status) {
-    case "สูง":    return "bg-red-500 text-white";
-    case "กลาง":   return "bg-yellow-400 text-gray-900";
-    case "ต่ำ":    return "bg-green-400 text-white";
-    case "ปกติ":  return "bg-green-400 text-white";
-    case "น้ำท่วม": return "bg-red-600 text-white";
-    default:        return "bg-gray-200 text-gray-600";
-  }
-}
-
 // ─────────────────────────────────────────────
 // Rainfall window series (ข้อมูลจริง MQTT / พยากรณ์)
 // ─────────────────────────────────────────────
@@ -251,14 +242,6 @@ interface RainWindowResponse {
   time: string | null;
   series: RainSeriesPoint[];
   error?: string;
-}
-
-function rainStatusFromValue(value: number): string {
-  if (value > 40) return "หนักมาก";
-  if (value > 30) return "หนัก";
-  if (value > 20) return "ปานกลาง";
-  if (value > 0) return "เล็กน้อย";
-  return "ไม่มีฝน";
 }
 
 // ─────────────────────────────────────────────
@@ -358,7 +341,8 @@ const RainfallChartModal = ({ station, rainfallWindow = "1h", onClose }: Rainfal
   const tickEvery    = Math.max(1, Math.ceil(series.length / 6));
   const tickLabels   = series.filter((_, i) => i % tickEvery === 0).map((d) => d.label);
   const currentValue = result?.value ?? 0;
-  const currentStatus = rainStatusFromValue(currentValue);
+  const currentBand = getRainSeverity(currentValue, rainfallWindow);
+  const currentStatus = currentBand.label;
   const currentTimeLabel = result?.time
     ? new Date(result.time.replace(" ", "T")).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
     : station.time;
@@ -408,7 +392,10 @@ const RainfallChartModal = ({ station, rainfallWindow = "1h", onClose }: Rainfal
         <div className="flex flex-wrap items-center gap-3 px-5 py-3 bg-blue-50/60 text-xs text-gray-500 border-b border-blue-100">
           <span>อัปเดตล่าสุด: {currentTimeLabel}</span>
           <span className="text-gray-400">ช่วงเวลา: {WINDOW_LABEL[rainfallWindow]}</span>
-          <span className={`ml-auto inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${rainfallStatusColor(currentStatus)}`}>
+          <span
+            className="ml-auto inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
+            style={{ backgroundColor: currentBand.color, color: currentBand.textColor }}
+          >
             {currentStatus}
           </span>
         </div>
@@ -524,7 +511,10 @@ const PondChartModal = ({ station, onClose }: PondChartModalProps) => {
           <span className="ml-auto font-semibold text-emerald-700">
             ระดับน้ำปัจจุบัน: {station.level.toFixed(2)} ม.รทก.
           </span>
-          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${pondStatusColor(station.status)}`}>
+          <span
+            className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
+            style={statusBadgeStyle(station, "pond", undefined, "1h")}
+          >
             {station.status}
           </span>
         </div>
@@ -624,7 +614,7 @@ const WaterTable = ({
 
   // คอลัมน์ header ตาม mode
   const levelHeader = mode === "rainfall"
-    ? "ฝนล่าสุด (มม.) ↓"
+    ? `ฝนล่าสุด (${rainUnitLabel(rainfallWindow)}) ↓`
     : mode === "pond"
       ? "ระดับน้ำ (ม.รทก.) ↓"
       : "ระดับน้ำ ↓";
@@ -700,7 +690,10 @@ const WaterTable = ({
 
                   {/* สถานะ */}
                   <td className="px-4 py-3 text-center">
-                    <span className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusColor(row.status, mode)}`}>
+                    <span
+                      className="inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                      style={statusBadgeStyle(row, mode, telemetryCategory, rainfallWindow)}
+                    >
                       {row.status}
                     </span>
                   </td>

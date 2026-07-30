@@ -20,7 +20,13 @@ import {
   generateMockStationData,
 } from "@/contexts/station-context";
 import { useTelemetryHistory } from "@/hooks/use-telemetry-history";
-import { LAKE_CONFIG, type LakeId } from "@/lib/lake-thresholds";
+import {
+  LAKE_CONFIG,
+  type LakeId,
+  getPondColor,
+  getLakeLegendSegments,
+  type PondThresholdSegment,
+} from "@/lib/lake-thresholds";
 
 // ─────────────────────────────────────────────
 // SVG Icons
@@ -69,6 +75,8 @@ interface LakeApiItem {
   name_en: string;
   location: { lat: number; lng: number };
   status: "ok" | "error" | "no_data";
+  /** true เมื่อมี reading แต่ MQTT ไม่อัปเดตมานานกว่า ~90 นาที (สถานีอาจเสีย) */
+  stale?: boolean;
   water_level?: number;
   water_flow?: number;
   water_total?: number;
@@ -258,170 +266,23 @@ const stationTypeConfig = {
 };
 
 // ─────────────────────────────────────────────
-// LEGEND — freeboard threshold config per lake
-// freeboard = maxLevel − water_level (ม.)
+// LEGEND — freeboard threshold config per lake (freeboard = maxLevel − water_level)
+// เกณฑ์/สีมาจาก src/lib/lake-thresholds.ts แหล่งเดียว ใช้ร่วมกับตาราง (dashbaord-table)
+// เพื่อไม่ให้สี marker/legend/สถานะในตารางเพี้ยนไปคนละทาง
 // ─────────────────────────────────────────────
-interface ThresholdSegment {
-  label: string;
-  range: string;
-  color: string;
-  minFB: number;
-  maxFB: number;
-  span: number;
-}
-
-const LAKE_THRESHOLDS: Record<string, ThresholdSegment[]> = {
-  Lake_02: [
-    {
-      label: "วิกฤต",
-      range: "< 0.50 ม.",
-      color: "#bf360c",
-      minFB: -Infinity,
-      maxFB: 0.5,
-      span: 1,
-    },
-    {
-      label: "เตือนภัย",
-      range: "0.50–1.00 ม.",
-      color: "#f57f17",
-      minFB: 0.5,
-      maxFB: 1.0,
-      span: 1,
-    },
-    {
-      label: "เฝ้าระวัง",
-      range: "1.00–1.50 ม.",
-      color: "#fdd835",
-      minFB: 1.0,
-      maxFB: 1.5,
-      span: 1,
-    },
-    {
-      label: "ปกติ",
-      range: "> 1.50 ม.",
-      color: "#d0f8ce",
-      minFB: 1.5,
-      maxFB: Infinity,
-      span: 1,
-    },
-  ],
-  Lake_03: [
-    {
-      label: "วิกฤต",
-      range: "< 0.50 ม.",
-      color: "#bf360c",
-      minFB: -Infinity,
-      maxFB: 0.5,
-      span: 1,
-    },
-    {
-      label: "เตือนภัย",
-      range: "0.50–1.00 ม.",
-      color: "#f57f17",
-      minFB: 0.5,
-      maxFB: 1.0,
-      span: 1,
-    },
-    {
-      label: "เฝ้าระวัง",
-      range: "1.00–1.50 ม.",
-      color: "#fdd835",
-      minFB: 1.0,
-      maxFB: 1.5,
-      span: 1,
-    },
-    {
-      label: "ปกติ",
-      range: "> 1.50 ม.",
-      color: "#d0f8ce",
-      minFB: 1.5,
-      maxFB: Infinity,
-      span: 1,
-    },
-  ],
-  // บึงหนองโคตร threshold เฝ้าระวังสูงกว่า ตามหมายเหตุตาราง
-  Lake_05: [
-    {
-      label: "วิกฤต",
-      range: "< 0.50 ม.",
-      color: "#bf360c",
-      minFB: -Infinity,
-      maxFB: 0.5,
-      span: 1,
-    },
-    {
-      label: "เตือนภัย",
-      range: "0.50–1.00 ม.",
-      color: "#f57f17",
-      minFB: 0.5,
-      maxFB: 1.0,
-      span: 1,
-    },
-    {
-      label: "เฝ้าระวัง",
-      range: "1.00–1.75 ม.",
-      color: "#fdd835",
-      minFB: 1.0,
-      maxFB: 1.75,
-      span: 1,
-    },
-    {
-      label: "ปกติ",
-      range: "> 1.75 ม.",
-      color: "#d0f8ce",
-      minFB: 1.75,
-      maxFB: Infinity,
-      span: 1,
-    },
-  ],
-  Lake_06: [
-    {
-      label: "วิกฤต",
-      range: "< 0.50 ม.",
-      color: "#bf360c",
-      minFB: -Infinity,
-      maxFB: 0.5,
-      span: 1,
-    },
-    {
-      label: "เตือนภัย",
-      range: "0.50–1.00 ม.",
-      color: "#f57f17",
-      minFB: 0.5,
-      maxFB: 1.0,
-      span: 1,
-    },
-    {
-      label: "เฝ้าระวัง",
-      range: "1.00–1.50 ม.",
-      color: "#fdd835",
-      minFB: 1.0,
-      maxFB: 1.5,
-      span: 1,
-    },
-    {
-      label: "ปกติ",
-      range: "> 1.50 ม.",
-      color: "#d0f8ce",
-      minFB: 1.5,
-      maxFB: Infinity,
-      span: 1,
-    },
-  ],
-};
 
 // คืน segment ที่ active + freeboard จากระดับน้ำ
 function getActiveLegend(
   lakeId: string,
   waterLevel: number,
 ): {
-  segments: ThresholdSegment[];
+  segments: PondThresholdSegment[];
   activeIdx: number;
   freeboard: number;
 } | null {
-  const segments = LAKE_THRESHOLDS[lakeId];
+  const segments = getLakeLegendSegments(lakeId);
   const lavInfo = LAV_DATA[lakeId];
-  if (!segments || !lavInfo) return null;
+  if (!segments.length || !lavInfo) return null;
   const freeboard = lavInfo.maxLevel - waterLevel;
   const activeIdx = segments.findIndex(
     (s) => freeboard >= s.minFB && freeboard < s.maxFB,
@@ -430,10 +291,9 @@ function getActiveLegend(
 }
 
 // ── helper: ดึงสี threshold ของบึงจาก waterLevel โดยตรง (ใช้ใน createMarkerElement)
+// ใช้ getPondColor() เดียวกับที่ dashbaord-table.tsx ใช้ ให้สี marker กับสถานะในตารางตรงกันเป๊ะ
 function getThresholdColor(lakeId: string, waterLevel: number): string {
-  const result = getActiveLegend(lakeId, waterLevel);
-  if (!result || result.activeIdx < 0) return stationTypeConfig.PW.color;
-  return result.segments[result.activeIdx].color;
+  return getPondColor(lakeId, waterLevel).color;
 }
 
 // ─────────────────────────────────────────────
@@ -976,11 +836,29 @@ const MapComponentSwamp: FC = () => {
       prefix === "PW" ? finalPct : Math.min((displayValue / 6) * 100, 100);
 
     const timestampDisplay = ld?.date_time ? formatDateTime(ld.date_time) : "—";
-    const statusBadge = ld
-      ? ld.status === "ok"
-        ? `<span class="api-badge ok">● Live</span>`
-        : `<span class="api-badge err">● ไม่มีสัญญาณ</span>`
-      : `<span class="api-badge warn">● Mock</span>`;
+
+    // PW (บึง): 0/ไม่มีค่า มักแปลว่าเซนเซอร์ไม่ active (ดู docs/mqtt-data-source.md) — ถือเป็น
+    // "ไม่มีข้อมูล" ไม่ใช่ค่าจริง ส่วน stale = มี reading แต่ MQTT ไม่อัปเดตมานาน (>90 นาที)
+    const hasRealData =
+      prefix === "PW" && ld?.status === "ok" && ld.water_level != null && ld.water_level !== 0;
+    const isStale = prefix === "PW" && ld?.status === "ok" && ld?.stale === true;
+    const showErrorNotice = prefix === "PW" && !!ld && (ld.status !== "ok" || isStale || !hasRealData);
+
+    const statusBadge = !ld
+      ? `<span class="api-badge warn">● Mock</span>`
+      : isStale
+        ? `<span class="api-badge err">● ค้างนาน (MQTT ไม่อัปเดต)</span>`
+        : prefix === "PW"
+          ? hasRealData
+            ? `<span class="api-badge ok">● Live</span>`
+            : `<span class="api-badge err">● ไม่มีสัญญาณ</span>`
+          : ld.status === "ok"
+            ? `<span class="api-badge ok">● Live</span>`
+            : `<span class="api-badge err">● ไม่มีสัญญาณ</span>`;
+
+    const errorNotice = showErrorNotice
+      ? `<div class="station-error-notice">⚠️ สถานีเกิดข้อผิดพลาด รอการตรวจสอบ</div>`
+      : "";
 
     const lavRow =
       prefix === "PW" && (apiVol != null || lav)
@@ -1033,6 +911,7 @@ const MapComponentSwamp: FC = () => {
         </div>
         <div class="popup-content-body">
           <div class="data-label">${mockLabel}</div>
+          ${errorNotice}
           ${
             prefix === "PW"
               ? `
@@ -1327,7 +1206,7 @@ const MapComponentSwamp: FC = () => {
                         : ""
                     }`}
                     style={{
-                      flex: seg.span,
+                      flex: 1,
                       color: isActive ? "#1e3a5f" : "#9ca3af",
                       fontWeight: isActive ? 800 : 600,
                     }}
@@ -1467,6 +1346,19 @@ const MapComponentSwamp: FC = () => {
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.3px;
+        }
+        .station-error-notice {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: #fef2f2;
+          border: 1px solid #fca5a5;
+          color: #b91c1c;
+          font-size: 11px;
+          font-weight: 700;
+          padding: 8px 10px;
+          border-radius: 8px;
+          margin-bottom: 10px;
         }
         .data-value-box {
           background: white;

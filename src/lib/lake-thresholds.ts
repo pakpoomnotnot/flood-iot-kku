@@ -55,3 +55,59 @@ export function getPondStatusThai(
 ): PondStatusThai {
   return STATUS_THAI[getPondStatus(lakeId, waterLevel)];
 }
+
+/**
+ * เกณฑ์สี freeboard ต่อบึง — แหล่งอ้างอิงเดียวที่ marker บนแผนที่ (map_swamp),
+ * legend บนแผนที่ และสีสถานะในตาราง (dashbaord-table) ใช้ร่วมกันทั้งหมด
+ * ค่าตรงกับ getPondStatus() ทุกประการ (critical<0.5, warning<1.0, watch<watchFB)
+ */
+export interface PondThresholdSegment {
+  label: PondStatusThai;
+  range: string;
+  color: string;
+  textColor: string;
+  minFB: number;
+  maxFB: number;
+}
+
+const STATUS_COLOR: Record<Exclude<PondStatusKey, "nodata">, { color: string; textColor: string }> = {
+  critical: { color: "#bf360c", textColor: "#fff" },
+  warning: { color: "#f57f17", textColor: "#fff" },
+  watch: { color: "#fdd835", textColor: "#333" },
+  normal: { color: "#d0f8ce", textColor: "#333" },
+};
+
+export const NO_DATA_COLOR = { color: "#e5e7eb", textColor: "#6b7280" };
+
+export function getLakeLegendSegments(lakeId: string): PondThresholdSegment[] {
+  const cfg = LAKE_CONFIG[lakeId as LakeId];
+  if (!cfg) return [];
+  return [
+    { label: "วิกฤต", range: "< 0.50 ม.", minFB: -Infinity, maxFB: 0.5, ...STATUS_COLOR.critical },
+    { label: "เตือนภัย", range: "0.50–1.00 ม.", minFB: 0.5, maxFB: 1.0, ...STATUS_COLOR.warning },
+    {
+      label: "เฝ้าระวัง",
+      range: `1.00–${cfg.watchFB.toFixed(2)} ม.`,
+      minFB: 1.0,
+      maxFB: cfg.watchFB,
+      ...STATUS_COLOR.watch,
+    },
+    {
+      label: "ปกติ",
+      range: `> ${cfg.watchFB.toFixed(2)} ม.`,
+      minFB: cfg.watchFB,
+      maxFB: Infinity,
+      ...STATUS_COLOR.normal,
+    },
+  ];
+}
+
+/** สี marker/badge จากระดับน้ำดิบตรงๆ — ให้ตรงกับ marker บนแผนที่และ badge ในตารางเป๊ะๆ */
+export function getPondColor(
+  lakeId: string,
+  waterLevel: number | undefined,
+): { color: string; textColor: string } {
+  const status = getPondStatus(lakeId, waterLevel);
+  if (status === "nodata") return NO_DATA_COLOR;
+  return STATUS_COLOR[status];
+}

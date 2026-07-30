@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { RAIN_STATIONS } from "@/lib/rain-stations";
+import { getRainSeverity } from "@/lib/rain-severity";
 import {
   LAKE_CONFIG,
   getPondFreeboard,
@@ -159,11 +160,7 @@ export function useMapViewData() {
       const formattedData: WaterData[] = STATION_METADATA.map((meta) => {
         const entry = byStation[meta.id];
         const value = entry?.value ?? 0;
-        let statusText = "ไม่มีฝน";
-        if (value > 40) statusText = "หนักมาก";
-        else if (value > 30) statusText = "หนัก";
-        else if (value > 20) statusText = "ปานกลาง";
-        else if (value > 0) statusText = "เล็กน้อย";
+        const statusText = getRainSeverity(value, windowParam).label;
 
         let timeStr = "-";
         if (entry?.time) {

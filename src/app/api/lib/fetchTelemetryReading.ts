@@ -14,7 +14,9 @@ export interface TelemetryReading {
   water_level_m: number;
   water_flow: number;
   water_total: number;
+  rain_value: number;
   rain_daily: number;
+  wind_direction_name: string;
   air_temp: number;
   air_humid: number;
   temp: number;
@@ -28,10 +30,12 @@ const COL = {
   date_time: 0,
   receive_time: 1,
   topic: 2,
+  rain_value: 3,
   rain_daily: 5,
   water_level: 6,
   water_flow: 7,
   water_total: 8,
+  wind_direction_name: 11,
   air_temp: 12,
   air_humid: 13,
   temp: 22,
@@ -52,12 +56,28 @@ function rowToReadingFromCols(cols: string[], category: TelemetryCategory): Tele
     water_level_m: waterLevelM,
     water_flow: num(COL.water_flow),
     water_total: num(COL.water_total),
+    rain_value: num(COL.rain_value),
     rain_daily: num(COL.rain_daily),
+    wind_direction_name: cols[COL.wind_direction_name] ?? "",
     air_temp: num(COL.air_temp),
     air_humid: num(COL.air_humid),
     temp: num(COL.temp),
     humid: num(COL.humid),
   };
+}
+
+/**
+ * สถานีควรส่งข้อมูลทุก ~15 นาที — ถ้า reading ล่าสุดเก่ากว่า threshold นี้มาก
+ * แปลว่า MQTT ไม่มีการอัปเดตเข้ามาแล้ว (สถานีอาจเสีย/ขาดการเชื่อมต่อ) ต้องแจ้งเตือนแยก
+ * จากกรณี "ไม่มีข้อมูลเลย" (no_data)
+ */
+const STALE_THRESHOLD_MS = 90 * 60 * 1000; // 90 นาที (เผื่อ margin จาก interval 15 นาที)
+
+export function isStaleReading(dateTime: string | undefined): boolean {
+  if (!dateTime) return false;
+  const t = new Date(dateTime.replace(" ", "T")).getTime();
+  if (isNaN(t)) return false;
+  return Date.now() - t > STALE_THRESHOLD_MS;
 }
 
 // ไฟล์ CSV ของ MQTT บางไฟล์ใหญ่หลาย MB แต่ส่วนใหญ่ต้องการแค่ไม่กี่วันล่าสุด — ขอด้วย
@@ -133,6 +153,8 @@ export interface TelemetryStationResult {
   name_th: string;
   location: { lat: number; lng: number; area: string };
   status: "ok" | "no_data" | "error";
+  /** true เมื่อมี reading แต่ date_time เก่ากว่า ~90 นาที — MQTT หยุดอัปเดต ไม่ใช่แค่ไม่มีข้อมูลตั้งแต่แรก */
+  stale?: boolean;
   error?: string;
   date_time?: string;
   receive_time?: string;
@@ -201,6 +223,7 @@ export async function fetchTelemetryStations(
         area: station.location,
       },
       status: "ok" as const,
+      stale: isStaleReading(reading.date_time),
       date_time: reading.date_time,
       receive_time: reading.receive_time,
       water_level_cm: reading.water_level_cm,

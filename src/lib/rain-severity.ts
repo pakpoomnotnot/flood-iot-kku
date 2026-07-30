@@ -71,3 +71,9 @@ export function windowLabel(window: RainSeverityWindow): string {
   if (window === "3h") return "3 ชั่วโมง";
   return "24 ชั่วโมง (รายวัน)";
 }
+
+/** หน่วยของค่าปริมาณฝนตามช่วงเวลาที่เลือก — ใช้แสดงกำกับตัวเลขในตาราง/legend แผนที่ */
+export function rainUnitLabel(window: RainSeverityWindow): string {
+  if (window === "24h") return "มม./วัน";
+  return "มม./ชม.";
+}
