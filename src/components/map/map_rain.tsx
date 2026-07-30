@@ -11,7 +11,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ReferenceLine,
   ResponsiveContainer,
 } from "recharts";
 import {
@@ -22,6 +21,12 @@ import {
   RAIN_STATIONS,
   RAIN_STATION_DISPLAY_ORDER,
 } from "@/lib/rain-stations";
+import {
+  getRainSeverity,
+  getRainLegendSegments,
+  windowLabel as rainWindowLabel,
+  type RainSeverityWindow,
+} from "@/lib/rain-severity";
 
 const staticStations = RAIN_STATION_DISPLAY_ORDER.map((id, index) => ({
   no: index + 1,
@@ -31,122 +36,31 @@ const staticStations = RAIN_STATION_DISPLAY_ORDER.map((id, index) => ({
   name: RAIN_STATIONS[id].name,
 }));
 
-// ─────────────────────────────────────────────
-// เกณฑ์ปริมาณฝน (มม./ชม.)
-// ปกติ      : 0.0 – 20.0
-// เฝ้าระวัง  : 20.1 – 30.0
-// เตือนภัย  : 30.1 – 40.0
-// วิกฤติ    : > 40.0
-// ─────────────────────────────────────────────
-const getRainStatus = (
-  value: number,
-): "วิกฤติ" | "เตือนภัย" | "เฝ้าระวัง" | "ปกติ" | "ไม่มีฝน" => {
-  if (value > 40.0) return "วิกฤติ";
-  if (value > 30.0) return "เตือนภัย";
-  if (value > 20.0) return "เฝ้าระวัง";
-  if (value > 0) return "ปกติ";
-  return "ไม่มีฝน";
-};
+// เกณฑ์ความรุนแรงฝน — ต่างกันระหว่างรายชั่วโมง/3ชม. กับรายวัน ดู src/lib/rain-severity.ts
+const getRainStatus = (value: number, window: RainSeverityWindow): string =>
+  getRainSeverity(value, window).label;
 
-const getRainColor = (value: number): string => {
-  if (value > 40.0) return "#b71c1c"; // วิกฤติ — แดงเข้ม
-  if (value > 30.0) return "#ef6c00"; // เตือนภัย — ส้ม
-  if (value > 20.0) return "#fbc02d"; // เฝ้าระวัง — เหลือง
-  if (value > 0) return "#2e7d32"; // ปกติ — เขียว
-  return "#90caf9"; // ไม่มีฝน — ฟ้าอ่อน
-};
+const getRainColor = (value: number, window: RainSeverityWindow): string =>
+  getRainSeverity(value, window).color;
 
 const CLOUD_RAIN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/></svg>`;
 
 // ─────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────
-interface HourlyPoint {
+type RainWindow = RainSeverityWindow;
+
+interface RainSeriesPoint {
   label: string;
+  time: string;
   value: number;
-  actual: number | null;
-  forecast: number | null;
-  isCurrent: boolean;
-  isForecast: boolean;
 }
 
-interface ForecastItem {
-  station_code: string;
-  station_name: string;
-  forecast_datetime: string;
-  rainfall_mm: number;
-  lead_hour: number;
-  model_run_time: string;
-}
-
-interface ForecastResponse {
-  run: { run_time: string };
-  count: number;
-  station_code: string;
-  data: ForecastItem[];
-}
-
-// ─────────────────────────────────────────────
-// แปลง API response → HourlyPoint[]
-// ─────────────────────────────────────────────
-function toHourlyPoints(items: ForecastItem[]): HourlyPoint[] {
-  const now = new Date();
-  const sorted = [...items].sort(
-    (a, b) =>
-      new Date(a.forecast_datetime).getTime() -
-      new Date(b.forecast_datetime).getTime(),
-  );
-
-  let closestIdx = 0,
-    minDiff = Infinity;
-  sorted.forEach((item, i) => {
-    const diff = Math.abs(
-      new Date(item.forecast_datetime).getTime() - now.getTime(),
-    );
-    if (diff < minDiff) {
-      minDiff = diff;
-      closestIdx = i;
-    }
-  });
-
-  const firstForecastIdx = sorted.findIndex((item) => item.lead_hour > 0);
-
-  return sorted.map((item, i) => {
-    const t = new Date(item.forecast_datetime);
-    const label = `${t.getDate()}-${t.toLocaleString("en", { month: "short" })} ${t.getHours().toString().padStart(2, "0")}:00`;
-    const isForecast = item.lead_hour > 0;
-    return {
-      label,
-      value: item.rainfall_mm,
-      actual: !isForecast || i === firstForecastIdx ? item.rainfall_mm : null,
-      forecast: isForecast
-        ? item.rainfall_mm
-        : i === firstForecastIdx - 1
-          ? item.rainfall_mm
-          : null,
-      isCurrent: i === closestIdx,
-      isForecast,
-    };
-  });
-}
-
-function sliceByRatio(points: HourlyPoint[]): HourlyPoint[] {
-  const actualPoints = points.filter((p) => p.actual !== null);
-  const forecastPoints = points.filter((p) => p.forecast !== null);
-  if (actualPoints.length === 0 || forecastPoints.length === 0) return points;
-  const unit = Math.min(
-    Math.floor(actualPoints.length / 3),
-    Math.floor(forecastPoints.length / 2),
-  );
-  if (unit === 0) return points;
-  const keepActualLabels = new Set(
-    actualPoints.slice(-(unit * 3)).map((p) => p.label),
-  );
-  const keepForecastLabels = new Set(
-    forecastPoints.slice(0, unit * 2).map((p) => p.label),
-  );
-  const keepLabels = new Set([...keepActualLabels, ...keepForecastLabels]);
-  return points.filter((p) => keepLabels.has(p.label));
+interface RainWindowResponse {
+  value: number;
+  time: string | null;
+  series: RainSeriesPoint[];
+  error?: string;
 }
 
 // ─────────────────────────────────────────────
@@ -154,31 +68,30 @@ function sliceByRatio(points: HourlyPoint[]): HourlyPoint[] {
 // ─────────────────────────────────────────────
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
-  const isForecast = payload[0]?.payload?.isForecast;
   const val = payload[0]?.payload?.value;
   return (
     <div className="rounded-lg border border-blue-100 bg-white px-3 py-2 shadow-lg text-xs">
-      <p className="font-semibold text-gray-700">
-        {label}
-        {isForecast && (
-          <span className="ml-1.5 rounded-full bg-purple-100 px-1.5 py-0.5 text-purple-600 font-medium">
-            พยากรณ์
-          </span>
-        )}
-      </p>
-      <p
-        className="mt-0.5 font-bold"
-        style={{ color: isForecast ? "#a855f7" : "#3b82f6" }}
-      >
-        {val} มม.
-      </p>
+      <p className="font-semibold text-gray-700">{label}</p>
+      <p className="mt-0.5 font-bold text-blue-600">{val} มม.</p>
     </div>
   );
 };
 
 // ─────────────────────────────────────────────
-// Chart Modal
+// Chart Modal — ใช้ API/ตรรกะเดียวกับกราฟฝนในตาราง (dashbaord-table.tsx)
+// เพื่อให้กราฟในแผนที่กับกราฟในตารางแสดงข้อมูลตรงกันเสมอ
 // ─────────────────────────────────────────────
+const RAIN_SOURCE_TABS: { key: "actual" | "forecast"; label: string }[] = [
+  { key: "actual", label: "ข้อมูลจริง (MQTT)" },
+  { key: "forecast", label: "พยากรณ์" },
+];
+
+const RAIN_WINDOW_TABS: { key: RainWindow; label: string }[] = [
+  { key: "1h", label: "1 ชม." },
+  { key: "3h", label: "3 ชม." },
+  { key: "24h", label: "24 ชม." },
+];
+
 interface ChartModalProps {
   station: (typeof staticStations)[0];
   rainValue: number;
@@ -192,51 +105,58 @@ const ChartModal: FC<ChartModalProps> = ({
   lastUpdate,
   onClose,
 }) => {
-  const [data, setData] = useState<HourlyPoint[]>([]);
+  const [windowParam, setWindowParam] = useState<RainWindow>("1h");
+  const canForecast = windowParam !== "24h";
+  const [activeTab, setActiveTab] = useState<"actual" | "forecast">("actual");
+  const [result, setResult] = useState<RainWindowResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [runTime, setRunTime] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!canForecast) setActiveTab("actual");
+  }, [canForecast]);
+
+  useEffect(() => {
+    const controller = new AbortController();
     const fetchData = async () => {
       setLoading(true);
       setError(null);
       try {
+        const endpoint = activeTab === "forecast" ? "/api/rain/forecast" : "/api/rain/actual";
         const res = await fetch(
-          `/api/rain/forecast-timeseries?station_code=${station.id}&limit=500`,
+          `${endpoint}?station_code=${station.id}&window=${windowParam}`,
+          { signal: controller.signal },
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json: ForecastResponse = await res.json();
-        setRunTime(json.run?.run_time ?? null);
-        setData(toHourlyPoints(json.data ?? []));
+        const json: RainWindowResponse = await res.json();
+        if (json.error) throw new Error(json.error);
+        setResult(json);
       } catch (e: any) {
+        if (controller.signal.aborted) return;
         setError(e.message ?? "โหลดข้อมูลไม่สำเร็จ");
+        setResult(null);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
     fetchData();
-  }, [station.id]);
+    return () => controller.abort();
+  }, [station.id, activeTab, windowParam]);
 
   const formatTime = (timestamp: string) =>
-    new Date(timestamp).toLocaleTimeString("th-TH", {
+    new Date(timestamp.replace(" ", "T")).toLocaleTimeString("th-TH", {
       hour: "2-digit",
       minute: "2-digit",
     });
 
-  const ratioData = sliceByRatio(data);
-  const displayData = ratioData.filter((_, i) => i % 2 === 0);
-  const currentLabel =
-    displayData.find((d) => d.isCurrent)?.label ??
-    data.find((d) => d.isCurrent)?.label ??
-    "";
-  const firstForecastLbl = displayData.find((d) => d.isForecast)?.label ?? "";
-  const tickLabels = displayData
-    .filter((_, i) => i % 6 === 0)
-    .map((d) => d.label);
-
-  const status = getRainStatus(rainValue);
-  const statusColor = getRainColor(rainValue);
+  const series = result?.series ?? [];
+  const tickEvery = Math.max(1, Math.ceil(series.length / 6));
+  const tickLabels = series.filter((_, i) => i % tickEvery === 0).map((d) => d.label);
+  const currentValue = result?.value ?? rainValue;
+  const currentTimeLabel = result?.time ? formatTime(result.time) : formatTime(lastUpdate);
+  const status = getRainStatus(currentValue, windowParam);
+  const statusColor = getRainColor(currentValue, windowParam);
+  const barColor = activeTab === "forecast" ? "#a855f7" : "#3b82f6";
 
   return (
     <div
@@ -275,45 +195,61 @@ const ChartModal: FC<ChartModalProps> = ({
           </button>
         </div>
 
+        {/* Tabs: ข้อมูลจริง (MQTT) / พยากรณ์ */}
+        <div className="flex w-full border-b border-gray-100">
+          {RAIN_SOURCE_TABS.map((tab) => {
+            const disabled = tab.key === "forecast" && !canForecast;
+            return (
+              <button
+                key={tab.key}
+                disabled={disabled}
+                onClick={() => setActiveTab(tab.key)}
+                title={disabled ? "ยังไม่รองรับพยากรณ์ 24 ชม." : undefined}
+                className={`flex-1 px-3 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === tab.key
+                    ? "text-blue-600 border-blue-600"
+                    : disabled
+                      ? "text-gray-300 border-transparent cursor-not-allowed"
+                      : "text-gray-400 border-transparent hover:text-gray-600"
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Tabs: ช่วงเวลา */}
+        <div className="flex w-full border-b border-gray-100 bg-gray-50/50">
+          {RAIN_WINDOW_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setWindowParam(tab.key)}
+              className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${
+                windowParam === tab.key ? "text-blue-600 font-semibold" : "text-gray-400 hover:text-gray-600"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         {/* Sub-header */}
         <div className="flex flex-wrap gap-3 px-5 py-2.5 bg-blue-50/60 text-xs text-gray-500 border-b border-blue-100">
-          <span>อัปเดตล่าสุด: {formatTime(lastUpdate)}</span>
-          {runTime && (
-            <span className="text-purple-500">
-              รันโมเดล: {formatTime(runTime)}
-            </span>
-          )}
+          <span>อัปเดตล่าสุด: {currentTimeLabel}</span>
           <span
             className="ml-auto inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white"
             style={{ backgroundColor: statusColor }}
           >
-            {status} — {rainValue.toFixed(1)} มม.
-          </span>
-        </div>
-
-        {/* Legend */}
-        <div className="flex items-center gap-4 px-5 pt-3 text-xs text-gray-500">
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-3 w-4 rounded-sm bg-blue-500" />
-            ข้อมูลจริง
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-3 w-4 rounded-sm bg-purple-400 opacity-75" />
-            พยากรณ์ล่วงหน้า
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span
-              className="inline-block w-5"
-              style={{ borderTop: "2px dashed #f87171", height: 0 }}
-            />
-            ปัจจุบัน
+            {status} — {currentValue.toFixed(1)} มม.
           </span>
         </div>
 
         {/* Chart */}
-        <div className="px-4 pt-2 pb-5">
+        <div className="px-4 pt-4 pb-5">
           <p className="text-[11px] font-medium text-gray-400 mb-2 uppercase tracking-wide">
-            ปริมาณน้ำฝนสะสมรายชั่วโมง (มม.)
+            {activeTab === "forecast" ? "พยากรณ์ปริมาณฝน" : "ปริมาณฝนจริงจาก MQTT"} — มม. (
+            {RAIN_WINDOW_TABS.find((t) => t.key === windowParam)?.label}/ช่อง)
           </p>
           {loading ? (
             <div className="flex h-[220px] items-center justify-center">
@@ -359,14 +295,14 @@ const ChartModal: FC<ChartModalProps> = ({
                 {error}
               </div>
             </div>
-          ) : displayData.length === 0 ? (
+          ) : series.length === 0 ? (
             <div className="flex h-[220px] items-center justify-center text-sm text-gray-400">
               ไม่มีข้อมูลสถานีนี้
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <ComposedChart
-                data={displayData}
+                data={series}
                 margin={{ top: 8, right: 10, left: -10, bottom: 5 }}
                 barCategoryGap="20%"
               >
@@ -390,86 +326,12 @@ const ChartModal: FC<ChartModalProps> = ({
                   unit=" มม."
                 />
                 <Tooltip content={<CustomTooltip />} />
-
-                {/* เส้น threshold */}
-                <ReferenceLine
-                  y={10.0}
-                  stroke="#2e7d32"
-                  strokeWidth={1}
-                  strokeDasharray="4 3"
-                  label={{
-                    value: "ปกติ/เฝ้าระวัง",
-                    position: "right",
-                    fontSize: 8,
-                    fill: "#2e7d32",
-                    fontWeight: 600,
-                  }}
-                />
-                <ReferenceLine
-                  y={35.0}
-                  stroke="#fbc02d"
-                  strokeWidth={1}
-                  strokeDasharray="4 3"
-                  label={{
-                    value: "เฝ้าระวัง/เตือนภัย",
-                    position: "right",
-                    fontSize: 8,
-                    fill: "#e65100",
-                    fontWeight: 600,
-                  }}
-                />
-                <ReferenceLine
-                  y={90.0}
-                  stroke="#ef6c00"
-                  strokeWidth={1}
-                  strokeDasharray="4 3"
-                  label={{
-                    value: "เตือนภัย/วิกฤติ",
-                    position: "right",
-                    fontSize: 8,
-                    fill: "#b71c1c",
-                    fontWeight: 600,
-                  }}
-                />
-
-                {currentLabel && (
-                  <ReferenceLine
-                    x={currentLabel}
-                    stroke="#ef4444"
-                    strokeWidth={1.5}
-                    strokeDasharray="4 3"
-                    label={{
-                      value: "ปัจจุบัน",
-                      position: "top",
-                      fontSize: 10,
-                      fill: "#ef4444",
-                      fontWeight: 600,
-                    }}
-                  />
-                )}
-                {firstForecastLbl && firstForecastLbl !== currentLabel && (
-                  <ReferenceLine
-                    x={firstForecastLbl}
-                    stroke="#a855f7"
-                    strokeWidth={1}
-                    strokeDasharray="3 3"
-                  />
-                )}
-
                 <Bar
-                  dataKey="actual"
-                  name="ย้อนหลัง"
-                  fill="#3b82f6"
+                  dataKey="value"
+                  name={activeTab === "forecast" ? "พยากรณ์" : "ข้อมูลจริง"}
+                  fill={barColor}
                   radius={[3, 3, 0, 0]}
                   maxBarSize={40}
-                />
-                <Bar
-                  dataKey="forecast"
-                  name="พยากรณ์"
-                  fill="#a855f7"
-                  radius={[3, 3, 0, 0]}
-                  maxBarSize={40}
-                  opacity={0.75}
                 />
               </ComposedChart>
             </ResponsiveContainer>
@@ -502,7 +364,12 @@ type BasemapStyleKey = "hybrid" | "topo";
 // ─────────────────────────────────────────────
 // Main MapComponent
 // ─────────────────────────────────────────────
-const MapComponent: FC = () => {
+interface MapComponentProps {
+  /** ช่วงเวลาที่ใช้แสดงผลปริมาณฝน (มาจาก tab เดียวกับตารางฝน) — คุมทั้งค่า marker และเกณฑ์ legend */
+  rainfallWindow?: RainWindow;
+}
+
+const MapComponent: FC<MapComponentProps> = ({ rainfallWindow = "1h" }) => {
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const map = useRef<Map | null>(null);
   const markersRef = useRef<Marker[]>([]);
@@ -534,7 +401,7 @@ const MapComponent: FC = () => {
 
   const fetchRainData = async () => {
     try {
-      const res = await fetch("/api/rain/actual?window=1h");
+      const res = await fetch(`/api/rain/actual?window=${rainfallWindow}`);
       const result: {
         stations?: { station_code: string; value: number; time: string | null }[];
       } = await res.json();
@@ -555,12 +422,12 @@ const MapComponent: FC = () => {
 
   useEffect(() => {
     fetchRainData();
-  }, []);
+  }, [rainfallWindow]);
 
   const createMarkerElement = (value: number): HTMLDivElement => {
     const el = document.createElement("div");
     el.className = "custom-marker-wrapper";
-    const color = getRainColor(value);
+    const color = getRainColor(value, rainfallWindow);
     el.innerHTML = `<div class="custom-marker" style="background:${color};border:3px solid white;">${CLOUD_RAIN_SVG}</div>`;
     return el;
   };
@@ -570,8 +437,8 @@ const MapComponent: FC = () => {
     value: number,
     time: string,
   ): string => {
-    const color = getRainColor(value);
-    const status = getRainStatus(value);
+    const color = getRainColor(value, rainfallWindow);
+    const status = getRainStatus(value, rainfallWindow);
     const timeStr =
       time === "-"
         ? "-"
@@ -606,7 +473,7 @@ const MapComponent: FC = () => {
           <div class="location-area">ID: ${station.id}</div>
         </div>
         <div class="popup-content-body">
-          <div class="data-label">ปริมาณน้ำฝนสะสม 1 ชม. (ล่าสุด)</div>
+          <div class="data-label">ปริมาณน้ำฝนสะสม ${rainWindowLabel(rainfallWindow)} (ล่าสุด)</div>
           <div class="data-value-box" style="border-color:${color}40;">
             <span class="data-number" style="color:${value > 0 ? color : "#9CA3AF"}">${value.toFixed(1)}</span>
             <span class="data-unit">มม.</span>
@@ -684,7 +551,7 @@ const MapComponent: FC = () => {
 
   useEffect(() => {
     if (isLoaded && map.current) addStationMarkers();
-  }, [isLoaded, rainData]);
+  }, [isLoaded, rainData, rainfallWindow]);
 
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
@@ -736,23 +603,8 @@ const MapComponent: FC = () => {
     }
   };
 
-  // Legend segments ตามเกณฑ์ใหม่
-  const legendSegments = [
-    { range: "0.0–20.0", label: "ปกติ", color: "#2e7d32", textColor: "#fff" },
-    {
-      range: "20.1–30.0",
-      label: "เฝ้าระวัง",
-      color: "#fbc02d",
-      textColor: "#333",
-    },
-    {
-      range: "30.1–40.0",
-      label: "เตือนภัย",
-      color: "#ef6c00",
-      textColor: "#fff",
-    },
-    { range: "> 40.0", label: "วิกฤติ", color: "#b71c1c", textColor: "#fff" },
-  ];
+  // เกณฑ์ legend สลับตามช่วงเวลา — รายชั่วโมง/3ชม. ใช้เกณฑ์เดิม, รายวัน (24ชม.) ใช้เกณฑ์กรมอุตุฯ
+  const legendSegments = getRainLegendSegments(rainfallWindow);
 
   return (
     <div className="relative w-full h-full bg-gray-900 font-sans rounded-xl overflow-hidden flex flex-col">
@@ -809,7 +661,7 @@ const MapComponent: FC = () => {
       <div className="flex-shrink-0 bg-white border-t border-gray-300 px-3 pt-1.5 pb-2">
         <div className="flex justify-end mb-1">
           <span className="text-[10px] text-gray-500">
-            ปริมาณน้ำฝนสะสม (มม./วัน) — อัปเดต:{" "}
+            ปริมาณน้ำฝนสะสม ({rainWindowLabel(rainfallWindow)}) — อัปเดต:{" "}
             <span className="font-semibold text-blue-700">
               {lastUpdate === "-" ? "-" : formatTime(lastUpdate)}
             </span>
@@ -828,7 +680,7 @@ const MapComponent: FC = () => {
                 className="text-[9px] font-bold whitespace-nowrap"
                 style={{ color: seg.textColor }}
               >
-                {seg.range}
+                {seg.rangeLabel}
               </span>
             </div>
           ))}
@@ -843,7 +695,7 @@ const MapComponent: FC = () => {
                 i < legendSegments.length - 1 ? "border-r border-gray-300" : ""
               }`}
             >
-              {seg.label}
+              {seg.legendLabel}
             </div>
           ))}
         </div>

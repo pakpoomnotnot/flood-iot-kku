@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { getPondStatus } from "@/lib/lake-thresholds";
 import { TelemetryHistoryChartModal } from "@/components/telemetry/telemetry-history-chart-modal";
+import { useTelemetryHistory } from "@/hooks/use-telemetry-history";
 
 // ─────────────────────────────────────────────
 // Interfaces
@@ -234,41 +235,6 @@ function statusColor(status: string, mode: "rainfall" | "pond" | "default") {
     case "น้ำท่วม": return "bg-red-600 text-white";
     default:        return "bg-gray-200 text-gray-600";
   }
-}
-
-// ─────────────────────────────────────────────
-// Mock data generator สำหรับกราฟระดับน้ำบึง
-// ─────────────────────────────────────────────
-interface HourlyPoint {
-  label:      string;
-  value:      number;
-  actual:     number | null;
-  forecast:   number | null;
-  isCurrent:  boolean;
-  isForecast: boolean;
-}
-
-function generateMockWaterLevel(currentLevel: number): HourlyPoint[] {
-  const now  = new Date();
-  let prev   = Math.max(currentLevel - Math.random() * 0.5, 0.1);
-  return Array.from({ length: 24 }, (_, i) => {
-    const t   = new Date(now.getTime() - (23 - i) * 3_600_000);
-    const lbl = `${t.getDate()}-${t.toLocaleString("en", { month: "short" })} ${t
-      .getHours()
-      .toString()
-      .padStart(2, "0")}:00`;
-    const delta = (Math.random() - 0.45) * 0.15;
-    prev        = Math.max(0.1, prev + delta);
-    if (i === 23) prev = currentLevel;
-    return {
-      label:      lbl,
-      value:      parseFloat(prev.toFixed(2)),
-      actual:     parseFloat(prev.toFixed(2)),
-      forecast:   null,
-      isCurrent:  i === 23,
-      isForecast: false,
-    };
-  });
 }
 
 // ─────────────────────────────────────────────
@@ -501,13 +467,23 @@ interface PondChartModalProps {
   onClose: () => void;
 }
 
+const DAY_TABS: { key: 1 | 3 | 7; label: string }[] = [
+  { key: 1, label: "1 วัน" },
+  { key: 3, label: "3 วัน" },
+  { key: 7, label: "7 วัน" },
+];
+
 const PondChartModal = ({ station, onClose }: PondChartModalProps) => {
   const lakeId    = station.stationCode ?? "";
   const lav       = interpolateLAV(lakeId, station.level);
   const lavInfo   = LAV_DATA[lakeId];
-  const data      = generateMockWaterLevel(station.level);
-  const tickLabels = data.filter((_, i) => i % 4 === 0).map((d) => d.label);
-  const currentLabel = data[data.length - 1]?.label ?? "";
+
+  const [days, setDays] = useState<1 | 3 | 7>(1);
+  const { data, loading, error } = useTelemetryHistory("lake", station.stationCode ?? null, days * 24);
+
+  const tickEvery     = Math.max(1, Math.ceil(data.length / 8));
+  const tickLabels    = data.filter((_, i) => i % tickEvery === 0).map((d) => d.label);
+  const currentLabel  = data[data.length - 1]?.label ?? "";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
@@ -523,6 +499,23 @@ const PondChartModal = ({ station, onClose }: PondChartModalProps) => {
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
+        </div>
+
+        {/* Tabs: ช่วงเวลาย้อนหลัง */}
+        <div className="flex w-full border-b border-gray-100">
+          {DAY_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setDays(tab.key)}
+              className={`flex-1 px-3 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                days === tab.key
+                  ? "text-emerald-600 border-emerald-600"
+                  : "text-gray-400 border-transparent hover:text-gray-600"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {/* Sub-header */}
@@ -563,27 +556,43 @@ const PondChartModal = ({ station, onClose }: PondChartModalProps) => {
         {/* Chart */}
         <div className="px-4 pt-4 pb-3">
           <p className="text-[11px] font-medium text-gray-400 mb-3 uppercase tracking-wide">
-            ระดับน้ำในบึง (ม.รทก.) — 24 ชั่วโมงย้อนหลัง
-            <span className="ml-2 normal-case text-emerald-400">อัปเดต: {station.time}</span>
+            ระดับน้ำในบึง (ม.รทก.) — {DAY_TABS.find((t) => t.key === days)?.label}ย้อนหลัง
           </p>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={data} margin={{ top: 10, right: 30, left: -10, bottom: 5 }}>
-              <defs>
-                <linearGradient id="pondGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#10B981" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#10B981" stopOpacity={0.03} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-              <XAxis dataKey="label" ticks={tickLabels} tick={{ fontSize: 10, fill: "#9ca3af" }} tickLine={false} axisLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: "#9ca3af" }} tickLine={false} axisLine={false} unit=" ม." />
-              <Tooltip content={<WaterLevelTooltip />} />
-              <ReferenceLine x={currentLabel} stroke="#ef4444" strokeWidth={1.5} strokeDasharray="4 3"
-                label={{ value: "ปัจจุบัน", position: "top", fontSize: 9, fill: "#ef4444", fontWeight: 600 }} />
-              <Area type="monotone" dataKey="value" stroke="#10B981" strokeWidth={2.5} fill="url(#pondGradient)" dot={false}
-                activeDot={{ r: 4, fill: "#10B981", strokeWidth: 2, stroke: "#fff" }} />
-            </AreaChart>
-          </ResponsiveContainer>
+          {loading ? (
+            <div className="flex h-[220px] items-center justify-center">
+              <div className="flex flex-col items-center gap-2 text-sm text-gray-400">
+                <svg className="h-6 w-6 animate-spin text-emerald-400" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                กำลังโหลดข้อมูล...
+              </div>
+            </div>
+          ) : error ? (
+            <div className="flex h-[220px] items-center justify-center text-sm text-red-400">{error}</div>
+          ) : data.length === 0 ? (
+            <div className="flex h-[220px] items-center justify-center text-sm text-gray-400">ไม่มีข้อมูลย้อนหลัง</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={data} margin={{ top: 10, right: 30, left: -10, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="pondGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#10B981" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#10B981" stopOpacity={0.03} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                <XAxis dataKey="label" ticks={tickLabels} tick={{ fontSize: 10, fill: "#9ca3af" }} tickLine={false} axisLine={false} />
+                <YAxis domain={["auto", "auto"]} tick={{ fontSize: 10, fill: "#9ca3af" }} tickLine={false} axisLine={false} unit=" ม." />
+                <Tooltip content={<WaterLevelTooltip />} />
+                <ReferenceLine x={currentLabel} stroke="#ef4444" strokeWidth={1.5} strokeDasharray="4 3"
+                  label={{ value: "ปัจจุบัน", position: "top", fontSize: 9, fill: "#ef4444", fontWeight: 600 }} />
+                <Area type="monotone" dataKey="value" stroke="#10B981" strokeWidth={2.5} fill="url(#pondGradient)" dot={false}
+                  connectNulls={false}
+                  activeDot={{ r: 4, fill: "#10B981", strokeWidth: 2, stroke: "#fff" }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         <div className="flex justify-end px-5 pb-4 border-t border-gray-50 pt-3">

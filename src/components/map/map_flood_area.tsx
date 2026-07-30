@@ -10,6 +10,8 @@ import {
   Pause,
   SkipBack,
   SkipForward,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import maplibregl, { Map, ScaleControl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -58,6 +60,7 @@ const MapComponentFlood: FC = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSwitcherOpen, setSwitcherOpen] = useState(false);
   const [showFloodLayer, setShowFloodLayer] = useState(true);
+  const [panelExpanded, setPanelExpanded] = useState(false);
   const [dayGroups, setDayGroups] = useState<FloodMapDayGroup[]>([]);
   const [flatIndex, setFlatIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -341,8 +344,8 @@ const MapComponentFlood: FC = () => {
                         onClick={() => switchBasemap(key)}
                         className={`flex h-20 flex-col items-center justify-center rounded-lg p-3 text-xs font-medium transition-all ${
                           currentStyle === key
-                            ? "bg-blue-500 text-white shadow-md ring-2 ring-blue-300"
-                            : "bg-gray-50/50 text-gray-700 hover:bg-blue-100/80"
+                            ? "bg-[#a73824] text-white shadow-md ring-2 ring-[#d9b4aa]"
+                            : "bg-gray-50/50 text-gray-700 hover:bg-[#f3e9e4]/80"
                         }`}
                       >
                         <span className="mb-1 text-2xl">{bm.icon}</span>
@@ -361,21 +364,22 @@ const MapComponentFlood: FC = () => {
             onClick={toggleFloodLayer}
             disabled={!isLoaded || !currentFrame}
             className={`flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg transition-all hover:bg-gray-100 ${
-              showFloodLayer ? "ring-2 ring-blue-400" : ""
+              showFloodLayer ? "ring-2 ring-[#a73824]/60" : ""
             } ${!isLoaded ? "cursor-not-allowed opacity-50" : ""}`}
             title={showFloodLayer ? "ซ่อนชั้นข้อมูลน้ำท่วม" : "แสดงชั้นข้อมูลน้ำท่วม"}
           >
             {showFloodLayer ? (
-              <Eye className="h-6 w-6 text-blue-600" />
+              <Eye className="h-6 w-6 text-[#a73824]" />
             ) : (
               <EyeOff className="h-6 w-6 text-gray-500" />
             )}
           </button>
         </div>
 
-        <div className="absolute bottom-4 left-1/2 z-40 w-[min(440px,calc(100%-2rem))] -translate-x-1/2">
-          <div className="rounded-xl border border-gray-200/50 bg-white/95 px-3 py-2.5 shadow-2xl backdrop-blur-md">
-            <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="absolute bottom-3 left-1/2 z-40 w-[min(340px,calc(100%-1.5rem))] -translate-x-1/2">
+          <div className="overflow-hidden rounded-xl border border-[#eadbd4]/70 bg-white/95 shadow-2xl backdrop-blur-md">
+            {/* แถบหัว — แสดงตลอด กดเพื่อย่อ/ขยายแผงเลือกวัน-เวลา */}
+            <div className="flex items-center justify-between gap-2 px-3 py-2">
               <div className="min-w-0">
                 <div className="text-[10px] font-medium text-gray-500">
                   พื้นที่เสี่ยงน้ำท่วม — 7 วันย้อนหลัง
@@ -384,114 +388,131 @@ const MapComponentFlood: FC = () => {
                   {currentFrame?.displayLabel ?? "—"}
                 </div>
               </div>
-              <button
-                onClick={() => setIsPlaying((p) => !p)}
-                disabled={totalFrames <= 1}
-                className="flex-shrink-0 rounded-lg bg-blue-600 p-1.5 text-white hover:bg-blue-700 disabled:opacity-40"
-                title={isPlaying ? "หยุด" : "เล่นอัตโนมัติ"}
-              >
-                {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-              </button>
+              <div className="flex flex-shrink-0 items-center gap-1.5">
+                <button
+                  onClick={() => setIsPlaying((p) => !p)}
+                  disabled={totalFrames <= 1}
+                  className="rounded-lg bg-[#a73824] p-1.5 text-white hover:bg-[#8f2e1c] disabled:opacity-40"
+                  title={isPlaying ? "หยุด" : "เล่นอัตโนมัติ"}
+                >
+                  {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                </button>
+                <button
+                  onClick={() => setPanelExpanded((v) => !v)}
+                  className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
+                  title={panelExpanded ? "ย่อแผงเลือกวัน-เวลา" : "ขยายแผงเลือกวัน-เวลา"}
+                >
+                  {panelExpanded ? (
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  ) : (
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              </div>
             </div>
 
-            {/* แถบเลือกวัน */}
-            <div className="mb-2 flex items-end justify-center gap-1">
-              {dayGroups.map((group, i) => {
-                const isActive = dayIndex === i;
-                const dayNum = group.dayKey.slice(6, 8);
-                return (
-                  <button
-                    key={group.dayKey}
-                    type="button"
-                    onClick={() => selectDay(i)}
-                    disabled={!isLoaded}
-                    className="group flex flex-col items-center gap-0.5 disabled:opacity-40"
-                    title={group.dayLabel}
-                  >
-                    <div
-                      className={`w-2.5 rounded-sm transition-all duration-200 ${
-                        isActive
-                          ? "h-6 bg-blue-600 shadow-sm"
-                          : "h-3 bg-blue-200 group-hover:h-4 group-hover:bg-blue-400"
-                      }`}
-                    />
-                    <span
-                      className={`text-[8px] leading-none ${
-                        isActive ? "font-bold text-blue-700" : "text-gray-400"
-                      }`}
-                    >
-                      {parseInt(dayNum, 10)}
-                    </span>
-                    <span
-                      className={`text-[7px] leading-none ${
-                        isActive ? "text-blue-500" : "text-gray-300"
-                      }`}
-                    >
-                      {group.weekday}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* แถบเลือกช่วงเวลา (ทุก 3 ชม.) */}
-            {currentDay && currentDay.frames.length > 0 && (
-              <div className="border-t border-gray-100 pt-2">
-                <div className="mb-1 text-center text-[9px] text-gray-400">
-                  ช่วงเวลา — {currentDay.dayLabel}
-                </div>
-                <div className="flex items-end justify-center gap-0.5">
-                  {currentDay.frames.map((frame, i) => {
-                    const isActive = hourIndex === i;
+            {panelExpanded && (
+              <div className="border-t border-[#eadbd4]/60 px-3 pb-2 pt-1.5">
+                {/* แถบเลือกวัน */}
+                <div className="mb-1.5 flex items-end justify-center gap-1">
+                  {dayGroups.map((group, i) => {
+                    const isActive = dayIndex === i;
+                    const dayNum = group.dayKey.slice(6, 8);
                     return (
                       <button
-                        key={frame.id}
+                        key={group.dayKey}
                         type="button"
-                        onClick={() => selectHour(i)}
+                        onClick={() => selectDay(i)}
                         disabled={!isLoaded}
                         className="group flex flex-col items-center gap-0.5 disabled:opacity-40"
-                        title={frame.displayLabel}
+                        title={group.dayLabel}
                       >
                         <div
-                          className={`w-1.5 rounded-sm transition-all duration-200 ${
+                          className={`w-2.5 rounded-sm transition-all duration-200 ${
                             isActive
-                              ? "h-5 bg-orange-500 shadow-sm"
-                              : "h-2.5 bg-orange-200 group-hover:h-3.5 group-hover:bg-orange-400"
+                              ? "h-5 bg-[#a73824] shadow-sm"
+                              : "h-2.5 bg-[#e8cec6] group-hover:h-3.5 group-hover:bg-[#d9b4aa]"
                           }`}
                         />
                         <span
-                          className={`text-[7px] leading-none ${
-                            isActive ? "font-bold text-orange-600" : "text-gray-400"
+                          className={`text-[8px] leading-none ${
+                            isActive ? "font-bold text-[#a73824]" : "text-gray-400"
                           }`}
                         >
-                          {frame.timeLabel}
+                          {parseInt(dayNum, 10)}
+                        </span>
+                        <span
+                          className={`text-[7px] leading-none ${
+                            isActive ? "text-[#c06652]" : "text-gray-300"
+                          }`}
+                        >
+                          {group.weekday}
                         </span>
                       </button>
                     );
                   })}
                 </div>
-              </div>
-            )}
 
-            {totalFrames > 1 && (
-              <div className="mt-1.5 flex items-center justify-center gap-2">
-                <button
-                  onClick={() => stepFrame(-1)}
-                  className="rounded p-1 text-gray-500 hover:bg-gray-100"
-                  title="ก่อนหน้า"
-                >
-                  <SkipBack className="h-3 w-3" />
-                </button>
-                <span className="text-[10px] text-gray-400">
-                  {flatIndex + 1} / {totalFrames}
-                </span>
-                <button
-                  onClick={() => stepFrame(1)}
-                  className="rounded p-1 text-gray-500 hover:bg-gray-100"
-                  title="ถัดไป"
-                >
-                  <SkipForward className="h-3 w-3" />
-                </button>
+                {/* แถบเลือกช่วงเวลา (ทุก 3 ชม.) */}
+                {currentDay && currentDay.frames.length > 0 && (
+                  <div className="border-t border-gray-100 pt-1.5">
+                    <div className="mb-1 text-center text-[9px] text-gray-400">
+                      ช่วงเวลา — {currentDay.dayLabel}
+                    </div>
+                    <div className="flex items-end justify-center gap-0.5">
+                      {currentDay.frames.map((frame, i) => {
+                        const isActive = hourIndex === i;
+                        return (
+                          <button
+                            key={frame.id}
+                            type="button"
+                            onClick={() => selectHour(i)}
+                            disabled={!isLoaded}
+                            className="group flex flex-col items-center gap-0.5 disabled:opacity-40"
+                            title={frame.displayLabel}
+                          >
+                            <div
+                              className={`w-1.5 rounded-sm transition-all duration-200 ${
+                                isActive
+                                  ? "h-4 bg-[#d96a4c] shadow-sm"
+                                  : "h-2 bg-[#f0dcd3] group-hover:h-3 group-hover:bg-[#d9b4aa]"
+                              }`}
+                            />
+                            <span
+                              className={`text-[7px] leading-none ${
+                                isActive ? "font-bold text-[#d96a4c]" : "text-gray-400"
+                              }`}
+                            >
+                              {frame.timeLabel}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {totalFrames > 1 && (
+                  <div className="mt-1.5 flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => stepFrame(-1)}
+                      className="rounded p-1 text-gray-500 hover:bg-gray-100"
+                      title="ก่อนหน้า"
+                    >
+                      <SkipBack className="h-3 w-3" />
+                    </button>
+                    <span className="text-[10px] text-gray-400">
+                      {flatIndex + 1} / {totalFrames}
+                    </span>
+                    <button
+                      onClick={() => stepFrame(1)}
+                      className="rounded p-1 text-gray-500 hover:bg-gray-100"
+                      title="ถัดไป"
+                    >
+                      <SkipForward className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState, FC, useMemo } from "react";
+import React, { useEffect, useRef, useState, FC } from "react";
 import { Layers, Map as MapIcon } from "lucide-react";
 import maplibregl, { Map, Marker, Popup, ScaleControl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -19,6 +19,8 @@ import {
   useStation,
   generateMockStationData,
 } from "@/contexts/station-context";
+import { useTelemetryHistory } from "@/hooks/use-telemetry-history";
+import { LAKE_CONFIG, type LakeId } from "@/lib/lake-thresholds";
 
 // ─────────────────────────────────────────────
 // SVG Icons
@@ -454,26 +456,11 @@ function formatDateTime(dt: string): string {
   }
 }
 
-interface HourlyPoint {
-  label: string;
-  value: number;
-}
-
-function generateMockWaterLevel(currentLevel: number): HourlyPoint[] {
-  const now = new Date();
-  let prev = Math.max(0.2, currentLevel - Math.random() * 1.5);
-  return Array.from({ length: 24 }, (_, i) => {
-    const t = new Date(now.getTime() - (23 - i) * 3_600_000);
-    const label = `${t.getDate()}-${t.toLocaleString("en", { month: "short" })} ${t
-      .getHours()
-      .toString()
-      .padStart(2, "0")}:00`;
-    const delta = (Math.random() - 0.45) * 0.3;
-    prev = Math.max(0.1, Math.min(6.5, prev + delta));
-    if (i === 23) prev = currentLevel;
-    return { label, value: parseFloat(prev.toFixed(2)) };
-  });
-}
+const DAY_TABS: { key: 1 | 3 | 7; label: string }[] = [
+  { key: 1, label: "1 วัน" },
+  { key: 3, label: "3 วัน" },
+  { key: 7, label: "7 วัน" },
+];
 
 // ─────────────────────────────────────────────
 // Custom Tooltip
@@ -504,14 +491,19 @@ const ChartModal: FC<ChartModalProps> = ({
   lakeData,
   onClose,
 }) => {
-  const data = useMemo(
-    () => generateMockWaterLevel(currentLevel),
-    [station.id, currentLevel],
-  );
-  const currentLabel = data[data.length - 1]?.label ?? "";
-  const tickLabels = data.filter((_, i) => i % 4 === 0).map((d) => d.label);
-
   const lakeId = lakeData?.lake_id ?? "";
+
+  const [days, setDays] = useState<1 | 3 | 7>(1);
+  const { data, loading, error } = useTelemetryHistory("lake", lakeId || null, days * 24);
+  const currentLabel = data[data.length - 1]?.label ?? "";
+  const tickEvery = Math.max(1, Math.ceil(data.length / 8));
+  const tickLabels = data.filter((_, i) => i % tickEvery === 0).map((d) => d.label);
+
+  const lakeCfg = LAKE_CONFIG[lakeId as LakeId];
+  const watchLevel = lakeCfg ? lakeCfg.maxLevel - lakeCfg.watchFB : null;
+  const warningLevel = lakeCfg ? lakeCfg.maxLevel - 1.0 : null;
+  const criticalLevel = lakeCfg ? lakeCfg.maxLevel - 0.5 : null;
+
   const lavInfo = LAV_DATA[lakeId];
 
   const apiVol = lakeData?.water_volume_m3;
@@ -560,6 +552,23 @@ const ChartModal: FC<ChartModalProps> = ({
               />
             </svg>
           </button>
+        </div>
+
+        {/* Tabs: ช่วงเวลาย้อนหลัง */}
+        <div className="flex w-full border-b border-gray-100">
+          {DAY_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setDays(tab.key)}
+              className={`flex-1 px-3 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                days === tab.key
+                  ? "text-blue-600 border-blue-600"
+                  : "text-gray-400 border-transparent hover:text-gray-600"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-2.5 bg-blue-50/60 text-xs text-gray-500 border-b border-blue-100">
@@ -629,13 +638,30 @@ const ChartModal: FC<ChartModalProps> = ({
 
         <div className="px-4 pt-4 pb-3">
           <p className="text-[11px] font-medium text-gray-400 mb-3 uppercase tracking-wide">
-            ระดับน้ำในบึง (ม.รทก.) — 24 ชั่วโมงย้อนหลัง
+            ระดับน้ำในบึง (ม.รทก.) — {DAY_TABS.find((t) => t.key === days)?.label}ย้อนหลัง
             {lakeData?.date_time && (
               <span className="ml-2 normal-case text-blue-400">
                 อัปเดต: {formatDateTime(lakeData.date_time)}
               </span>
             )}
           </p>
+          {loading ? (
+            <div className="flex h-[220px] items-center justify-center">
+              <div className="flex flex-col items-center gap-2 text-sm text-gray-400">
+                <svg className="h-6 w-6 animate-spin text-blue-400" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                กำลังโหลดข้อมูล...
+              </div>
+            </div>
+          ) : error ? (
+            <div className="flex h-[220px] items-center justify-center text-sm text-red-400">{error}</div>
+          ) : data.length === 0 ? (
+            <div className="flex h-[220px] items-center justify-center text-sm text-gray-400">
+              ไม่มีข้อมูลย้อนหลัง {DAY_TABS.find((t) => t.key === days)?.label}
+            </div>
+          ) : (
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart
               data={data}
@@ -660,65 +686,73 @@ const ChartModal: FC<ChartModalProps> = ({
                 axisLine={false}
               />
               <YAxis
-                domain={[0, 7]}
+                domain={["auto", "auto"]}
                 tick={{ fontSize: 10, fill: "#9ca3af" }}
                 tickLine={false}
                 axisLine={false}
                 unit=" ม."
               />
               <Tooltip content={<CustomTooltip />} />
-              <ReferenceLine
-                y={1.5}
-                stroke="#CA8A04"
-                strokeWidth={1}
-                strokeDasharray="5 4"
-                label={{
-                  value: "เฝ้าระวัง",
-                  position: "right",
-                  fontSize: 9,
-                  fill: "#CA8A04",
-                  fontWeight: 600,
-                }}
-              />
-              <ReferenceLine
-                y={3.0}
-                stroke="#EA580C"
-                strokeWidth={1}
-                strokeDasharray="5 4"
-                label={{
-                  value: "เตือนภัย",
-                  position: "right",
-                  fontSize: 9,
-                  fill: "#EA580C",
-                  fontWeight: 600,
-                }}
-              />
-              <ReferenceLine
-                y={4.5}
-                stroke="#DC2626"
-                strokeWidth={1}
-                strokeDasharray="5 4"
-                label={{
-                  value: "วิกฤต",
-                  position: "right",
-                  fontSize: 9,
-                  fill: "#DC2626",
-                  fontWeight: 600,
-                }}
-              />
-              <ReferenceLine
-                x={currentLabel}
-                stroke="#ef4444"
-                strokeWidth={1.5}
-                strokeDasharray="4 3"
-                label={{
-                  value: "ปัจจุบัน",
-                  position: "top",
-                  fontSize: 9,
-                  fill: "#ef4444",
-                  fontWeight: 600,
-                }}
-              />
+              {watchLevel != null && (
+                <ReferenceLine
+                  y={watchLevel}
+                  stroke="#CA8A04"
+                  strokeWidth={1}
+                  strokeDasharray="5 4"
+                  label={{
+                    value: "เฝ้าระวัง",
+                    position: "right",
+                    fontSize: 9,
+                    fill: "#CA8A04",
+                    fontWeight: 600,
+                  }}
+                />
+              )}
+              {warningLevel != null && (
+                <ReferenceLine
+                  y={warningLevel}
+                  stroke="#EA580C"
+                  strokeWidth={1}
+                  strokeDasharray="5 4"
+                  label={{
+                    value: "เตือนภัย",
+                    position: "right",
+                    fontSize: 9,
+                    fill: "#EA580C",
+                    fontWeight: 600,
+                  }}
+                />
+              )}
+              {criticalLevel != null && (
+                <ReferenceLine
+                  y={criticalLevel}
+                  stroke="#DC2626"
+                  strokeWidth={1}
+                  strokeDasharray="5 4"
+                  label={{
+                    value: "วิกฤต",
+                    position: "right",
+                    fontSize: 9,
+                    fill: "#DC2626",
+                    fontWeight: 600,
+                  }}
+                />
+              )}
+              {currentLabel && (
+                <ReferenceLine
+                  x={currentLabel}
+                  stroke="#ef4444"
+                  strokeWidth={1.5}
+                  strokeDasharray="4 3"
+                  label={{
+                    value: "ปัจจุบัน",
+                    position: "top",
+                    fontSize: 9,
+                    fill: "#ef4444",
+                    fontWeight: 600,
+                  }}
+                />
+              )}
               <Area
                 type="monotone"
                 dataKey="value"
@@ -726,6 +760,7 @@ const ChartModal: FC<ChartModalProps> = ({
                 strokeWidth={2.5}
                 fill="url(#swampGradient)"
                 dot={false}
+                connectNulls={false}
                 activeDot={{
                   r: 4,
                   fill: "#10B981",
@@ -735,6 +770,7 @@ const ChartModal: FC<ChartModalProps> = ({
               />
             </AreaChart>
           </ResponsiveContainer>
+          )}
         </div>
 
         <div className="flex justify-end px-5 pb-4 border-t border-gray-50 pt-3">

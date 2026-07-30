@@ -1,12 +1,13 @@
 "use client";
 import React, { useState } from 'react';
-import { 
-  LayoutDashboard, 
-  CloudRain, 
-  Waves, 
-  Gauge, 
-  Navigation, 
+import {
+  LayoutDashboard,
+  CloudRain,
+  Waves,
+  Gauge,
+  Navigation,
   BarChart3,
+  Radar,
   Menu,
   X
 } from 'lucide-react';
@@ -16,6 +17,8 @@ interface NavItem {
   id: string;
   label: string;
   icon: React.ElementType;
+  /** ต้อง login ก่อนถึงจะเห็นเมนูนี้ */
+  requiresAuth?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -25,20 +28,26 @@ const navItems: NavItem[] = [
   { id: 'drainage', label: 'ระดับน้ำในทางระบายน้ำ', icon: Gauge },
   { id: 'roads', label: 'ระดับน้ำเหนือผิวถนน', icon: Navigation },
   // { id: 'analysis', label: 'ผลวิเคราะห์ด้วยแบบจำลอง', icon: BarChart3 },
-  { id: 'mapflood', label: 'พื้นที่เสี่ยงน้ำท่วม', icon: Waves },
-  { id: 'alertanoncement', label: 'แนวทางป้องกันภัยน้ำท่วม', icon: Gauge },
+  { id: 'mapflood', label: 'พื้นที่เสี่ยงน้ำท่วม', icon: Waves, requiresAuth: true },
+  { id: 'alertanoncement', label: 'แนวทางป้องกันภัยน้ำท่วม', icon: Gauge, requiresAuth: true },
+  { id: 'radar', label: 'เรดาร์ระดับตำบล', icon: Radar },
 ];
 
 interface DashboardNavProps {
   activeView: string;
   onViewChange: (view: string) => void;
+  /** เมนูที่ requiresAuth (เช่น mapflood, alertanoncement) จะแสดงเฉพาะเมื่อ login แล้วเท่านั้น */
+  isLoggedIn?: boolean;
 }
 
-export const DashboardNavAdmin: React.FC<DashboardNavProps> = ({ 
-  activeView, 
-  onViewChange 
+export const DashboardNavAdmin: React.FC<DashboardNavProps> = ({
+  activeView,
+  onViewChange,
+  isLoggedIn = false,
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const visibleNavItems = navItems.filter((item) => !item.requiresAuth || isLoggedIn);
 
   const handleNavClick = (viewId: string) => {
     onViewChange(viewId);
@@ -89,10 +98,10 @@ export const DashboardNavAdmin: React.FC<DashboardNavProps> = ({
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-3">
           <ul className="space-y-1 px-2">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeView === item.id;
-              
+
               return (
                 <li key={item.id}>
                   <button
@@ -128,10 +137,10 @@ export const DashboardNavAdmin: React.FC<DashboardNavProps> = ({
       {/* Bottom Navigation Bar (Alternative Mobile Layout) */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 hidden border-t border-[#ead0c7] bg-white/95 backdrop-blur-sm sm:hidden">
         <div className="flex items-center justify-around px-2 py-2">
-          {navItems.slice(0, 5).map((item) => {
+          {visibleNavItems.slice(0, 5).map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;
-            
+
             return (
               <button
                 key={item.id}
