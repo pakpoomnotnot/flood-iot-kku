@@ -6,9 +6,15 @@ import {
 
 export interface TelemetryChartPoint {
   label: string;
-  value: number;
+  value: number | null;
   date_time: string;
 }
+
+/**
+ * ถ้าไม่มีข้อมูลใหม่นานเกินนี้ ให้ถือว่าเป็นช่วง "ไม่มีข้อมูล" (เซนเซอร์/สถานีขาดการเชื่อมต่อ)
+ * แทนที่จะลากเส้นค่าล่าสุดต่อไปเรื่อยๆ ซึ่งทำให้กราฟดูเหมือนระดับน้ำคงที่ทั้งที่จริงๆ ไม่มีข้อมูลส่งเข้ามาเลย
+ */
+const MAX_GAP_MS = 2 * 3_600_000;
 
 export function resolveTelemetryStationId(
   category: "pipe" | "road",
@@ -46,7 +52,8 @@ export function readingsToHourlyChart(
   );
 
   const points: TelemetryChartPoint[] = [];
-  let lastKnown = 0;
+  let lastKnown: number | null = null;
+  let lastKnownTime: number | null = null;
 
   for (let i = hours - 1; i >= 0; i--) {
     const bucketStart = new Date(now.getTime() - i * 3_600_000);
@@ -60,11 +67,15 @@ export function readingsToHourlyChart(
     const latest = inBucket.length > 0 ? inBucket[inBucket.length - 1] : null;
     if (latest) {
       lastKnown = parseFloat(latest.water_level_m.toFixed(3));
+      lastKnownTime = parseDateTime(latest.date_time).getTime();
     }
+
+    const isGap =
+      lastKnownTime === null || bucketStart.getTime() - lastKnownTime > MAX_GAP_MS;
 
     points.push({
       label: formatHourLabel(bucketStart),
-      value: lastKnown,
+      value: isGap ? null : lastKnown,
       date_time: latest?.date_time ?? bucketStart.toISOString(),
     });
   }

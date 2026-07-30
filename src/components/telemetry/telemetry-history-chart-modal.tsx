@@ -26,10 +26,15 @@ const getDrainageBarColor = (value: number) => {
 
 const PipeTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
+  const v = payload[0].value;
   return (
     <div className="rounded-lg border border-blue-100 bg-white px-3 py-2 shadow-lg text-xs">
       <p className="font-semibold text-gray-700">{label}</p>
-      <p className="text-blue-600 font-bold mt-0.5">{payload[0].value} ม.</p>
+      {v == null ? (
+        <p className="text-gray-400 font-medium mt-0.5">ไม่มีข้อมูล (สถานีขาดการเชื่อมต่อ)</p>
+      ) : (
+        <p className="text-blue-600 font-bold mt-0.5">{v} ม.</p>
+      )}
     </div>
   );
 };
@@ -37,6 +42,14 @@ const PipeTooltip = ({ active, payload, label }: any) => {
 const RoadTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   const v = payload[0].value;
+  if (v == null) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-lg text-xs">
+        <p className="font-semibold text-gray-600 mb-1">{label}</p>
+        <p className="font-medium text-gray-400">ไม่มีข้อมูล (สถานีขาดการเชื่อมต่อ)</p>
+      </div>
+    );
+  }
   const color =
     v > 0.69
       ? "#DC2626"
@@ -59,6 +72,7 @@ const RoadTooltip = ({ active, payload, label }: any) => {
 
 const CustomBar = (props: any) => {
   const { x, y, width, height, value } = props;
+  if (value == null) return null;
   return (
     <rect
       x={x}
@@ -105,6 +119,7 @@ export const TelemetryHistoryChartModal: FC<TelemetryHistoryChartModalProps> = (
   const currentLabel = data[data.length - 1]?.label ?? "";
   const tickLabels = data.filter((_, i) => i % 4 === 0).map((d) => d.label);
   const isPipe = category === "pipe";
+  const hasAnyReading = data.some((d) => d.value != null);
 
   return (
     <div
@@ -152,7 +167,7 @@ export const TelemetryHistoryChartModal: FC<TelemetryHistoryChartModalProps> = (
             <ChartLoading />
           ) : error ? (
             <div className="flex h-[220px] items-center justify-center text-sm text-red-400">{error}</div>
-          ) : data.length === 0 ? (
+          ) : data.length === 0 || !hasAnyReading ? (
             <div className="flex h-[220px] items-center justify-center text-sm text-gray-400">
               ไม่มีข้อมูลย้อนหลัง 24 ชม.
             </div>
@@ -198,7 +213,7 @@ export const TelemetryHistoryChartModal: FC<TelemetryHistoryChartModalProps> = (
                     label={{ value: "ปัจจุบัน", position: "top", fontSize: 9, fill: "#ef4444", fontWeight: 600 }} />
                 )}
                 <Area type="monotone" dataKey="value" stroke="#EF4444" strokeWidth={2.5}
-                  fill="url(#roadGradient)" dot={false}
+                  fill="url(#roadGradient)" dot={false} connectNulls={false}
                   activeDot={{ r: 4, fill: "#EF4444", strokeWidth: 2, stroke: "#fff" }} />
               </AreaChart>
             </ResponsiveContainer>
