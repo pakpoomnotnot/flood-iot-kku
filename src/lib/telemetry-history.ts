@@ -17,9 +17,11 @@ export interface TelemetryChartPoint {
 const MAX_GAP_MS = 2 * 3_600_000;
 
 export function resolveTelemetryStationId(
-  category: "pipe" | "road",
+  category: "pipe" | "road" | "lake",
   code: string,
 ): string {
+  // สถานีบึง (Lake_01..Lake_06) ใช้รหัสเดียวกับชื่อไฟล์ CSV อยู่แล้ว ไม่มี mapId แยกแบบ WP/WR
+  if (category === "lake") return code;
   if (code.startsWith("Pipe_") || code.startsWith("Road_")) return code;
   const stations =
     category === "pipe" ? PIPE_TELEMETRY_STATIONS : ROAD_TELEMETRY_STATIONS;

@@ -4,6 +4,8 @@ export const TELEMETRY_BASE_URL =
   process.env.TELEMETRY_CSV_BASE_URL ||
   "http://10.101.111.123:8080/transfer_data/telemetry_mqtt_data";
 
+export type TelemetryCategory = "lake" | "pipe" | "road";
+
 export interface TelemetryReading {
   date_time: string;
   receive_time: string;
@@ -19,76 +21,92 @@ export interface TelemetryReading {
   humid: number;
 }
 
-export function parseCsv(text: string): Record<string, string>[] {
-  const lines = text.trim().split("\n");
-  if (lines.length < 2) return [];
+// schema คงที่ของไฟล์ telemetry CSV (lake/pipe/road) — ดู docs/mqtt-data-source.md หัวข้อ 5
+// คอลัมน์ 0-25 ไม่มี comma ฝังอยู่ในค่า (มีแต่คอลัมน์ raw_json ท้ายสุดที่ห่อด้วย "..." และมี comma ข้างใน)
+// ใช้ index ตายตัว + split ธรรมดาได้อย่างปลอดภัย ไม่ต้อง parse CSV แบบรองรับ quote
+const COL = {
+  date_time: 0,
+  receive_time: 1,
+  topic: 2,
+  rain_daily: 5,
+  water_level: 6,
+  water_flow: 7,
+  water_total: 8,
+  air_temp: 12,
+  air_humid: 13,
+  temp: 22,
+  humid: 23,
+};
 
-  const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
-
-  return lines.slice(1).map((line) => {
-    const values: string[] = [];
-    let current = "";
-    let inQuotes = false;
-
-    for (const ch of line) {
-      if (ch === '"') {
-        inQuotes = !inQuotes;
-      } else if (ch === "," && !inQuotes) {
-        values.push(current.trim());
-        current = "";
-      } else {
-        current += ch;
-      }
-    }
-    values.push(current.trim());
-
-    return Object.fromEntries(headers.map((h, i) => [h, values[i] ?? ""]));
-  });
-}
-
-function rowToReading(row: Record<string, string>): TelemetryReading {
-  const num = (k: string) => parseFloat(row[k] ?? "0") || 0;
-  const waterLevelCm = num("water_level");
+function rowToReadingFromCols(cols: string[], category: TelemetryCategory): TelemetryReading {
+  const num = (i: number) => parseFloat(cols[i] ?? "0") || 0;
+  const rawLevel = num(COL.water_level);
+  // pipe/road เก็บ water_level เป็นเซนติเมตร ส่วน lake เก็บเป็นเมตร (ม.รทก./MSL) อยู่แล้ว
+  const waterLevelM = category === "lake" ? rawLevel : rawLevel / 100;
 
   return {
-    date_time: row.date_time ?? "",
-    receive_time: row.receive_time ?? "",
-    topic: row.topic ?? "",
-    water_level_cm: waterLevelCm,
-    water_level_m: waterLevelCm / 100,
-    water_flow: num("water_flow"),
-    water_total: num("water_total"),
-    rain_daily: num("rain_daily"),
-    air_temp: num("air_temp"),
-    air_humid: num("air_humid"),
-    temp: num("temp"),
-    humid: num("humid"),
+    date_time: cols[COL.date_time] ?? "",
+    receive_time: cols[COL.receive_time] ?? "",
+    topic: cols[COL.topic] ?? "",
+    water_level_cm: category === "lake" ? rawLevel * 100 : rawLevel,
+    water_level_m: waterLevelM,
+    water_flow: num(COL.water_flow),
+    water_total: num(COL.water_total),
+    rain_daily: num(COL.rain_daily),
+    air_temp: num(COL.air_temp),
+    air_humid: num(COL.air_humid),
+    temp: num(COL.temp),
+    humid: num(COL.humid),
   };
 }
 
+// ไฟล์ CSV ของ MQTT บางไฟล์ใหญ่หลาย MB แต่ส่วนใหญ่ต้องการแค่ไม่กี่วันล่าสุด — ขอด้วย
+// HTTP Range ท้ายไฟล์ก่อน (เบากว่าโหลดทั้งไฟล์มาก) ถ้าเซิร์ฟเวอร์ไม่รองรับ Range (คืน 200
+// แทน 206) ค่อย fallback ใช้ทั้งไฟล์ที่ได้มา
+async function fetchCsvTail(url: string, tailBytes: number, timeoutMs: number): Promise<string> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: { Range: `bytes=-${tailBytes}` },
+        next: { revalidate: 60 },
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (!res.ok && res.status !== 206) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const text = await res.text();
+      // ถ้าได้ 206 (partial) แถวแรกอาจถูกตัดกลางบรรทัด ตัดทิ้งไปเพื่อความปลอดภัย
+      return res.status === 206 ? text.slice(text.indexOf("\n") + 1) : text;
+    } catch (e) {
+      lastError = e;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
+function splitDataLines(text: string): string[] {
+  const lines = text.split(/\r?\n/).filter(Boolean);
+  return lines[0]?.startsWith("date_time") ? lines.slice(1) : lines;
+}
+
 export async function fetchTelemetryHistory(
-  category: "pipe" | "road",
+  category: TelemetryCategory,
   stationId: string,
   hours = 24,
 ): Promise<TelemetryReading[]> {
   const url = `${TELEMETRY_BASE_URL}/${category}/${stationId}.csv`;
 
-  const res = await fetch(url, {
-    next: { revalidate: 60 },
-    signal: AbortSignal.timeout(30_000),
-  });
-
-  if (!res.ok) {
-    throw new Error(`CSV fetch failed: ${res.status} ${res.statusText} — ${url}`);
-  }
-
-  const rows = parseCsv(await res.text());
-  if (rows.length === 0) return [];
+  // ~700 ไบต์/แถว ทุก 15 นาที เผื่อ margin ให้พอสำหรับช่วงเวลาที่ขอ (สูงสุด 7 วัน)
+  const tailBytes = Math.min(3_000_000, Math.max(300_000, hours * 4 * 700 * 1.3));
+  const text = await fetchCsvTail(url, Math.round(tailBytes), 30_000);
+  const lines = splitDataLines(text);
+  if (lines.length === 0) return [];
 
   const cutoff = Date.now() - hours * 3_600_000;
 
-  return rows
-    .map(rowToReading)
+  return lines
+    .map((line) => rowToReadingFromCols(line.split(","), category))
     .filter((reading) => {
       const t = new Date(reading.date_time.replace(" ", "T")).getTime();
       return !isNaN(t) && t >= cutoff;
@@ -97,25 +115,16 @@ export async function fetchTelemetryHistory(
 }
 
 export async function fetchLatestTelemetryReading(
-  category: "lake" | "pipe" | "road",
+  category: TelemetryCategory,
   stationId: string,
 ): Promise<TelemetryReading | null> {
   const url = `${TELEMETRY_BASE_URL}/${category}/${stationId}.csv`;
+  const text = await fetchCsvTail(url, 20_000, 15_000);
+  const lines = splitDataLines(text);
+  if (lines.length === 0) return null;
 
-  const res = await fetch(url, {
-    next: { revalidate: 60 },
-    signal: AbortSignal.timeout(15_000),
-  });
-
-  if (!res.ok) {
-    throw new Error(`CSV fetch failed: ${res.status} ${res.statusText} — ${url}`);
-  }
-
-  const rows = parseCsv(await res.text());
-  if (rows.length === 0) return null;
-
-  rows.sort((a, b) => (b.date_time ?? "").localeCompare(a.date_time ?? ""));
-  return rowToReading(rows[0]);
+  lines.sort((a, b) => b.localeCompare(a)); // date_time เป็นคอลัมน์แรก เรียง string ได้ตรงกับเวลา
+  return rowToReadingFromCols(lines[0].split(","), category);
 }
 
 export interface TelemetryStationResult {

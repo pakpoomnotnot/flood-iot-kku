@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FC } from "react";
+import React, { FC, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -98,6 +98,12 @@ const ChartLoading = () => (
   </div>
 );
 
+const DAY_TABS: { key: 1 | 3 | 7; label: string }[] = [
+  { key: 1, label: "1 วัน" },
+  { key: 3, label: "3 วัน" },
+  { key: 7, label: "7 วัน" },
+];
+
 interface TelemetryHistoryChartModalProps {
   category: "pipe" | "road";
   stationCode: string;
@@ -115,11 +121,14 @@ export const TelemetryHistoryChartModal: FC<TelemetryHistoryChartModalProps> = (
   currentLevel,
   onClose,
 }) => {
-  const { data, loading, error } = useTelemetryHistory(category, stationCode, 24);
+  const [days, setDays] = useState<1 | 3 | 7>(1);
+  const { data, loading, error } = useTelemetryHistory(category, stationCode, days * 24);
   const currentLabel = data[data.length - 1]?.label ?? "";
-  const tickLabels = data.filter((_, i) => i % 4 === 0).map((d) => d.label);
+  const tickEvery = Math.max(1, Math.ceil(data.length / 8));
+  const tickLabels = data.filter((_, i) => i % tickEvery === 0).map((d) => d.label);
   const isPipe = category === "pipe";
   const hasAnyReading = data.some((d) => d.value != null);
+  const accentActive = isPipe ? "text-blue-600 border-blue-600" : "text-red-600 border-red-600";
 
   return (
     <div
@@ -147,6 +156,21 @@ export const TelemetryHistoryChartModal: FC<TelemetryHistoryChartModalProps> = (
           </button>
         </div>
 
+        {/* Tabs: ช่วงเวลาย้อนหลัง */}
+        <div className="flex w-full border-b border-gray-100">
+          {DAY_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setDays(tab.key)}
+              className={`flex-1 px-3 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                days === tab.key ? accentActive : "text-gray-400 border-transparent hover:text-gray-600"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         <div
           className={`flex items-center gap-4 px-5 py-2.5 text-xs text-gray-500 border-b ${
             isPipe ? "bg-blue-50/60 border-blue-100" : "bg-red-50/60 border-red-100"
@@ -160,7 +184,7 @@ export const TelemetryHistoryChartModal: FC<TelemetryHistoryChartModalProps> = (
 
         <div className="px-4 pt-4 pb-3">
           <p className="text-[11px] font-medium text-gray-400 mb-3 uppercase tracking-wide">
-            {isPipe ? "ระดับน้ำในท่อ (ม.)" : "ระดับน้ำท่วมถนน (ม.)"} — 24 ชั่วโมงย้อนหลัง
+            {isPipe ? "ระดับน้ำในท่อ (ม.)" : "ระดับน้ำท่วมถนน (ม.)"} — {DAY_TABS.find((t) => t.key === days)?.label}ย้อนหลัง
           </p>
 
           {loading ? (
@@ -169,7 +193,7 @@ export const TelemetryHistoryChartModal: FC<TelemetryHistoryChartModalProps> = (
             <div className="flex h-[220px] items-center justify-center text-sm text-red-400">{error}</div>
           ) : data.length === 0 || !hasAnyReading ? (
             <div className="flex h-[220px] items-center justify-center text-sm text-gray-400">
-              ไม่มีข้อมูลย้อนหลัง 24 ชม.
+              ไม่มีข้อมูลย้อนหลัง {DAY_TABS.find((t) => t.key === days)?.label}
             </div>
           ) : isPipe ? (
             <ResponsiveContainer width="100%" height={220}>

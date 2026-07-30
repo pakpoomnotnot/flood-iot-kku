@@ -1,10 +1,14 @@
 import MapViewAdmin from "@/sections/map-view/map-view-admin";
 import React from "react";
+import { cookies } from "next/headers";
 
-const page = () => {
+const page = async () => {
+  const cookieStore = await cookies();
+  const isLoggedIn = cookieStore.get("auth")?.value === "true";
+
   return (
     <div>
-      <MapViewAdmin />
+      <MapViewAdmin isLoggedIn={isLoggedIn} />
     </div>
   );
 };

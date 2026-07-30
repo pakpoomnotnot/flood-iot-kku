@@ -9,11 +9,11 @@ export async function GET(req: NextRequest) {
   const category = req.nextUrl.searchParams.get("category");
   const stationId = req.nextUrl.searchParams.get("station_id");
   const hours = Math.min(
-    72,
+    24 * 7,
     Math.max(1, parseInt(req.nextUrl.searchParams.get("hours") ?? "24", 10)),
   );
 
-  if (category !== "pipe" && category !== "road") {
+  if (category !== "pipe" && category !== "road" && category !== "lake") {
     return NextResponse.json({ error: "Invalid category" }, { status: 400 });
   }
   if (!stationId) {

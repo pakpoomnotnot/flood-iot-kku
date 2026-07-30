@@ -13,6 +13,7 @@ import MapComponentRoads from "@/components/map/map_road";
 import MapComponentAnalytics from "@/components/map/map_analytics";
 import MapComponentFlood from "@/components/map/map_flood_area";
 import FloodDashboard from "@/components/map/map_help";
+import MapComponentRadar from "@/components/map/map_radar";
 import { DashboardNavAdmin } from "@/components/layout/dashboard-nav-admin";
 import {
   RAINFALL_TABS,
@@ -50,7 +51,11 @@ const RainfallTabBar = ({
   </div>
 );
 
-const MapViewAdmin = () => {
+interface MapViewAdminProps {
+  isLoggedIn?: boolean;
+}
+
+const MapViewAdmin = ({ isLoggedIn = false }: MapViewAdminProps) => {
   const [activeView, setActiveView] = useState("overview");
   const [showTable, setShowTable] = useState(false);
   const {
@@ -64,7 +69,7 @@ const MapViewAdmin = () => {
   const getMapComponent = () => {
     switch (activeView) {
       case "rainfall":
-        return <MapComponent />;
+        return <MapComponent rainfallWindow={deriveRainWindow(rainfallTab)} />;
       case "ponds":
         return <MapComponentSwamp />;
       case "drainage":
@@ -77,6 +82,8 @@ const MapViewAdmin = () => {
         return <MapComponentFlood />;
       case "alertanoncement":
         return <FloodDashboard />;
+      case "radar":
+        return <MapComponentRadar />;
       default:
         return <MapComponent />;
     }
@@ -88,7 +95,11 @@ const MapViewAdmin = () => {
         <DashboardHeader />
 
         <div className="flex flex-1 overflow-hidden">
-          <DashboardNavAdmin activeView={activeView} onViewChange={setActiveView} />
+          <DashboardNavAdmin
+            activeView={activeView}
+            onViewChange={setActiveView}
+            isLoggedIn={isLoggedIn}
+          />
 
           <div className="relative flex flex-1 flex-col overflow-hidden bg-[#fffaf7]">
             {activeView === "overview" ? (
@@ -104,7 +115,8 @@ const MapViewAdmin = () => {
               </div>
             ) : activeView === "analysis" ||
               activeView === "mapflood" ||
-              activeView === "alertanoncement" ? (
+              activeView === "alertanoncement" ||
+              activeView === "radar" ? (
               <main className="flex h-full w-full flex-col overflow-hidden bg-white p-2 sm:p-4">
                 <div className="h-full w-full rounded-xl border border-[#ead0c7] bg-slate-900 shadow-inner">
                   {getMapComponent()}

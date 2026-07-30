@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { TelemetryChartPoint } from "@/lib/telemetry-history";
 
 export function useTelemetryHistory(
-  category: "pipe" | "road" | null,
+  category: "pipe" | "road" | "lake" | null,
   stationCode: string | null,
   hours = 24,
 ) {
