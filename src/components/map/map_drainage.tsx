@@ -7,7 +7,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import stationsData from "./stations_complete.json";
 import { useStation, generateMockStationData } from "@/contexts/station-context";
 import type { TelemetryStationResult } from "@/app/api/lib/fetchTelemetryReading";
-import { getPipeMarkerColor, formatTelemetryTime } from "@/lib/water-level-status";
+import { getPipeMarkerColor, formatTelemetryTime, PIPE_BANDS, NO_DATA_COLOR } from "@/lib/water-level-status";
 import { TelemetryHistoryChartModal } from "@/components/telemetry/telemetry-history-chart-modal";
 
 // ─────────────────────────────────────────────
@@ -48,24 +48,19 @@ const stationTypeConfig = {
 };
 
 // ─────────────────────────────────────────────
-// Legend segments (ระดับน้ำในท่อ)
+// Legend segments (ระดับน้ำในท่อ) — ให้ตรงกับสี marker เป๊ะๆ จึงสร้างจาก
+// PIPE_BANDS เดียวกับที่ createMarkerElement() ใช้ ไม่ hardcode แยกต่างหาก
 // ─────────────────────────────────────────────
-const LEGEND_SEGMENTS = [
-  { range: "0-0.5",   color: "#81d4fa" },
-  { range: ">0.5-1",  color: "#d0f8ce" },
-  { range: ">1-1.5",  color: "#7cb342" },
-  { range: ">1.5-2",  color: "#fdd835" },
-  { range: ">2-2.5",  color: "#f57f17" },
-  { range: ">2.5",    color: "#8d6e63" },
-  { range: "สูงมาก", color: "#bf360c" },
-];
+const PIPE_BANDS_ASC = [...PIPE_BANDS].reverse();
 
+const LEGEND_SEGMENTS = PIPE_BANDS_ASC.map((b) => ({ range: b.range, color: b.color }));
 
-const LEVEL_LABELS = [
-  { label: "ปกติ",      span: 2 },
-  { label: "ปานกลาง",  span: 2 },
-  { label: "วิกฤต",    span: 2 },
-];
+const LEVEL_LABELS = PIPE_BANDS_ASC.reduce<{ label: string; span: number }[]>((acc, b) => {
+  const last = acc[acc.length - 1];
+  if (last && last.label === b.label) last.span += 1;
+  else acc.push({ label: b.label, span: 1 });
+  return acc;
+}, []);
 
 // ─────────────────────────────────────────────
 // Main MapComponentDrainage
@@ -97,8 +92,10 @@ const MapComponentDrainage: FC = () => {
     const prefix = stationId.substring(0, 2) as keyof typeof stationTypeConfig;
     const config = stationTypeConfig[prefix] || { color: "#6B7280", icon: ICONS.mapPin };
     const reading = telemetryRef.current[stationId];
-    const levelM = reading?.status === "ok" ? (reading.water_level_m ?? 0) : 0;
-    const markerColor = reading?.status === "ok" ? getPipeMarkerColor(levelM) : config.color;
+    const hasReading = reading?.status === "ok" && reading.water_level_m != null;
+    const levelM = hasReading ? reading!.water_level_m! : 0;
+    // ไม่มี reading เลย (สถานีไม่ส่งข้อมูลเข้ามา) -> เทา, ถ้ามี reading (แม้เป็น 0.00 จริงๆ) -> สีตามเกณฑ์
+    const markerColor = hasReading ? getPipeMarkerColor(levelM) : NO_DATA_COLOR.color;
     const waterHeight = Math.min((levelM / 3) * 100, 100);
     el.innerHTML = `
       <div class="custom-marker-animated" style="--marker-color: ${markerColor}; --water-height: ${waterHeight}%;">
@@ -123,6 +120,10 @@ const MapComponentDrainage: FC = () => {
     const mockUnit  = "ม.";
     const mockLabel = "ระดับน้ำในท่อ";
     const timeLabel = hasData ? formatTelemetryTime(reading!.date_time) : "ไม่มีข้อมูล";
+    // แจ้งเตือนเมื่อไม่มี reading เข้ามาเลย หรือมีแต่ MQTT ไม่อัปเดตมานาน (ไม่ใช่แค่ค่า 0.00 จริง)
+    const errorNotice = prefix === "WP" && (reading?.stale || !hasData)
+      ? `<div class="station-error-notice">⚠️ สถานีเกิดข้อผิดพลาด รอการตรวจสอบ</div>`
+      : "";
 
     const waterHeight = Math.min((mockValue / 3) * 100, 100);
 
@@ -142,6 +143,7 @@ const MapComponentDrainage: FC = () => {
         </div>
         <div class="popup-content-body">
           <div class="data-label">${mockLabel}</div>
+          ${errorNotice}
           ${prefix === "WP" ? `
           <div class="pipe-water-container">
             <div class="pipe-visualization">
@@ -378,6 +380,7 @@ const MapComponentDrainage: FC = () => {
         .location-area { font-size: 11px; color: #6B7280; font-weight: 500; }
         .popup-content-body { padding: 14px; background: #F9FAFB; }
         .data-label { font-size: 10px; color: #6B7280; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+        .station-error-notice { display: flex; align-items: center; gap: 6px; background: #fef2f2; border: 1px solid #fca5a5; color: #b91c1c; font-size: 11px; font-weight: 700; padding: 8px 10px; border-radius: 8px; margin-bottom: 10px; }
         .data-value-box { background: white; border: 2px solid #E5E7EB; border-radius: 10px; padding: 12px; display: flex; align-items: baseline; gap: 6px; margin-bottom: 10px; }
         .data-number { font-size: 32px; font-weight: 800; color: #1F2937; line-height: 1; }
         .data-unit { font-size: 14px; font-weight: 600; color: #6B7280; }

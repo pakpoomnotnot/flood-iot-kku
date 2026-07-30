@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchLatestReading } from "../lib/fetchLakeData";
+import { fetchLatestTelemetryReading, isStaleReading } from "../lib/fetchTelemetryReading";
 import { LAKES } from "../lib/lakes";
 
 interface LavRow { level: number; area: number; vol: number; }
@@ -136,7 +136,7 @@ function computeLAV(
 export async function GET() {
   const results = await Promise.allSettled(
     LAKES.map(async (lake) => {
-      const reading = await fetchLatestReading(lake.id);
+      const reading = await fetchLatestTelemetryReading("lake", lake.id);
       return { lake, reading };
     })
   );
@@ -168,7 +168,7 @@ export async function GET() {
       };
     }
 
-    const lav = computeLAV(lake.id, reading.water_level);
+    const lav = computeLAV(lake.id, reading.water_level_m);
 
     return {
       lake_id: lake.id,
@@ -176,7 +176,8 @@ export async function GET() {
       name_en: lake.nameEn,
       location: { lat: lake.lat, lng: lake.lng },
       status: "ok",
-      water_level: reading.water_level,
+      stale: isStaleReading(reading.date_time),
+      water_level: reading.water_level_m,
       water_flow:  reading.water_flow,
       water_total: reading.water_total,
       rain_value:  reading.rain_value,

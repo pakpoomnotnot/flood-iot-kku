@@ -14,44 +14,92 @@ export type RoadLevelStatusThai =
   | "ปกติ"
   | "ไม่มีข้อมูล";
 
+export interface LevelBand {
+  /** ค่ามากกว่า min นี้ถึงจะเข้าเกณฑ์นี้ (exclusive) */
+  min: number;
+  label: string;
+  range: string;
+  color: string;
+  textColor: string;
+}
+
+/**
+ * เกณฑ์ระดับน้ำในท่อ (ม.) — แหล่งอ้างอิงเดียวที่ marker บนแผนที่ (map_drainage),
+ * legend บนแผนที่ และสีสถานะในตาราง (dashbaord-table) ใช้ร่วมกันทั้งหมด
+ * เพื่อไม่ให้สีเพี้ยนไปคนละทางเหมือนที่เคยเกิดขึ้น
+ */
+export const PIPE_BANDS: LevelBand[] = [
+  { min: 2.5, label: "วิกฤต", range: "> 2.5", color: "#bf360c", textColor: "#fff" },
+  { min: 2.0, label: "เตือนภัย", range: "> 2.0–2.5", color: "#8d6e63", textColor: "#fff" },
+  { min: 1.5, label: "เฝ้าระวัง", range: "> 1.5–2.0", color: "#f57f17", textColor: "#fff" },
+  { min: 1.0, label: "ปานกลาง", range: "> 1.0–1.5", color: "#fdd835", textColor: "#333" },
+  { min: 0.5, label: "ปานกลาง", range: "> 0.5–1.0", color: "#7cb342", textColor: "#fff" },
+  { min: -Infinity, label: "ปกติ", range: "0–0.5", color: "#81d4fa", textColor: "#333" },
+];
+
+/**
+ * เกณฑ์ระดับน้ำบนผิวถนน (ม.) — แหล่งอ้างอิงเดียวที่ marker บนแผนที่ (map_road),
+ * legend บนแผนที่ และสีสถานะในตาราง ใช้ร่วมกันทั้งหมด
+ */
+export const ROAD_BANDS: LevelBand[] = [
+  { min: 0.69, label: "น้ำท่วม", range: "> 0.69", color: "#bf360c", textColor: "#fff" },
+  { min: 0.57, label: "สูง", range: "> 0.57–0.69", color: "#8d6e63", textColor: "#fff" },
+  { min: 0.46, label: "สูง", range: "> 0.46–0.57", color: "#f57f17", textColor: "#fff" },
+  { min: 0.34, label: "กลาง", range: "> 0.34–0.46", color: "#fdd835", textColor: "#333" },
+  { min: 0.23, label: "กลาง", range: "> 0.23–0.34", color: "#7cb342", textColor: "#fff" },
+  { min: 0.11, label: "ต่ำ", range: "> 0.11–0.23", color: "#d0f8ce", textColor: "#333" },
+  { min: -Infinity, label: "ปกติ", range: "0–0.11", color: "#81d4fa", textColor: "#333" },
+];
+
+function bandFor(bands: LevelBand[], levelM: number): LevelBand {
+  return bands.find((b) => levelM > b.min) ?? bands[bands.length - 1];
+}
+
+/** สี badge เมื่อไม่มีข้อมูล (ใช้ร่วมกันทั้งตารางและแผนที่) */
+export const NO_DATA_COLOR = { color: "#e5e7eb", textColor: "#6b7280" };
+
+/**
+ * หมายเหตุ: ระดับน้ำท่อ/ถนน 0.00 ม. เป็นค่าที่เกิดขึ้นจริงและพบบ่อย (ท่อแห้ง/ถนนไม่มีน้ำท่วม
+ * ตอนไม่มีฝน) จึง "ไม่" ถือว่า 0 คือไม่มีข้อมูล (ต่างจากระดับน้ำบึงที่เป็นค่าระดับ รทก. ซึ่ง 0
+ * เป็นไปไม่ได้ทางกายภาพ) — ไม่มีข้อมูลจริงๆ คือกรณี undefined/NaN (ไม่มี reading เข้ามาเลย)
+ */
+function isNoDataLevel(levelM: number | undefined): levelM is undefined {
+  return levelM == null || isNaN(levelM);
+}
+
 /** ระดับน้ำในท่อ (ม.) — ตาม LEGEND ใน map_drainage */
 export function getPipeLevelStatusThai(levelM: number | undefined): PipeLevelStatusThai {
-  if (levelM == null || isNaN(levelM)) return "ไม่มีข้อมูล";
-  if (levelM > 2.5) return "วิกฤต";
-  if (levelM > 2.0) return "เตือนภัย";
-  if (levelM > 1.5) return "เฝ้าระวัง";
-  if (levelM > 1.0) return "ปานกลาง";
-  if (levelM > 0.5) return "ปานกลาง";
-  return "ปกติ";
+  if (isNoDataLevel(levelM)) return "ไม่มีข้อมูล";
+  return bandFor(PIPE_BANDS, levelM).label as PipeLevelStatusThai;
 }
 
 /** ระดับน้ำบนผิวถนน (ม.) — ตาม LEGEND ใน map_road */
 export function getRoadLevelStatusThai(levelM: number | undefined): RoadLevelStatusThai {
-  if (levelM == null || isNaN(levelM)) return "ไม่มีข้อมูล";
-  if (levelM > 0.69) return "น้ำท่วม";
-  if (levelM > 0.46) return "สูง";
-  if (levelM > 0.23) return "กลาง";
-  if (levelM > 0.11) return "ต่ำ";
-  return "ปกติ";
+  if (isNoDataLevel(levelM)) return "ไม่มีข้อมูล";
+  return bandFor(ROAD_BANDS, levelM).label as RoadLevelStatusThai;
 }
 
 export function getPipeMarkerColor(levelM: number): string {
-  if (levelM > 2.5) return "#bf360c";
-  if (levelM > 2.0) return "#8d6e63";
-  if (levelM > 1.5) return "#f57f17";
-  if (levelM > 1.0) return "#fdd835";
-  if (levelM > 0.5) return "#7cb342";
-  return "#81d4fa";
+  if (isNoDataLevel(levelM)) return NO_DATA_COLOR.color;
+  return bandFor(PIPE_BANDS, levelM).color;
 }
 
 export function getRoadMarkerColor(levelM: number): string {
-  if (levelM > 0.69) return "#bf360c";
-  if (levelM > 0.57) return "#8d6e63";
-  if (levelM > 0.46) return "#f57f17";
-  if (levelM > 0.34) return "#fdd835";
-  if (levelM > 0.23) return "#7cb342";
-  if (levelM > 0.11) return "#d0f8ce";
-  return "#81d4fa";
+  if (isNoDataLevel(levelM)) return NO_DATA_COLOR.color;
+  return bandFor(ROAD_BANDS, levelM).color;
+}
+
+/** สี badge ของตาราง (คำนวณจากค่าดิบตรงๆ ให้ตรงกับ marker/legend บนแผนที่เป๊ะๆ) */
+export function getPipeLevelColor(levelM: number | undefined): { color: string; textColor: string } {
+  if (isNoDataLevel(levelM)) return NO_DATA_COLOR;
+  const b = bandFor(PIPE_BANDS, levelM);
+  return { color: b.color, textColor: b.textColor };
+}
+
+export function getRoadLevelColor(levelM: number | undefined): { color: string; textColor: string } {
+  if (isNoDataLevel(levelM)) return NO_DATA_COLOR;
+  const b = bandFor(ROAD_BANDS, levelM);
+  return { color: b.color, textColor: b.textColor };
 }
 
 export function bucketSurfaceWaterLevels(levels: Array<number | undefined>) {
@@ -73,7 +121,7 @@ export function bucketSurfaceWaterLevels(levels: Array<number | undefined>) {
 export function bucketPipeLevels(levels: Array<number | undefined>) {
   const stats = { critical: 0, alert: 0, watch: 0, normal: 0, noData: 0 };
   levels.forEach((levelM) => {
-    if (levelM == null || isNaN(levelM)) {
+    if (isNoDataLevel(levelM)) {
       stats.noData++;
       return;
     }
@@ -89,7 +137,7 @@ export function bucketPipeLevels(levels: Array<number | undefined>) {
 export function bucketRoadLevels(levels: Array<number | undefined>) {
   const stats = { critical: 0, alert: 0, watch: 0, normal: 0, noData: 0 };
   levels.forEach((levelM) => {
-    if (levelM == null || isNaN(levelM)) {
+    if (isNoDataLevel(levelM)) {
       stats.noData++;
       return;
     }

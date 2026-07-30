@@ -25,6 +25,7 @@ import {
   getRainSeverity,
   getRainLegendSegments,
   windowLabel as rainWindowLabel,
+  rainUnitLabel,
   type RainSeverityWindow,
 } from "@/lib/rain-severity";
 
@@ -476,7 +477,7 @@ const MapComponent: FC<MapComponentProps> = ({ rainfallWindow = "1h" }) => {
           <div class="data-label">ปริมาณน้ำฝนสะสม ${rainWindowLabel(rainfallWindow)} (ล่าสุด)</div>
           <div class="data-value-box" style="border-color:${color}40;">
             <span class="data-number" style="color:${value > 0 ? color : "#9CA3AF"}">${value.toFixed(1)}</span>
-            <span class="data-unit">มม.</span>
+            <span class="data-unit">${rainUnitLabel(rainfallWindow)}</span>
           </div>
           <div class="popup-footer-row">
             <div class="data-timestamp">
@@ -661,7 +662,7 @@ const MapComponent: FC<MapComponentProps> = ({ rainfallWindow = "1h" }) => {
       <div className="flex-shrink-0 bg-white border-t border-gray-300 px-3 pt-1.5 pb-2">
         <div className="flex justify-end mb-1">
           <span className="text-[10px] text-gray-500">
-            ปริมาณน้ำฝนสะสม ({rainWindowLabel(rainfallWindow)}) — อัปเดต:{" "}
+            ปริมาณน้ำฝนสะสม {rainWindowLabel(rainfallWindow)} ({rainUnitLabel(rainfallWindow)}) — อัปเดต:{" "}
             <span className="font-semibold text-blue-700">
               {lastUpdate === "-" ? "-" : formatTime(lastUpdate)}
             </span>
