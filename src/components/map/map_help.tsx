@@ -1,303 +1,73 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   AlertTriangle,
   Waves,
   ArrowUp,
   MapPin,
-  Megaphone,
-  PhoneCall,
   ShieldAlert,
   Info,
   ChevronRight,
-  Clock,
   LayoutDashboard,
   AlertOctagon,
   Activity,
   Download,
-  CloudRain,
   Droplet,
   FileText,
-  Calendar,
-  ChevronDown,
-  Eye,
+  RefreshCw,
 } from "lucide-react";
-import { RAIN_STATIONS } from "@/lib/rain-stations";
 import { generateOfficialPDFReport } from "./pdfGenerator";
 import HecRasFinalCode from "./water-way";
+import { LAKE_CONFIG, getPondStatusThai, type LakeId } from "@/lib/lake-thresholds";
+import {
+  getPipeLevelStatusThai,
+  getRoadLevelStatusThai,
+} from "@/lib/water-level-status";
+import type { TelemetryApiResponse, TelemetryStationResult } from "@/lib/telemetry-types";
+import {
+  computeOverallSeverity,
+  OVERALL_SEVERITY_TEXT,
+  type OverallSeverity,
+} from "@/lib/flood-overall-severity";
 
 // Types
-type SeverityLevel = "CRITICAL" | "WARNING" | "WATCH";
-type RiskLevel = "CRITICAL" | "WARNING" | "WATCH";
-type Priority = "high" | "medium" | "low";
 type TabId = "command" | "reports" | "drainage";
 
-interface PDFReport {
-  id: string;
-  date: string;
-  time: string;
-  title: string;
-  severity: SeverityLevel;
-  fileSize: string;
+interface LakeApiItem {
+  lake_id: string;
+  name_th: string;
+  status: "ok" | "error" | "no_data";
+  water_level?: number;
+  water_volume_m3?: number | null;
+  capacity_pct?: number | null;
+  date_time?: string;
 }
 
-// Mock Data
-export const floodSituation = {
-  announcementNo: "12/2568",
-  date: "18 ธ.ค. 68",
-  time: "15:00 น.",
-  severityLevel: "CRITICAL" as SeverityLevel,
-  mainMessage: "แจ้งเตือนระดับน้ำล้นตลิ่ง ลุ่มน้ำชี และพื้นที่เศรษฐกิจ",
-  detail:
-    "ระดับน้ำมีแนวโน้มสูงขึ้น 5-10 ซม./ชม. ขอให้ประชาชนในพื้นที่เสี่ยงภัยปฏิบัติตามคำแนะนำ",
-};
-
-// Mock PDF Reports (รายงานย้อนหลัง 30 วัน)
-export const pdfReports: PDFReport[] = [
-  {
-    id: "001",
-    date: "18 ธ.ค. 2568",
-    time: "15:00",
-    title: "รายงานสถานการณ์น้ำท่วม - สถานะวิกฤต",
-    severity: "CRITICAL",
-    fileSize: "2.4 MB",
-  },
-  {
-    id: "002",
-    date: "18 ธ.ค. 2568",
-    time: "09:00",
-    title: "รายงานสถานการณ์น้ำท่วม - เฝ้าระวัง",
-    severity: "WARNING",
-    fileSize: "2.1 MB",
-  },
-  {
-    id: "003",
-    date: "17 ธ.ค. 2568",
-    time: "18:00",
-    title: "รายงานสถานการณ์น้ำท่วม - สถานะวิกฤต",
-    severity: "CRITICAL",
-    fileSize: "2.3 MB",
-  },
-  {
-    id: "004",
-    date: "17 ธ.ค. 2568",
-    time: "12:00",
-    title: "รายงานสถานการณ์น้ำท่วม - เฝ้าระวัง",
-    severity: "WARNING",
-    fileSize: "2.0 MB",
-  },
-  {
-    id: "005",
-    date: "17 ธ.ค. 2568",
-    time: "06:00",
-    title: "รายงานสถานการณ์น้ำท่วม - เฝ้าระวัง",
-    severity: "WARNING",
-    fileSize: "1.9 MB",
-  },
-  {
-    id: "006",
-    date: "16 ธ.ค. 2568",
-    time: "20:00",
-    title: "รายงานสถานการณ์น้ำท่วม - สถานะปกติ",
-    severity: "WATCH",
-    fileSize: "1.8 MB",
-  },
-  {
-    id: "007",
-    date: "16 ธ.ค. 2568",
-    time: "14:00",
-    title: "รายงานสถานการณ์น้ำท่วม - เฝ้าระวัง",
-    severity: "WARNING",
-    fileSize: "2.2 MB",
-  },
-  {
-    id: "008",
-    date: "16 ธ.ค. 2568",
-    time: "08:00",
-    title: "รายงานสถานการณ์น้ำท่วม - สถานะปกติ",
-    severity: "WATCH",
-    fileSize: "1.7 MB",
-  },
-  {
-    id: "009",
-    date: "15 ธ.ค. 2568",
-    time: "18:00",
-    title: "รายงานสถานการณ์น้ำท่วม - สถานะปกติ",
-    severity: "WATCH",
-    fileSize: "1.6 MB",
-  },
-  {
-    id: "010",
-    date: "15 ธ.ค. 2568",
-    time: "10:00",
-    title: "รายงานสถานการณ์น้ำท่วม - สถานะปกติ",
-    severity: "WATCH",
-    fileSize: "1.5 MB",
-  },
-  {
-    id: "011",
-    date: "14 ธ.ค. 2568",
-    time: "16:00",
-    title: "รายงานสถานการณ์น้ำท่วม - เฝ้าระวัง",
-    severity: "WARNING",
-    fileSize: "2.0 MB",
-  },
-  {
-    id: "012",
-    date: "14 ธ.ค. 2568",
-    time: "08:00",
-    title: "รายงานสถานการณ์น้ำท่วม - สถานะปกติ",
-    severity: "WATCH",
-    fileSize: "1.4 MB",
-  },
-  {
-    id: "013",
-    date: "13 ธ.ค. 2568",
-    time: "18:00",
-    title: "รายงานสถานการณ์น้ำท่วม - สถานะวิกฤต",
-    severity: "CRITICAL",
-    fileSize: "2.6 MB",
-  },
-  {
-    id: "014",
-    date: "13 ธ.ค. 2568",
-    time: "12:00",
-    title: "รายงานสถานการณ์น้ำท่วม - เฝ้าระวัง",
-    severity: "WARNING",
-    fileSize: "2.1 MB",
-  },
-  {
-    id: "015",
-    date: "13 ธ.ค. 2568",
-    time: "06:00",
-    title: "รายงานสถานการณ์น้ำท่วม - สถานะปกติ",
-    severity: "WATCH",
-    fileSize: "1.5 MB",
-  },
-];
-
-export const rainStations = [
-  {
-    stationCode: "BKN",
-    nameTh: RAIN_STATIONS.BKN.name,
-    lat: RAIN_STATIONS.BKN.lat,
-    long: RAIN_STATIONS.BKN.lon,
-    past24h: "ไม่มีข้อมูล",
-    forecast24h: "ไม่มีข้อมูล",
-    forecast72h: "ไม่มีข้อมูล",
-  },
-  {
-    stationCode: "BNK",
-    nameTh: RAIN_STATIONS.BNK.name,
-    lat: RAIN_STATIONS.BNK.lat,
-    long: RAIN_STATIONS.BNK.lon,
-    past24h: "ไม่มีข้อมูล",
-    forecast24h: "ไม่มีข้อมูล",
-    forecast72h: "ไม่มีข้อมูล",
-  },
-  {
-    stationCode: "BSV",
-    nameTh: RAIN_STATIONS.BSV.name,
-    lat: RAIN_STATIONS.BSV.lat,
-    long: RAIN_STATIONS.BSV.lon,
-    past24h: "ไม่มีข้อมูล",
-    forecast24h: "ไม่มีข้อมูล",
-    forecast72h: "ไม่มีข้อมูล",
-  },
-  {
-    stationCode: "BTS",
-    nameTh: RAIN_STATIONS.BTS.name,
-    lat: RAIN_STATIONS.BTS.lat,
-    long: RAIN_STATIONS.BTS.lon,
-    past24h: "ไม่มีข้อมูล",
-    forecast24h: "ไม่มีข้อมูล",
-    forecast72h: "ไม่มีข้อมูล",
-  },
-  {
-    stationCode: "KKC_BL",
-    nameTh: RAIN_STATIONS.KKC_BL.name,
-    lat: RAIN_STATIONS.KKC_BL.lat,
-    long: RAIN_STATIONS.KKC_BL.lon,
-    past24h: "ไม่มีข้อมูล",
-    forecast24h: "ไม่มีข้อมูล",
-    forecast72h: "ไม่มีข้อมูล",
-  },
-];
-
-export const waterLevelData = [
-  {
-    location: "บึงแก่นนคร",
-    type: "แหล่งน้ำธรรมชาติ",
-    level: "ไม่มีข้อมูล",
-    note: "เร่งระบายน้ำสู่ห้วยพระคือ",
-  },
-  {
-    location: "บึงทุ่งสร้าง",
-    type: "แหล่งน้ำธรรมชาติ",
-    level: "ไม่มีข้อมูล",
-    note: "พร่องน้ำรอรับ",
-  },
-  {
-    location: "ท่อระบายน้ำหลัก ซอย 1",
-    type: "โครงสร้างระบาย",
-    level: "ไม่มีข้อมูล",
-    note: "-",
-  },
-  {
-    location: "ท่อระบายน้ำหลัก ซอย 2",
-    type: "โครงสร้างระบาย",
-    level: "ไม่มีข้อมูล",
-    note: "-",
-  },
-];
-
-export const drainagePlan = [
-  {
-    location: "บึงแก่นนคร",
-    action: "เร่งระบายน้ำ",
-    target: "สู่ห้วยพระคือ",
-    status: "เดินเครื่อง 100%",
-    priority: "high" as Priority,
-  },
-  {
-    location: "บึงทุ่งสร้าง",
-    action: "หน่วงน้ำ",
-    target: "รับน้ำตัวเมือง",
-    status: "พร่องน้ำรอรับ",
-    priority: "medium" as Priority,
-  },
-  {
-    location: "ปตร. D8 (ศรีฐาน)",
-    action: "ปิดประตู",
-    target: "กันน้ำหนุน",
-    status: "ปิดสนิท",
-    priority: "high" as Priority,
-  },
-];
-
+// ─────────────────────────────────────────────
+// ข้อมูลอ้างอิงคงที่ — แผนอพยพ/พื้นที่เสี่ยง (ข้อมูลภูมิศาสตร์/แผนปฏิบัติการของหน่วยงาน
+// ไม่ใช่ค่าจากเซนเซอร์ จึงไม่มีฟีดข้อมูลจริงมาแทนที่ได้ ยกเว้นระดับความเสี่ยงของโซน B
+// ที่อ้างอิงกับบึงแก่นนคร (Lake_03) ซึ่งคำนวณจากข้อมูลจริงด้านล่าง)
+// ─────────────────────────────────────────────
 export const evacuationZones = [
   {
     zoneName: "โซน A: ริมแม่น้ำชี",
     subDistricts: "ต.เมืองเก่า, ต.พระลับ",
-    riskLevel: "CRITICAL" as RiskLevel,
-    action: "อพยพทันที",
+    lakeRef: null as LakeId | null,
     itemHeight: "2.0 - 2.5 ม.",
     shelter: "รร.บ้านกุดกว้าง",
   },
   {
     zoneName: "โซน B: พื้นที่เศรษฐกิจ",
     subDistricts: "รอบบึงแก่นนคร, ถ.เหล่านาดี",
-    riskLevel: "WARNING" as RiskLevel,
-    action: "เฝ้าระวังสูงสุด",
+    lakeRef: "Lake_03" as LakeId | null,
     itemHeight: "1.0 - 1.5 ม.",
     shelter: "สนามกีฬากลาง",
   },
   {
     zoneName: "โซน C: พื้นที่ดอน",
     subDistricts: "ต.ศิลา, มข.",
-    riskLevel: "WATCH" as RiskLevel,
-    action: "ติดตามข่าวสาร",
+    lakeRef: null as LakeId | null,
     itemHeight: "0.5 ม.",
     shelter: "-",
   },
@@ -309,12 +79,20 @@ export const emergencyContacts = [
   { name: "หน่วยกู้ภัยสว่าง", number: "1669" },
 ];
 
-const StatusBadge: React.FC<{ level: SeverityLevel }> = ({ level }) => {
+const zoneRiskLabel = (level: OverallSeverity): { text: string; action: string } => {
+  if (level === "CRITICAL") return { text: "CRITICAL", action: "อพยพทันที" };
+  if (level === "WARNING") return { text: "WARNING", action: "เฝ้าระวังสูงสุด" };
+  return { text: "WATCH", action: "ติดตามข่าวสาร" };
+};
+
+const StatusBadge: React.FC<{ level: OverallSeverity }> = ({ level }) => {
   const styles =
     level === "CRITICAL"
       ? "bg-red-50 text-red-700 border-red-200"
       : level === "WARNING"
       ? "bg-orange-50 text-orange-700 border-orange-200"
+      : level === "WATCH"
+      ? "bg-yellow-50 text-yellow-700 border-yellow-200"
       : "bg-green-50 text-green-700 border-green-200";
   return (
     <span
@@ -325,23 +103,81 @@ const StatusBadge: React.FC<{ level: SeverityLevel }> = ({ level }) => {
           level === "CRITICAL" ? "bg-red-600 animate-pulse" : "bg-current"
         }`}
       ></span>
-      สถานะ: {level}
+      สถานะ: {OVERALL_SEVERITY_TEXT[level]}
     </span>
   );
 };
 
+async function safeJson<T>(url: string): Promise<T | null> {
+  try {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
 const FloodAdvisoryDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabId>("command");
 
-  const tabs = [
-    {
-      id: "command" as TabId,
-      label: "ศูนย์บัญชาการน้ำและการสนับสนุนการตัดสินใจ",
-      icon: LayoutDashboard,
-    },
-    { id: "reports" as TabId, label: "รายงาน PDF ย้อนหลัง", icon: FileText },
-    { id: "drainage" as TabId, label: "แผนผังการระบายน้ำ", icon: Activity },
-  ];
+  const [lakes, setLakes] = useState<LakeApiItem[]>([]);
+  const [pipes, setPipes] = useState<TelemetryStationResult[]>([]);
+  const [roads, setRoads] = useState<TelemetryStationResult[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const fetchAll = async () => {
+    setLoading(true);
+    const [lakeJson, pipeJson, roadJson] = await Promise.all([
+      safeJson<{ lakes: LakeApiItem[] }>("/api/lake"),
+      safeJson<TelemetryApiResponse>("/api/water/pipe"),
+      safeJson<TelemetryApiResponse>("/api/water/road"),
+    ]);
+    setLakes(lakeJson?.lakes ?? []);
+    setPipes(pipeJson?.stations ?? []);
+    setRoads(roadJson?.stations ?? []);
+    setLastFetched(new Date());
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchAll();
+    const interval = setInterval(fetchAll, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const overall = computeOverallSeverity(lakes, pipes, roads);
+
+  const lakeRows = Object.keys(LAKE_CONFIG).map((lakeId) => {
+    const lake = lakes.find((l) => l.lake_id === lakeId);
+    const ok = lake?.status === "ok";
+    return {
+      location: lake?.name_th ?? lakeId,
+      type: "แหล่งน้ำธรรมชาติ",
+      level: ok ? `${lake!.water_level!.toFixed(2)} ม.รทก.` : "ไม่มีข้อมูล",
+      status: ok ? getPondStatusThai(lakeId, lake!.water_level) : "ไม่มีข้อมูล",
+    };
+  });
+
+  // จุดที่ระดับน้ำสูงสุด 4 อันดับแรก จากท่อระบายน้ำและถนน — ใช้แทนที่ "แผนดำเนินการ" จำลองเดิม
+  const topMonitoring = [...pipes, ...roads]
+    .filter((s) => s.status === "ok" && s.water_level_m != null)
+    .sort((a, b) => (b.water_level_m ?? 0) - (a.water_level_m ?? 0))
+    .slice(0, 4)
+    .map((s) => {
+      const isPipe = pipes.includes(s);
+      const status = isPipe
+        ? getPipeLevelStatusThai(s.water_level_m)
+        : getRoadLevelStatusThai(s.water_level_m);
+      return {
+        location: s.name_th,
+        kind: isPipe ? "ท่อระบายน้ำ" : "ผิวถนน",
+        level: `${s.water_level_m!.toFixed(2)} ม.`,
+        status,
+      };
+    });
 
   const guidelines = [
     "เตรียมกระสอบทรายอุดปิดท่อระบายน้ำป้องกันน้ำย้อน",
@@ -350,9 +186,23 @@ const FloodAdvisoryDashboard: React.FC = () => {
     "เตรียมยาสามัญและอาหารแห้งสำหรับ 3 วัน",
   ];
 
-  const handleDownloadReport = (reportId: string) => {
-    console.log(`Downloading report ${reportId}`);
-    generateOfficialPDFReport();
+  const tabs = [
+    {
+      id: "command" as TabId,
+      label: "ศูนย์บัญชาการน้ำและการสนับสนุนการตัดสินใจ",
+      icon: LayoutDashboard,
+    },
+    { id: "reports" as TabId, label: "รายงาน PDF", icon: FileText },
+    { id: "drainage" as TabId, label: "แผนผังการระบายน้ำ", icon: Activity },
+  ];
+
+  const handleGenerateReport = async () => {
+    setIsGenerating(true);
+    try {
+      await generateOfficialPDFReport();
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -384,22 +234,49 @@ const FloodAdvisoryDashboard: React.FC = () => {
           {/* Tab 1: Command Center */}
           {activeTab === "command" && (
             <>
+              {/* Live status bar */}
+              <div className="flex items-center justify-between rounded-xl border-2 border-orange-100 bg-white px-4 py-2.5 shadow-sm">
+                <StatusBadge level={overall.level} />
+                <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                  {lastFetched && (
+                    <span>
+                      อัปเดตล่าสุด: {lastFetched.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })} น.
+                    </span>
+                  )}
+                  <button
+                    onClick={fetchAll}
+                    disabled={loading}
+                    className="flex items-center gap-1 rounded-full bg-orange-50 px-2 py-1 font-bold text-orange-700 hover:bg-orange-100 disabled:opacity-50"
+                  >
+                    <RefreshCw size={11} className={loading ? "animate-spin" : ""} />
+                    รีเฟรช
+                  </button>
+                </div>
+              </div>
+
               {/* Alert Banner */}
               <div className="rounded-2xl border-2 border-red-200 bg-gradient-to-br from-red-50 to-orange-50 p-5 shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-3 opacity-10">
-                  <Megaphone size={100} />
+                  <ShieldAlert size={100} />
                 </div>
                 <div className="relative z-10">
                   <h2 className="text-sm font-black text-red-700 mb-2 flex items-center gap-2">
                     <AlertTriangle size={16} className="animate-pulse" />
-                    ประกาศแจ้งเตือนด่วน
+                    สถานะภาพรวมพื้นที่: {OVERALL_SEVERITY_TEXT[overall.level]}
                   </h2>
-                  <p className="text-base font-bold text-gray-900 mb-3">
-                    {floodSituation.mainMessage}
-                  </p>
-                  <p className="text-xs text-gray-700 border-l-4 border-red-400 pl-3 bg-white/50 py-2 rounded">
-                    {floodSituation.detail}
-                  </p>
+                  {overall.reasons.length > 0 ? (
+                    <ul className="space-y-1">
+                      {overall.reasons.slice(0, 5).map((r, i) => (
+                        <li key={i} className="text-xs text-gray-700 border-l-4 border-red-400 pl-3 bg-white/50 py-1.5 rounded">
+                          {r}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-gray-700 border-l-4 border-green-400 pl-3 bg-white/50 py-2 rounded">
+                      ระดับน้ำในบึง ท่อระบายน้ำ และผิวถนนทุกจุดที่ตรวจวัดได้อยู่ในเกณฑ์ปกติ
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -454,57 +331,78 @@ const FloodAdvisoryDashboard: React.FC = () => {
                   พื้นที่เสี่ยง
                 </h3>
                 <div className="space-y-3">
-                  {evacuationZones.map((z, i) => (
-                    <div
-                      key={i}
-                      className="rounded-lg border border-gray-200 bg-gray-50 p-3"
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <h4 className="text-xs font-black text-gray-900">
-                          {z.zoneName}
-                        </h4>
-                        <span
-                          className={`text-[10px] px-2 py-1 rounded-full font-black ${
-                            z.riskLevel === "CRITICAL"
-                              ? "bg-red-100 text-red-700"
-                              : z.riskLevel === "WARNING"
-                              ? "bg-orange-100 text-orange-700"
-                              : "bg-yellow-100 text-yellow-700"
-                          }`}
-                        >
-                          {z.action}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-600 flex items-center gap-1 mb-2">
-                        <MapPin size={12} /> {z.subDistricts}
-                      </p>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="bg-white rounded px-2 py-1">
-                          <span className="text-[10px] text-gray-500 block">
-                            ยกของสูง
-                          </span>
-                          <span className="font-black text-gray-800">
-                            {z.itemHeight}
-                          </span>
-                        </div>
-                        <div className="bg-white rounded px-2 py-1">
-                          <span className="text-[10px] text-gray-500 block">
-                            จุดพักพิง
-                          </span>
-                          <span className="font-black text-gray-800">
-                            {z.shelter}
+                  {evacuationZones.map((z, i) => {
+                    const lake = z.lakeRef ? lakes.find((l) => l.lake_id === z.lakeRef) : null;
+                    const zoneLevel: OverallSeverity = z.lakeRef
+                      ? (() => {
+                          const s = getPondStatusThai(
+                            z.lakeRef!,
+                            lake?.status === "ok" ? lake.water_level : undefined,
+                          );
+                          if (s === "วิกฤต") return "CRITICAL";
+                          if (s === "เตือนภัย") return "WARNING";
+                          if (s === "เฝ้าระวัง") return "WATCH";
+                          return "NORMAL";
+                        })()
+                      : "WATCH"; // ไม่มีเซนเซอร์อ้างอิงตรง — แสดงเฝ้าระวังเป็นค่าเริ่มต้นเชิงอนุรักษ์นิยม
+                    const risk = zoneRiskLabel(zoneLevel);
+                    return (
+                      <div
+                        key={i}
+                        className="rounded-lg border border-gray-200 bg-gray-50 p-3"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <h4 className="text-xs font-black text-gray-900">
+                            {z.zoneName}
+                          </h4>
+                          <span
+                            className={`text-[10px] px-2 py-1 rounded-full font-black ${
+                              zoneLevel === "CRITICAL"
+                                ? "bg-red-100 text-red-700"
+                                : zoneLevel === "WARNING"
+                                ? "bg-orange-100 text-orange-700"
+                                : "bg-yellow-100 text-yellow-700"
+                            }`}
+                          >
+                            {risk.action}
                           </span>
                         </div>
+                        <p className="text-xs text-gray-600 flex items-center gap-1 mb-2">
+                          <MapPin size={12} /> {z.subDistricts}
+                          {z.lakeRef && (
+                            <span className="ml-1 text-gray-400">
+                              (อ้างอิงระดับน้ำ{lake?.name_th ?? z.lakeRef} แบบเรียลไทม์)
+                            </span>
+                          )}
+                        </p>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="bg-white rounded px-2 py-1">
+                            <span className="text-[10px] text-gray-500 block">
+                              ยกของสูง
+                            </span>
+                            <span className="font-black text-gray-800">
+                              {z.itemHeight}
+                            </span>
+                          </div>
+                          <div className="bg-white rounded px-2 py-1">
+                            <span className="text-[10px] text-gray-500 block">
+                              จุดพักพิง
+                            </span>
+                            <span className="font-black text-gray-800">
+                              {z.shelter}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Water Level Data */}
+              {/* Water Level Data — บึง (ข้อมูลจริง) */}
               <div className="rounded-xl border-2 border-amber-100 bg-white p-4 shadow-lg">
                 <h3 className="text-sm font-black text-gray-800 mb-3 flex items-center gap-2">
-                  <Droplet size={14} className="text-amber-600" /> ระดับน้ำ
+                  <Droplet size={14} className="text-amber-600" /> ระดับน้ำในบึง (ข้อมูลจริงจากสถานีโทรมาตร)
                 </h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
@@ -514,15 +412,15 @@ const FloodAdvisoryDashboard: React.FC = () => {
                           แหล่งน้ำ
                         </th>
                         <th className="px-3 py-2 text-center font-black">
-                          ประเภท
+                          ระดับน้ำ
                         </th>
                         <th className="px-3 py-2 text-left font-black rounded-tr-lg">
-                          หมายเหตุ
+                          สถานะ
                         </th>
                       </tr>
                     </thead>
                     <tbody>
-                      {waterLevelData.map((w, i) => (
+                      {lakeRows.map((w, i) => (
                         <tr
                           key={i}
                           className={
@@ -533,9 +431,9 @@ const FloodAdvisoryDashboard: React.FC = () => {
                             {w.location}
                           </td>
                           <td className="px-3 py-2 text-center text-gray-600">
-                            {w.type}
+                            {w.level}
                           </td>
-                          <td className="px-3 py-2 text-gray-600">{w.note}</td>
+                          <td className="px-3 py-2 text-gray-600">{w.status}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -543,51 +441,36 @@ const FloodAdvisoryDashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Drainage Status */}
+              {/* จุดตรวจวัดที่ระดับน้ำสูงสุด (ท่อระบายน้ำ/ผิวถนน) — ข้อมูลจริง */}
               <div className="rounded-xl border-2 border-orange-100 bg-white overflow-hidden shadow-lg">
                 <div className="bg-primary px-4 py-3 flex items-center gap-2 text-white">
                   <Waves size={16} />{" "}
-                  <h3 className="text-sm font-black">สถานะการระบายน้ำ</h3>
+                  <h3 className="text-sm font-black">จุดที่ระดับน้ำสูงสุด (ท่อระบายน้ำ/ผิวถนน)</h3>
                 </div>
                 <div className="divide-y">
-                  {drainagePlan.map((p, i) => (
-                    <div key={i} className="p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-sm font-black text-gray-800">
-                          {p.location}
-                        </span>
-                        <span className="text-[10px] px-2 py-1 rounded-full font-black bg-orange-100 text-orange-700">
-                          {p.status}
-                        </span>
+                  {topMonitoring.length === 0 ? (
+                    <div className="p-4 text-xs text-gray-400 text-center">ไม่มีข้อมูล</div>
+                  ) : (
+                    topMonitoring.map((p, i) => (
+                      <div key={i} className="p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="text-sm font-black text-gray-800">
+                            {p.location}
+                          </span>
+                          <span className="text-[10px] px-2 py-1 rounded-full font-black bg-orange-100 text-orange-700">
+                            {p.status}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-600">
+                          <span className="text-orange-700 font-bold">{p.kind}</span>
+                          <ChevronRight size={12} />
+                          <span>{p.level}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-600">
-                        <span className="text-orange-700 font-bold">
-                          {p.action}
-                        </span>
-                        <ChevronRight size={12} />
-                        <span>{p.target}</span>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
-
-              {/* Emergency Contacts */}
-              {/* <div className="rounded-xl bg-gradient-to-br from-orange-900 to-red-900 p-4 shadow-xl">
-                <h3 className="text-sm font-black text-orange-100 mb-3 flex items-center gap-2">
-                  <PhoneCall size={16} /> เบอร์โทรฉุกเฉิน
-                </h3>
-                <div className="space-y-2">
-                  {emergencyContacts.map((c, i) => (
-                    <div key={i} className="flex items-center justify-between rounded-lg bg-orange-800/50 px-4 py-3">
-                      <span className="text-xs text-orange-100 font-bold">{c.name}</span>
-                      <a href={`tel:${c.number}`} className="text-base font-black text-yellow-300 hover:text-yellow-200 transition-colors">
-                        {c.number}
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              </div> */}
             </>
           )}
 
@@ -598,75 +481,25 @@ const FloodAdvisoryDashboard: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base font-light text-gray-800 flex items-center gap-2">
                     <FileText size={20} className="text-orange-600" />
-                    รายงานสถานการณ์ PDF ย้อนหลัง
+                    รายงานสถานการณ์น้ำ PDF
                   </h3>
-                  <button
-                    onClick={generateOfficialPDFReport}
-                    className="flex items-center gap-2 bg-primary hover:from-orange-700 hover:to-red-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-lg transition-all active:scale-95"
-                  >
-                    <Download size={16} />
-                    <span>สร้างรายงานใหม่</span>
-                  </button>
                 </div>
 
-                <div className="space-y-2">
-                  {pdfReports.map((report) => (
-                    <div
-                      key={report.id}
-                      className="flex items-center justify-between p-4 rounded-lg border border-gray-200 hover:border-orange-300 hover:bg-orange-50/50 transition-all group"
-                    >
-                      <div className="flex items-start gap-3 flex-1">
-                        <div
-                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                            report.severity === "CRITICAL"
-                              ? "bg-red-100 text-red-600"
-                              : report.severity === "WARNING"
-                              ? "bg-orange-100 text-orange-600"
-                              : "bg-green-100 text-green-600"
-                          }`}
-                        >
-                          <FileText size={20} />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="text-sm font-light text-gray-800 mb-1">
-                            {report.title}
-                          </h4>
-                          <div className="flex items-center gap-3 text-xs text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <Calendar size={12} />
-                              {report.date}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Clock size={12} />
-                              {report.time} น.
-                            </span>
-                            <span className="text-gray-400">•</span>
-                            <span>{report.fileSize}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`text-[10px] px-2 py-1 rounded-full font-black ${
-                            report.severity === "CRITICAL"
-                              ? "bg-red-100 text-red-700"
-                              : report.severity === "WARNING"
-                              ? "bg-orange-100 text-orange-700"
-                              : "bg-green-100 text-green-700"
-                          }`}
-                        >
-                          {report.severity}
-                        </span>
-                        <button
-                          onClick={() => handleDownloadReport(report.id)}
-                          className="flex items-center gap-1 px-3 py-2 bg-primary hover:bg-orange-700 text-white rounded-lg text-xs font-bold transition-all opacity-0 group-hover:opacity-100"
-                        >
-                          <Download size={14} />
-                          ดาวน์โหลด
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                <div className="rounded-lg border border-dashed border-orange-200 bg-orange-50/40 p-6 text-center">
+                  <FileText size={32} className="mx-auto text-orange-300 mb-3" />
+                  <p className="text-sm text-gray-600 mb-1">
+                    ระบบยังไม่มีคลังรายงานย้อนหลัง — รายงานจะถูกสร้างขึ้นใหม่ทุกครั้งโดยใช้
+                    <strong> ข้อมูลจริงล่าสุด</strong> จากสถานีโทรมาตร (บึง/ท่อระบายน้ำ/ถนน/ฝน)
+                    พร้อมภาพแผนที่ดาวเทียมพื้นที่เสี่ยงน้ำท่วมล่าสุด
+                  </p>
+                  <button
+                    onClick={handleGenerateReport}
+                    disabled={isGenerating}
+                    className="mt-3 inline-flex items-center gap-2 bg-primary hover:bg-orange-700 text-white px-5 py-2.5 rounded-lg font-bold text-sm shadow-lg transition-all active:scale-95 disabled:opacity-60"
+                  >
+                    <Download size={16} className={isGenerating ? "animate-bounce" : ""} />
+                    <span>{isGenerating ? "กำลังสร้างรายงาน..." : "สร้างรายงาน PDF ล่าสุด"}</span>
+                  </button>
                 </div>
               </div>
             </div>
