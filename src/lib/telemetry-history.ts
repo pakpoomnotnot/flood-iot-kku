@@ -36,16 +36,21 @@ export function formatHourLabel(d: Date): string {
   return `${d.getDate()}-${d.toLocaleString("en", { month: "short" })} ${d
     .getHours()
     .toString()
-    .padStart(2, "0")}:00`;
+    .padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
 }
 
-/** รวมข้อมูล telemetry เป็นจุดรายชั่วโมงย้อนหลัง (ค่าล่าสุดในแต่ละชั่วโมง) */
+/** ความละเอียดของกราฟย้อนหลัง — 15 นาที ให้ตรงกับรอบอัปเดตข้อมูลจริงบนแผนที่ (MQTT ส่งทุก 15 นาที) */
+const BUCKET_MS = 15 * 60_000;
+const BUCKETS_PER_HOUR = 3_600_000 / BUCKET_MS;
+
+/** รวมข้อมูล telemetry เป็นจุดย้อนหลังทุก 15 นาที (ค่าล่าสุดในแต่ละช่วง) */
 export function readingsToHourlyChart(
   readings: TelemetryReading[],
   hours = 24,
 ): TelemetryChartPoint[] {
   const now = new Date();
-  now.setMinutes(0, 0, 0);
+  now.setSeconds(0, 0);
+  now.setMinutes(Math.floor(now.getMinutes() / 15) * 15);
 
   const sorted = [...readings].sort(
     (a, b) =>
@@ -57,9 +62,10 @@ export function readingsToHourlyChart(
   let lastKnown: number | null = null;
   let lastKnownTime: number | null = null;
 
-  for (let i = hours - 1; i >= 0; i--) {
-    const bucketStart = new Date(now.getTime() - i * 3_600_000);
-    const bucketEnd = new Date(bucketStart.getTime() + 3_600_000);
+  const totalBuckets = hours * BUCKETS_PER_HOUR;
+  for (let i = totalBuckets - 1; i >= 0; i--) {
+    const bucketStart = new Date(now.getTime() - i * BUCKET_MS);
+    const bucketEnd = new Date(bucketStart.getTime() + BUCKET_MS);
 
     const inBucket = sorted.filter((r) => {
       const t = parseDateTime(r.date_time).getTime();
