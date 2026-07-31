@@ -22,12 +22,13 @@ import maplibregl, {
   MapMouseEvent,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { 
-  useStation, 
+import {
+  useStation,
   generateMockStationData,
-  getStationTypeFromStation 
+  getStationTypeFromStation
 } from "@/contexts/station-context";
 import { PredictionModal } from "./prediction-modal";
+import { getRainSeverity } from "@/lib/rain-severity";
 
 // --- SVG Icons (เพื่อใช้ใน HTML String) ---
 const ICONS = {
@@ -69,6 +70,7 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const map = useRef<Map | null>(null);
   const markersRef = useRef<Marker[]>([]);
+  const rainDataRef = useRef<Record<string, number>>({});
   const [currentStyle, setCurrentStyle] = useState<BasemapStyleKey>("topo");
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [isSwitcherOpen, setSwitcherOpen] = useState<boolean>(false);
@@ -111,7 +113,8 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
     return iconMap[iconName] || ICONS.tag;
   };
 
-  // ฟังก์ชันสร้าง custom marker element — สีเทาทั้งหมด
+  // ฟังก์ชันสร้าง custom marker element — เทาทั้งหมด ยกเว้นสถานีวัดฝนที่มีฝนตกอยู่ตอนนี้
+  // (ใช้สีเดียวกับเกณฑ์ severity ของฝนใน rain-severity.ts ให้ตรงกับแท็บปริมาณน้ำฝน)
   const createMarkerElement = (station: Station): HTMLDivElement => {
     const el = document.createElement("div");
     el.className = "custom-marker-wrapper";
@@ -119,8 +122,14 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
     const stationType = getStationTypeFromStation(station);
     const config = getStationTypeConfig(stationType);
 
+    const rainValue = stationType === "rainfallMeasurement" ? rainDataRef.current[station.id] : undefined;
+    const isRaining = rainValue != null && rainValue > 0;
+    const markerStyle = isRaining
+      ? `style="background: ${getRainSeverity(rainValue!, "1h").color};"`
+      : "";
+
     el.innerHTML = `
-      <div class="custom-marker marker-color-gray">
+      <div class="custom-marker ${isRaining ? "" : "marker-color-gray"}" ${markerStyle}>
         ${getIconComponent(config.icon)}
       </div>
     `;
@@ -176,6 +185,28 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
       });
     });
   };
+
+  // ดึงปริมาณฝนล่าสุด (1 ชม.) มาอัปเดตสี marker สถานีวัดฝนบน minimap ให้ตรงกับสถานการณ์จริง
+  useEffect(() => {
+    const loadRainData = async () => {
+      try {
+        const res = await fetch("/api/rain/actual?window=1h");
+        const json = await res.json();
+        const byStation: Record<string, number> = {};
+        (json.stations ?? []).forEach((s: { station_code: string; value: number }) => {
+          byStation[s.station_code] = s.value;
+        });
+        rainDataRef.current = byStation;
+        if (isLoaded) addStationMarkers();
+      } catch (error) {
+        console.error("Error loading rain data for minimap:", error);
+      }
+    };
+    loadRainData();
+    const interval = setInterval(loadRainData, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded]);
 
   useEffect(() => {
     if (map.current || !mapContainer.current) return;

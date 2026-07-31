@@ -25,8 +25,8 @@ const NO_RAIN: RainSeverityBand = {
   label: "ไม่มีฝน",
   legendLabel: "ไม่มีฝน",
   rangeLabel: "0",
-  color: "#90caf9",
-  textColor: "#1f2937",
+  color: "#e5e7eb",
+  textColor: "#6b7280",
 };
 
 /** เกณฑ์ปริมาณฝนรายชั่วโมง / 3 ชม. (มม.) — เกณฑ์เดิมของระบบ */
