@@ -114,6 +114,12 @@ export const LAKE_META: { lakeId: string; name: string; location: string }[] = [
   { lakeId: "Lake_04", name: "บึงหนองเอียด", location: "ต. ศิลา อ. เมือง" },
 ];
 
+// สถานีคลอง (WP ที่อยู่ใน CANAL_MAP_IDS) — ยังไม่มีสาย telemetry เชื่อมเข้าระบบ (ไม่มีไฟล์ CSV)
+// จึงประกาศชื่อ/ที่ตั้งไว้ตรงนี้เพื่อให้ตารางแสดงแถวสถานีได้เหมือนท่อ แม้ค่ายังไม่มีก็ตาม
+export const CANAL_META: { mapId: string; name: string; location: string }[] = [
+  { mapId: "WP06", name: "สะพาน บ้านทุ่งเศรษฐี", location: "เทศบาลนครขอนแก่น" },
+];
+
 const telemetryToWaterData = (
   stations: TelemetryStationResult[],
   getStatus: (levelM: number | undefined) => string,
@@ -305,10 +311,25 @@ export function useMapViewData() {
         case "ponds":
           return getLakesTableData();
         case "drainage": {
-          const wantCanal = drainageTab === "canal";
-          const filtered = pipeData.filter(
-            (s) => CANAL_MAP_IDS.has(s.map_id ?? "") === wantCanal,
-          );
+          if (drainageTab === "canal") {
+            // สถานีคลองบางจุดยังไม่มีสาย telemetry เชื่อม (ไม่มีใน pipeData เลย) — ใช้ CANAL_META
+            // สร้างแถวชื่อ/ที่ตั้งไว้ก่อนเสมอ ถ้ามีข้อมูลจริงมาจับคู่ด้วย map_id ค่อยแสดงค่าจริงทับ
+            return CANAL_META.map((meta) => {
+              const station = pipeData.find((s) => s.map_id === meta.mapId);
+              if (station) return telemetryToWaterData([station], getPipeLevelStatusThai)[0];
+              return {
+                station: meta.name,
+                location: meta.location,
+                level: 0,
+                bankLevel: 0,
+                diff: 0,
+                status: "ไม่มีข้อมูล",
+                time: "—",
+                stationCode: meta.mapId,
+              };
+            });
+          }
+          const filtered = pipeData.filter((s) => !CANAL_MAP_IDS.has(s.map_id ?? ""));
           return telemetryToWaterData(filtered, getPipeLevelStatusThai);
         }
         case "roads":
