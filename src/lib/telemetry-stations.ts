@@ -134,6 +134,12 @@ export const ROAD_TELEMETRY_STATIONS: TelemetryStationMeta[] = [
   },
 ];
 
+/**
+ * สถานีในกลุ่ม "ท่อระบายน้ำ" (WP) ที่จริงๆ แล้วเป็นคลองเปิด ไม่ใช่ท่อปิด — ใช้แยก tab
+ * ท่อ/คลอง บนแผนที่และตาราง (อ้างอิง map_id จาก stations_complete.json ไม่ใช่ id ของ telemetry)
+ */
+export const CANAL_MAP_IDS: ReadonlySet<string> = new Set(["WP06"]);
+
 export const PIPE_BY_MAP_ID = Object.fromEntries(
   PIPE_TELEMETRY_STATIONS.filter((s) => s.mapId).map((s) => [s.mapId!, s]),
 );

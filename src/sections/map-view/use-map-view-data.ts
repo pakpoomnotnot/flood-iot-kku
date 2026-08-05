@@ -13,6 +13,7 @@ import {
   getPipeLevelStatusThai,
   getRoadLevelStatusThai,
 } from "@/lib/water-level-status";
+import { CANAL_MAP_IDS } from "@/lib/telemetry-stations";
 import type { TelemetryApiResponse } from "@/lib/telemetry-types";
 import type { TelemetryStationResult } from "@/app/api/lib/fetchTelemetryReading";
 
@@ -76,6 +77,14 @@ export function isForecastTab(tab: RainfallTab): boolean {
   return tab.startsWith("forecast_");
 }
 
+/** สลับดูสถานีท่อ (ปิด) กับคลอง (เปิด) ในหน้าระดับน้ำในทางระบายน้ำ — ใช้ทั้งแผนที่และตาราง */
+export type DrainageTab = "pipe" | "canal";
+
+export const DRAINAGE_TABS: { key: DrainageTab; label: string }[] = [
+  { key: "pipe", label: "ท่อระบายน้ำ" },
+  { key: "canal", label: "คลอง" },
+];
+
 export const STATION_METADATA = [
   { id: "SNK_HOSP", name: RAIN_STATIONS.SNK_HOSP.name, location: "ต. ในเมือง อ. เมือง" },
   { id: "KKC_MUN", name: RAIN_STATIONS.KKC_MUN.name, location: "ต. ในเมือง อ. เมือง" },
@@ -94,11 +103,15 @@ export const STATION_METADATA = [
   { id: "KKC_BL", name: RAIN_STATIONS.KKC_BL.name, location: "ต. ในเมือง อ. เมือง" },
 ];
 
-export const LAKE_META: { lakeId: LakeId; name: string; location: string }[] = [
+// Lake_06 (หนองเลิงเปือย) ถูกเอาออกเพราะสถานีเสีย/MQTT ไม่อัปเดต — แทนที่ด้วย Lake_04
+// (บึงหนองเอียด ใกล้บึงสีฐาน) ตามคอมเมนต์ KKC-UFM — Lake_04 ยังไม่มีเกณฑ์ maxLevel/watchFB
+// ใน LAKE_CONFIG จึงยังแสดงสถานะ "ไม่มีข้อมูล" แม้จะมีค่าระดับน้ำจริงมาแล้วก็ตาม รอข้อมูล
+// ระดับขอบบึงจริงเพื่อเปิดใช้เกณฑ์สี/สถานะแบบเดียวกับบึงอื่น
+export const LAKE_META: { lakeId: string; name: string; location: string }[] = [
   { lakeId: "Lake_03", name: "บึงแก่นนคร", location: "ต. ในเมือง อ. เมือง" },
   { lakeId: "Lake_02", name: "บึงทุ่งสร้าง", location: "ต. ในเมือง อ. เมือง" },
   { lakeId: "Lake_05", name: "บึงหนองโคตร", location: "ต. บ้านเป็ด อ. เมือง" },
-  { lakeId: "Lake_06", name: "หนองเลิงเปือย", location: "อ. เมือง" },
+  { lakeId: "Lake_04", name: "บึงหนองเอียด", location: "ต. ศิลา อ. เมือง" },
 ];
 
 const telemetryToWaterData = (
@@ -135,6 +148,7 @@ interface RainWindowApiStation {
 export function useMapViewData() {
   const [rainfallData, setRainfallData] = useState<WaterData[]>([]);
   const [rainfallTab, setRainfallTab] = useState<RainfallTab>("1hr");
+  const [drainageTab, setDrainageTab] = useState<DrainageTab>("pipe");
   const [lakesData, setLakesData] = useState<LakeApiItem[]>([]);
   const [pipeData, setPipeData] = useState<TelemetryStationResult[]>([]);
   const [roadData, setRoadData] = useState<TelemetryStationResult[]>([]);
@@ -254,7 +268,8 @@ export function useMapViewData() {
     return LAKE_META.map((meta) => {
       const lake = lakesData.find((l) => l.lake_id === meta.lakeId);
       const waterLevel = lake?.water_level;
-      const cfg = LAKE_CONFIG[meta.lakeId];
+      // บึงที่ยังไม่มีเกณฑ์ maxLevel/watchFB (เช่น Lake_04/บึงหนองเอียด) จะไม่มี cfg — bankLevel เป็น 0
+      const cfg = LAKE_CONFIG[meta.lakeId as LakeId];
       const freeboard = getPondFreeboard(meta.lakeId, waterLevel) ?? 0;
       const status = getPondStatusThai(meta.lakeId, waterLevel);
 
@@ -273,7 +288,7 @@ export function useMapViewData() {
         station: meta.name,
         location: meta.location,
         level: waterLevel ?? 0,
-        bankLevel: cfg.maxLevel,
+        bankLevel: cfg?.maxLevel ?? 0,
         diff: freeboard,
         status,
         time: timeDisplay,
@@ -289,15 +304,20 @@ export function useMapViewData() {
           return rainfallData;
         case "ponds":
           return getLakesTableData();
-        case "drainage":
-          return telemetryToWaterData(pipeData, getPipeLevelStatusThai);
+        case "drainage": {
+          const wantCanal = drainageTab === "canal";
+          const filtered = pipeData.filter(
+            (s) => CANAL_MAP_IDS.has(s.map_id ?? "") === wantCanal,
+          );
+          return telemetryToWaterData(filtered, getPipeLevelStatusThai);
+        }
         case "roads":
           return telemetryToWaterData(roadData, getRoadLevelStatusThai);
         default:
           return [];
       }
     },
-    [rainfallData, getLakesTableData, pipeData, roadData],
+    [rainfallData, getLakesTableData, pipeData, roadData, drainageTab],
   );
 
   const getTableMode = (activeView: string): "rainfall" | "pond" | "default" => {
@@ -317,6 +337,8 @@ export function useMapViewData() {
   return {
     rainfallTab,
     setRainfallTab,
+    drainageTab,
+    setDrainageTab,
     getCurrentData,
     getTableMode,
     getTelemetryCategory,
