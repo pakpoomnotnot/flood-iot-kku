@@ -8,6 +8,7 @@ import stationsData from "./stations_complete.json";
 import { useStation, generateMockStationData } from "@/contexts/station-context";
 import type { TelemetryStationResult } from "@/app/api/lib/fetchTelemetryReading";
 import { getPipeMarkerColor, formatTelemetryTime, PIPE_BANDS, NO_DATA_COLOR } from "@/lib/water-level-status";
+import { CANAL_MAP_IDS } from "@/lib/telemetry-stations";
 import { TelemetryHistoryChartModal } from "@/components/telemetry/telemetry-history-chart-modal";
 
 // ─────────────────────────────────────────────
@@ -65,7 +66,12 @@ const LEVEL_LABELS = PIPE_BANDS_ASC.reduce<{ label: string; span: number }[]>((a
 // ─────────────────────────────────────────────
 // Main MapComponentDrainage
 // ─────────────────────────────────────────────
-const MapComponentDrainage: FC = () => {
+interface MapComponentDrainageProps {
+  /** สลับแสดงเฉพาะสถานีท่อ (ปิด) หรือคลอง (เปิด) — ควบคุมจากแท็บด้านบนตาราง ให้ตรงกับแผนที่ */
+  viewMode?: "pipe" | "canal";
+}
+
+const MapComponentDrainage: FC<MapComponentDrainageProps> = ({ viewMode = "pipe" }) => {
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const map          = useRef<Map | null>(null);
   const markersRef   = useRef<Marker[]>([]);
@@ -118,7 +124,9 @@ const MapComponentDrainage: FC = () => {
     const hasData  = reading?.status === "ok" && reading.water_level_m != null;
     const mockValue = hasData ? reading!.water_level_m! : 0;
     const mockUnit  = "ม.";
-    const mockLabel = "ระดับน้ำในท่อ";
+    // สถานีใน CANAL_MAP_IDS (เช่น WP06 สะพาน บ้านทุ่งเศรษฐี) เป็นจุดวัดระดับน้ำในคลอง ไม่ใช่ท่อปิดแบบสถานีอื่น
+    const isCanal   = CANAL_MAP_IDS.has(station.id);
+    const mockLabel = isCanal ? "ระดับน้ำในคลอง" : "ระดับน้ำในท่อ";
     const timeLabel = hasData ? formatTelemetryTime(reading!.date_time) : "ไม่มีข้อมูล";
     // แจ้งเตือนเมื่อไม่มี reading เข้ามาเลย หรือมีแต่ MQTT ไม่อัปเดตมานาน (ไม่ใช่แค่ค่า 0.00 จริง)
     const errorNotice = prefix === "WP" && (reading?.stale || !hasData)
@@ -136,7 +144,7 @@ const MapComponentDrainage: FC = () => {
         </div>
         <div class="popup-location-header" style="background: linear-gradient(135deg, ${typeInfo.color}15 0%, ${typeInfo.color}05 100%);">
           <div class="station-type-badge" style="background: ${typeInfo.color};">
-            ${typeInfo.icon}<span>${typeInfo.label}</span>
+            ${typeInfo.icon}<span>${isCanal ? "คลอง" : typeInfo.label}</span>
           </div>
           <h3 class="location-name">${station.name}</h3>
           <div class="location-area">${station.location.area}</div>
@@ -206,6 +214,8 @@ const MapComponentDrainage: FC = () => {
     data.stationTypes.forEach((stationType) => {
       stationType.stations.forEach((station) => {
         if (station.id.substring(0, 2) !== "WP") return;
+        // แสดงเฉพาะสถานีที่ตรงกับ tab ที่เลือก (ท่อ/คลอง)
+        if (CANAL_MAP_IDS.has(station.id) !== (viewMode === "canal")) return;
         const el    = createMarkerElement(station.id);
         const popup = new Popup({ offset: 35, closeButton: false }).setHTML(createPopupContent(station));
         const marker = new Marker({ element: el })
@@ -254,6 +264,12 @@ const MapComponentDrainage: FC = () => {
     const interval = setInterval(loadTelemetry, 15 * 60 * 1000);
     return () => clearInterval(interval);
   }, [isLoaded]);
+
+  // สลับ tab ท่อ/คลอง -> re-render marker ให้ตรงกับสถานีที่ควรแสดง
+  useEffect(() => {
+    if (isLoaded) addStationMarkers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, isLoaded]);
 
   useEffect(() => {
     if (map.current || !mapContainer.current) return;

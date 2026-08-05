@@ -985,6 +985,9 @@ const MapComponentSwamp: FC = () => {
     data.stationTypes.forEach((stationType) => {
       stationType.stations.forEach((station) => {
         if (station.id.substring(0, 2) !== "PW") return;
+        // PW03 (สะพาน บ้านทุ่งเศรษฐี, Lake_01) และ PW06 (หนองเลิงเปือย, Lake_06) ไม่มีข้อมูลใช้งานได้
+        // (Lake_01 เป็นทางน้ำเปิดไม่มีเกณฑ์ threshold, Lake_06 สถานีเสีย/MQTT ไม่อัปเดต) — เอาออกตามคอมเมนต์ KKC-UFM
+        if (station.id === "PW03" || station.id === "PW06") return;
 
         const el = createMarkerElement(station.id);
         const popup = new Popup({ offset: 35, closeButton: false });
