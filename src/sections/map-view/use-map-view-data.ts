@@ -316,7 +316,13 @@ export function useMapViewData() {
             // สร้างแถวชื่อ/ที่ตั้งไว้ก่อนเสมอ ถ้ามีข้อมูลจริงมาจับคู่ด้วย map_id ค่อยแสดงค่าจริงทับ
             return CANAL_META.map((meta) => {
               const station = pipeData.find((s) => s.map_id === meta.mapId);
-              if (station) return telemetryToWaterData([station], getPipeLevelStatusThai)[0];
+              // คลองยังไม่มีเกณฑ์ความรุนแรงที่ยืนยันแล้ว (ต่างจากท่อ) จึงไม่ใช้ getPipeLevelStatusThai
+              // ที่ตัดสีตาม PIPE_BANDS — ใช้สถานะกลางแทน ไม่บอกระดับความรุนแรง
+              if (station) {
+                return telemetryToWaterData([station], (levelM) =>
+                  levelM != null ? "มีข้อมูล" : "ไม่มีข้อมูล",
+                )[0];
+              }
               return {
                 station: meta.name,
                 location: meta.location,

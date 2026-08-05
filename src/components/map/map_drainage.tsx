@@ -100,8 +100,14 @@ const MapComponentDrainage: FC<MapComponentDrainageProps> = ({ viewMode = "pipe"
     const reading = telemetryRef.current[stationId];
     const hasReading = reading?.status === "ok" && reading.water_level_m != null;
     const levelM = hasReading ? reading!.water_level_m! : 0;
-    // ไม่มี reading เลย (สถานีไม่ส่งข้อมูลเข้ามา) -> เทา, ถ้ามี reading (แม้เป็น 0.00 จริงๆ) -> สีตามเกณฑ์
-    const markerColor = hasReading ? getPipeMarkerColor(levelM) : NO_DATA_COLOR.color;
+    // ไม่มี reading เลย (สถานีไม่ส่งข้อมูลเข้ามา) -> เทา
+    // สถานีคลองยังไม่มีเกณฑ์ความรุนแรงที่ยืนยันแล้ว จึงไม่ใช้ PIPE_BANDS -> สีกลาง (ไม่บอกระดับ)
+    // มีแต่ท่อ (มี reading) เท่านั้นที่ขึ้นสีตามเกณฑ์
+    const markerColor = !hasReading
+      ? NO_DATA_COLOR.color
+      : CANAL_MAP_IDS.has(stationId)
+        ? "#3B82F6"
+        : getPipeMarkerColor(levelM);
     const waterHeight = Math.min((levelM / 3) * 100, 100);
     el.innerHTML = `
       <div class="custom-marker-animated" style="--marker-color: ${markerColor}; --water-height: ${waterHeight}%;">
@@ -349,27 +355,33 @@ const MapComponentDrainage: FC<MapComponentDrainageProps> = ({ viewMode = "pipe"
         </div>
       </div>
 
-      {/* ── Legend แถบล่างสุด ── */}
-      <div className="flex-shrink-0 bg-white border-t border-gray-300 px-3 pt-1.5 pb-2">
-        <div className="flex w-full rounded-sm overflow-hidden border border-gray-300">
-          {LEGEND_SEGMENTS.map((seg, i) => (
-            <div key={i} className="flex-1 flex items-center justify-center py-2" style={{ backgroundColor: seg.color }}>
-              <span className="text-[9px] font-bold text-gray-800 whitespace-nowrap">{seg.range}</span>
-            </div>
-          ))}
+      {/* ── Legend แถบล่างสุด — เกณฑ์นี้ใช้กับสถานีท่อเท่านั้น คลองยังไม่มีเกณฑ์ที่ยืนยันแล้ว ── */}
+      {viewMode === "pipe" ? (
+        <div className="flex-shrink-0 bg-white border-t border-gray-300 px-3 pt-1.5 pb-2">
+          <div className="flex w-full rounded-sm overflow-hidden border border-gray-300">
+            {LEGEND_SEGMENTS.map((seg, i) => (
+              <div key={i} className="flex-1 flex items-center justify-center py-2" style={{ backgroundColor: seg.color }}>
+                <span className="text-[9px] font-bold text-gray-800 whitespace-nowrap">{seg.range}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex w-full mt-0.5">
+            {LEVEL_LABELS.map((l, i) => (
+              <div
+                key={i}
+                className={`text-center text-[10px] font-semibold text-gray-700 ${i < LEVEL_LABELS.length - 1 ? "border-r border-gray-300" : ""}`}
+                style={{ flex: l.span }}
+              >
+                {l.label}
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flex w-full mt-0.5">
-          {LEVEL_LABELS.map((l, i) => (
-            <div
-              key={i}
-              className={`text-center text-[10px] font-semibold text-gray-700 ${i < LEVEL_LABELS.length - 1 ? "border-r border-gray-300" : ""}`}
-              style={{ flex: l.span }}
-            >
-              {l.label}
-            </div>
-          ))}
+      ) : (
+        <div className="flex-shrink-0 bg-white border-t border-gray-300 px-3 py-2 text-center text-[10px] text-gray-400">
+          ยังไม่มีเกณฑ์ความรุนแรงระดับน้ำสำหรับคลอง
         </div>
-      </div>
+      )}
 
       {/* ── Chart Modal ── */}
       {chartStation && (

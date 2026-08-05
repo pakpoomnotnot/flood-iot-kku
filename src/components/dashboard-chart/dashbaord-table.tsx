@@ -15,6 +15,7 @@ import {
 import { getPondStatus, getPondColor } from "@/lib/lake-thresholds";
 import { rainUnitLabel, getRainSeverity } from "@/lib/rain-severity";
 import { getPipeLevelColor, getRoadLevelColor } from "@/lib/water-level-status";
+import { CANAL_MAP_IDS } from "@/lib/telemetry-stations";
 import { TelemetryHistoryChartModal } from "@/components/telemetry/telemetry-history-chart-modal";
 import { useTelemetryHistory } from "@/hooks/use-telemetry-history";
 
@@ -183,6 +184,8 @@ function fmtArea(a: number): string {
 // ตรงกับ marker และ legend บนแผนที่เป๊ะๆ ไม่ต้อง maintain เกณฑ์สีแยกซ้ำอีกชุด
 // ─────────────────────────────────────────────
 const NO_DATA_BADGE: React.CSSProperties = { backgroundColor: "#e5e7eb", color: "#6b7280" };
+// สถานีคลองยังไม่มีเกณฑ์ความรุนแรงที่ยืนยันแล้ว (ต่างจากท่อ) จึงใช้สีกลาง ไม่ตัดสีตาม PIPE_BANDS
+const CANAL_BADGE: React.CSSProperties = { backgroundColor: "#3B82F6", color: "#fff" };
 
 function statusBadgeStyle(
   row: WaterData,
@@ -199,6 +202,7 @@ function statusBadgeStyle(
     const c = getPondColor(row.stationCode ?? "", row.level);
     return { backgroundColor: c.color, color: c.textColor };
   }
+  if (telemetryCategory === "pipe" && CANAL_MAP_IDS.has(row.stationCode ?? "")) return CANAL_BADGE;
   const c = telemetryCategory === "road" ? getRoadLevelColor(row.level) : getPipeLevelColor(row.level);
   return { backgroundColor: c.color, color: c.textColor };
 }
