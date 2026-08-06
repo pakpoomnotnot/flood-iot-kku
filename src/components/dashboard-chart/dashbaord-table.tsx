@@ -31,6 +31,8 @@ interface WaterData {
   diff:         number;
   time:         string;
   stationCode?: string;
+  /** % ระดับน้ำในท่อเทียบกับความสูงท่อ — มีเฉพาะสถานีท่อที่มีข้อมูลความสูงท่อแล้วเท่านั้น */
+  capacityPct?: number | null;
 }
 
 type RainWindow = "1h" | "3h" | "24h";
@@ -624,6 +626,9 @@ const WaterTable = ({
       : "ระดับน้ำ ↓";
 
   const secondaryHeader = mode === "pond" ? "freeboard (ม.)" : null;
+  // % ความจุ คำนวณจากความสูงท่อจริง (ระดับท่อระบายน้ำ.xlsx) — มีเฉพาะสถานีท่อที่มีข้อมูลนี้แล้ว
+  const showCapacityCol = mode === "default" && telemetryCategory === "pipe";
+  const colCount = 4 + (secondaryHeader ? 1 : 0) + (showCapacityCol ? 1 : 0) + 2;
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -648,6 +653,11 @@ const WaterTable = ({
                   {secondaryHeader}
                 </th>
               )}
+              {showCapacityCol && (
+                <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  % ความจุ
+                </th>
+              )}
               <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">
                 สถานะ
               </th>
@@ -659,7 +669,7 @@ const WaterTable = ({
           <tbody>
             {data.length === 0 ? (
               <tr>
-                <td colSpan={mode === "pond" ? 7 : 6} className="py-12 text-center text-sm text-gray-400">
+                <td colSpan={colCount} className="py-12 text-center text-sm text-gray-400">
                   ไม่มีข้อมูล
                 </td>
               </tr>
@@ -688,6 +698,15 @@ const WaterTable = ({
                     <td className="px-4 py-3 text-center">
                       <span className={`inline-flex items-center justify-center rounded-md px-2.5 py-1 text-sm font-bold min-w-[52px] ${pondFreeboardCellColor(row.stationCode, row.level)}`}>
                         {row.diff > 0 ? row.diff.toFixed(2) : "—"}
+                      </span>
+                    </td>
+                  )}
+
+                  {/* % ความจุ (เฉพาะสถานีท่อ) */}
+                  {showCapacityCol && (
+                    <td className="px-4 py-3 text-center">
+                      <span className="inline-flex items-center justify-center rounded-md px-2.5 py-1 text-sm font-bold min-w-[52px] bg-white border border-gray-200 text-gray-800">
+                        {row.capacityPct != null ? `${row.capacityPct.toFixed(0)}%` : "—"}
                       </span>
                     </td>
                   )}

@@ -13,7 +13,7 @@ import {
   getPipeLevelStatusThai,
   getRoadLevelStatusThai,
 } from "@/lib/water-level-status";
-import { CANAL_MAP_IDS } from "@/lib/telemetry-stations";
+import { CANAL_MAP_IDS, getPipeCapacityPct } from "@/lib/telemetry-stations";
 import type { TelemetryApiResponse } from "@/lib/telemetry-types";
 import type { TelemetryStationResult } from "@/app/api/lib/fetchTelemetryReading";
 
@@ -26,6 +26,8 @@ export interface WaterData {
   diff: number;
   time: string;
   stationCode?: string;
+  /** % ระดับน้ำในท่อเทียบกับความสูงท่อ — มีเฉพาะสถานีท่อที่มีข้อมูลความสูงท่อแล้วเท่านั้น */
+  capacityPct?: number | null;
 }
 
 interface LakeApiItem {
@@ -142,6 +144,8 @@ const telemetryToWaterData = (
       status: getStatus(levelM),
       time: timeDisplay,
       stationCode: station.map_id ?? station.station_id,
+      // เป็น null เสมอสำหรับสถานีถนน (ไม่มีข้อมูลความสูงท่อ) — ไม่ใช่บั๊ก
+      capacityPct: getPipeCapacityPct(station.station_id, levelM),
     };
   });
 

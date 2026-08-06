@@ -8,7 +8,7 @@ import stationsData from "./stations_complete.json";
 import { useStation, generateMockStationData } from "@/contexts/station-context";
 import type { TelemetryStationResult } from "@/app/api/lib/fetchTelemetryReading";
 import { getPipeMarkerColor, formatTelemetryTime, PIPE_BANDS, NO_DATA_COLOR } from "@/lib/water-level-status";
-import { CANAL_MAP_IDS } from "@/lib/telemetry-stations";
+import { CANAL_MAP_IDS, getPipeCapacityPct, PIPE_CAPACITY } from "@/lib/telemetry-stations";
 import { TelemetryHistoryChartModal } from "@/components/telemetry/telemetry-history-chart-modal";
 
 // ─────────────────────────────────────────────
@@ -138,8 +138,27 @@ const MapComponentDrainage: FC<MapComponentDrainageProps> = ({ viewMode = "pipe"
     const errorNotice = prefix === "WP" && (reading?.stale || !hasData)
       ? `<div class="station-error-notice">⚠️ สถานีเกิดข้อผิดพลาด รอการตรวจสอบ</div>`
       : "";
+    // % ความจุคำนวณจากความสูงท่อจริง — มีเฉพาะสถานีท่อ (ไม่ใช่คลอง) ที่มีข้อมูลความสูงท่อแล้วเท่านั้น
+    const capacityCfg = reading?.station_id ? PIPE_CAPACITY[reading.station_id] : undefined;
+    const pipeHeightM = capacityCfg?.heightM ?? 3; // fallback สำหรับสถานีที่ยังไม่มีข้อมูลความสูงท่อจริง (เช่น คลอง)
+    const capacityPct = hasData && reading?.station_id
+      ? getPipeCapacityPct(reading.station_id, mockValue)
+      : null;
+    // สีระดับน้ำในหลอดแก้ว — ใช้เกณฑ์เดียวกับสี marker บนแผนที่ ให้ popup กับ marker ตรงกัน
+    const indicatorColor = !hasData
+      ? NO_DATA_COLOR.color
+      : isCanal
+        ? "#3B82F6"
+        : getPipeMarkerColor(mockValue);
 
-    const waterHeight = Math.min((mockValue / 3) * 100, 100);
+    const waterHeight = Math.min((mockValue / pipeHeightM) * 100, 100);
+    const scaleTicksHtml = [0, 0.25, 0.5, 0.75, 1]
+      .map((f) => {
+        const val = f * pipeHeightM;
+        const label = f === 0 ? "0" : val.toFixed(val < 10 ? 1 : 0);
+        return `<div class="pipe-scale-line" style="bottom: ${f * 100}%;"><span>${label}</span></div>`;
+      })
+      .join("");
 
     return `
       <div class="modern-popup">
@@ -162,7 +181,7 @@ const MapComponentDrainage: FC<MapComponentDrainageProps> = ({ viewMode = "pipe"
           <div class="pipe-water-container">
             <div class="pipe-visualization">
               <div class="pipe-body" style="--pipe-water-height: ${waterHeight}%;">
-                <div class="pipe-water-flow">
+                <div class="pipe-water-flow" style="background: linear-gradient(180deg, ${indicatorColor}b3 0%, ${indicatorColor}d9 55%, ${indicatorColor}f2 100%);">
                   <div class="water-wave-pipe"></div>
                   <div class="water-shimmer-pipe"></div>
                   <div class="water-bubbles">
@@ -171,20 +190,21 @@ const MapComponentDrainage: FC<MapComponentDrainageProps> = ({ viewMode = "pipe"
                     <div class="bubble bubble-3"></div>
                   </div>
                 </div>
-                <div class="pipe-level-indicator">
-                  <span class="pipe-level-number">${mockValue.toFixed(2)}</span>
-                  <span class="pipe-level-unit">${mockUnit}</span>
+                <div class="pipe-level-indicator" style="border-color: ${indicatorColor};">
+                  <div class="pipe-level-main">
+                    <span class="pipe-level-number">${mockValue.toFixed(2)}</span>
+                    <span class="pipe-level-unit">${mockUnit}</span>
+                  </div>
+                  ${capacityPct != null ? `<div class="pipe-level-pct" style="background: ${indicatorColor};">${capacityPct.toFixed(0)}% ของความจุท่อ</div>` : ""}
                 </div>
                 <div class="pipe-scale">
-                  <div class="pipe-scale-line" style="bottom: 0%;"><span>0</span></div>
-                  <div class="pipe-scale-line" style="bottom: 33.33%;"><span>1</span></div>
-                  <div class="pipe-scale-line" style="bottom: 66.67%;"><span>2</span></div>
-                  <div class="pipe-scale-line" style="bottom: 100%;"><span>3</span></div>
+                  ${scaleTicksHtml}
                 </div>
               </div>
               <div class="pipe-cap pipe-cap-top"></div>
               <div class="pipe-cap pipe-cap-bottom"></div>
             </div>
+            ${!isCanal ? `<div class="pipe-height-caption">ความสูงท่อ: ${pipeHeightM.toFixed(1)} ม.</div>` : ""}
           </div>
           ` : `
           <div class="data-value-box">
@@ -409,6 +429,7 @@ const MapComponentDrainage: FC<MapComponentDrainageProps> = ({ viewMode = "pipe"
         .popup-content-body { padding: 14px; background: #F9FAFB; }
         .data-label { font-size: 10px; color: #6B7280; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
         .station-error-notice { display: flex; align-items: center; gap: 6px; background: #fef2f2; border: 1px solid #fca5a5; color: #b91c1c; font-size: 11px; font-weight: 700; padding: 8px 10px; border-radius: 8px; margin-bottom: 10px; }
+        .pipe-height-caption { margin-top: 6px; text-align: center; font-size: 10px; color: #94a3b8; font-weight: 600; }
         .data-value-box { background: white; border: 2px solid #E5E7EB; border-radius: 10px; padding: 12px; display: flex; align-items: baseline; gap: 6px; margin-bottom: 10px; }
         .data-number { font-size: 32px; font-weight: 800; color: #1F2937; line-height: 1; }
         .data-unit { font-size: 14px; font-weight: 600; color: #6B7280; }
@@ -436,9 +457,11 @@ const MapComponentDrainage: FC<MapComponentDrainageProps> = ({ viewMode = "pipe"
         @keyframes pipeWaterWave { 0%,100% { transform: translateX(0) translateY(0); } 25% { transform: translateX(-12%) translateY(-2px); } 50% { transform: translateX(0) translateY(-4px); } 75% { transform: translateX(-12%) translateY(-2px); } }
         @keyframes pipeShimmer { 0%,100% { background-position: 0% 50%; opacity: 0.6; } 50% { background-position: 100% 50%; opacity: 1; } }
         @keyframes bubbleRise { 0% { bottom: 0; opacity: 0; transform: translateX(0) scale(0.5); } 10% { opacity: 1; } 90% { opacity: 1; } 100% { bottom: 100%; opacity: 0; transform: translateX(10px) scale(1); } }
-        .pipe-level-indicator { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 10; display: flex; align-items: baseline; gap: 6px; background: rgba(255,255,255,0.95); padding: 10px 18px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: 2px solid #3B82F6; }
-        .pipe-level-number { font-size: 32px; font-weight: 900; color: #1E40AF; line-height: 1; }
-        .pipe-level-unit { font-size: 15px; font-weight: 700; color: #3B82F6; }
+        .pipe-level-indicator { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 10; display: flex; flex-direction: column; align-items: center; gap: 4px; background: rgba(255,255,255,0.97); padding: 10px 16px; border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.18); border: 2.5px solid #3B82F6; transition: border-color 0.4s ease; }
+        .pipe-level-main { display: flex; align-items: baseline; gap: 5px; }
+        .pipe-level-number { font-size: 30px; font-weight: 900; color: #1E293B; line-height: 1; }
+        .pipe-level-unit { font-size: 14px; font-weight: 700; color: #64748B; }
+        .pipe-level-pct { font-size: 10px; font-weight: 800; color: #fff; padding: 2px 9px; border-radius: 999px; white-space: nowrap; letter-spacing: 0.2px; transition: background 0.4s ease; }
         .pipe-scale { position: absolute; right: 6px; top: 0; bottom: 0; width: 25px; z-index: 5; }
         .pipe-scale-line { position: absolute; right: 0; width: 100%; height: 1px; background: rgba(71,85,105,0.3); display: flex; align-items: center; justify-content: flex-end; }
         .pipe-scale-line::before { content: ''; position: absolute; right: 0; width: 6px; height: 2px; background: #475569; }

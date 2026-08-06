@@ -36,7 +36,7 @@ export const PIPE_TELEMETRY_STATIONS: TelemetryStationMeta[] = [
   {
     id: "Pipe_04",
     mapId: "WP02",
-    name: "ถนนหมอชาญอุทิศ",
+    name: "หน้า ปตท.เมืองขอนแก่น 2",
     location: "ต. ในเมือง อ. เมือง",
     lat: 16.451517,
     lon: 102.831126,
@@ -44,7 +44,7 @@ export const PIPE_TELEMETRY_STATIONS: TelemetryStationMeta[] = [
   {
     id: "Pipe_05",
     mapId: "WP05",
-    name: "ศูนย์วิจัยและเพาะเลี้ยงสัตว์น้ำจืด",
+    name: "ทางเข้าบึงทุ่งสร้าง",
     location: "ต. ในเมือง อ. เมือง",
     lat: 16.443986,
     lon: 102.848139,
@@ -143,6 +143,35 @@ export const CANAL_MAP_IDS: ReadonlySet<string> = new Set(["WP06"]);
 export const PIPE_BY_MAP_ID = Object.fromEntries(
   PIPE_TELEMETRY_STATIONS.filter((s) => s.mapId).map((s) => [s.mapId!, s]),
 );
+
+/**
+ * ความสูงท่อ + ตำแหน่งติดตั้ง sensor ต่อสถานี (ม.) — จากไฟล์ระดับท่อระบายน้ำ.xlsx
+ * ใช้คำนวณ % ระดับน้ำในท่อ: ((ระดับน้ำที่วัดได้ + ตำแหน่งติดตั้ง sensor) / ความสูงท่อ) * 100
+ * (สูตรเดียวกับที่ใช้ในไฟล์ต้นฉบับ คีย์ด้วย station_id "Pipe_XX" ไม่ใช่ map_id)
+ */
+export interface PipeCapacityConfig {
+  heightM: number;
+  sensorOffsetM: number;
+}
+
+export const PIPE_CAPACITY: Record<string, PipeCapacityConfig> = {
+  Pipe_01: { heightM: 2, sensorOffsetM: 0.3 },
+  Pipe_02: { heightM: 3, sensorOffsetM: 0.3 },
+  Pipe_03: { heightM: 1.5, sensorOffsetM: 0.3 },
+  Pipe_04: { heightM: 4, sensorOffsetM: 0.3 },
+  Pipe_05: { heightM: 2, sensorOffsetM: 0.3 },
+  Pipe_06: { heightM: 2, sensorOffsetM: 0.3 },
+};
+
+export function getPipeCapacityPct(
+  stationId: string,
+  waterLevelM: number | undefined,
+): number | null {
+  const cfg = PIPE_CAPACITY[stationId];
+  if (!cfg || waterLevelM == null || isNaN(waterLevelM)) return null;
+  const pct = ((waterLevelM + cfg.sensorOffsetM) / cfg.heightM) * 100;
+  return Math.max(0, Math.min(100, pct));
+}
 
 export const ROAD_BY_MAP_ID = Object.fromEntries(
   ROAD_TELEMETRY_STATIONS.filter((s) => s.mapId).map((s) => [s.mapId!, s]),
