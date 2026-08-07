@@ -8,7 +8,7 @@ import stationsData from "./stations_complete.json";
 import { useStation, generateMockStationData } from "@/contexts/station-context";
 import type { TelemetryStationResult } from "@/app/api/lib/fetchTelemetryReading";
 import { getPipeMarkerColor, formatTelemetryTime, PIPE_BANDS, NO_DATA_COLOR } from "@/lib/water-level-status";
-import { CANAL_MAP_IDS, getPipeCapacityPct, PIPE_CAPACITY } from "@/lib/telemetry-stations";
+import { CANAL_MAP_IDS, CANAL_LAKE_SOURCE, getPipeCapacityPct, PIPE_CAPACITY } from "@/lib/telemetry-stations";
 import { TelemetryHistoryChartModal } from "@/components/telemetry/telemetry-history-chart-modal";
 
 // ─────────────────────────────────────────────
@@ -71,11 +71,53 @@ interface MapComponentDrainageProps {
   viewMode?: "pipe" | "canal";
 }
 
+interface LakeApiItem {
+  lake_id: string;
+  status: "ok" | "error" | "no_data";
+  stale?: boolean;
+  water_level?: number;
+  date_time?: string;
+}
+
+/** ข้อมูลระดับน้ำแบบรวม ไม่ว่าจะมาจากสาย telemetry ท่อ หรือจากสถานีบึง (สำหรับคลองบางจุด) */
+interface UnifiedReading {
+  status: "ok" | "error" | "no_data";
+  water_level_m?: number;
+  date_time?: string;
+  stale?: boolean;
+  station_id?: string;
+}
+
 const MapComponentDrainage: FC<MapComponentDrainageProps> = ({ viewMode = "pipe" }) => {
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const map          = useRef<Map | null>(null);
   const markersRef   = useRef<Marker[]>([]);
   const telemetryRef = useRef<Record<string, TelemetryStationResult>>({});
+  const lakeRef      = useRef<Record<string, LakeApiItem>>({});
+
+  // คลองบางจุด (WP อยู่ใน CANAL_LAKE_SOURCE) ใช้ข้อมูลจากสถานีบึง "ทางน้ำเปิด" แทนสาย telemetry ท่อ
+  const getReading = (stationId: string): UnifiedReading | undefined => {
+    const lakeId = CANAL_LAKE_SOURCE[stationId];
+    if (lakeId) {
+      const lake = lakeRef.current[lakeId];
+      if (!lake) return undefined;
+      return {
+        status: lake.status,
+        water_level_m: lake.status === "ok" ? lake.water_level : undefined,
+        date_time: lake.date_time,
+        stale: lake.stale,
+      };
+    }
+    const reading = telemetryRef.current[stationId];
+    if (!reading) return undefined;
+    return {
+      status: reading.status,
+      water_level_m: reading.water_level_m,
+      date_time: reading.date_time,
+      stale: reading.stale,
+      station_id: reading.station_id,
+    };
+  };
 
   const [currentStyle, setCurrentStyle]   = useState<BasemapStyleKey>("topo");
   const [isLoaded, setIsLoaded]           = useState(false);
@@ -97,7 +139,7 @@ const MapComponentDrainage: FC<MapComponentDrainageProps> = ({ viewMode = "pipe"
     el.className = "custom-marker-wrapper";
     const prefix = stationId.substring(0, 2) as keyof typeof stationTypeConfig;
     const config = stationTypeConfig[prefix] || { color: "#6B7280", icon: ICONS.mapPin };
-    const reading = telemetryRef.current[stationId];
+    const reading = getReading(stationId);
     const hasReading = reading?.status === "ok" && reading.water_level_m != null;
     const levelM = hasReading ? reading!.water_level_m! : 0;
     // ไม่มี reading เลย (สถานีไม่ส่งข้อมูลเข้ามา) -> เทา
@@ -126,12 +168,14 @@ const MapComponentDrainage: FC<MapComponentDrainageProps> = ({ viewMode = "pipe"
   const createPopupContent = (station: Station): string => {
     const prefix   = station.id.substring(0, 2) as keyof typeof stationTypeConfig;
     const typeInfo = stationTypeConfig[prefix] || { label: "อื่นๆ", color: "#6B7280", icon: ICONS.tag };
-    const reading  = telemetryRef.current[station.id];
+    const reading  = getReading(station.id);
     const hasData  = reading?.status === "ok" && reading.water_level_m != null;
     const mockValue = hasData ? reading!.water_level_m! : 0;
-    const mockUnit  = "ม.";
     // สถานีใน CANAL_MAP_IDS (เช่น WP06 สะพาน บ้านทุ่งเศรษฐี) เป็นจุดวัดระดับน้ำในคลอง ไม่ใช่ท่อปิดแบบสถานีอื่น
+    // ดึงข้อมูลจากสถานีบึง "ทางน้ำเปิด" ที่เป็นจุดเดียวกัน — ค่านี้คือระดับเทียบน้ำทะเล (ม.รทก.)
+    // ไม่ใช่ความลึกน้ำจริง (ไม่มีข้อมูลระดับก้นคลองอ้างอิงเพื่อคำนวณความลึก) จึงต้องคงหน่วย ม.รทก. ไว้
     const isCanal   = CANAL_MAP_IDS.has(station.id);
+    const mockUnit  = isCanal ? "ม.รทก." : "ม.";
     const mockLabel = isCanal ? "ระดับน้ำในคลอง" : "ระดับน้ำในท่อ";
     const timeLabel = hasData ? formatTelemetryTime(reading!.date_time) : "ไม่มีข้อมูล";
     // แจ้งเตือนเมื่อไม่มี reading เข้ามาเลย หรือมีแต่ MQTT ไม่อัปเดตมานาน (ไม่ใช่แค่ค่า 0.00 จริง)
@@ -151,14 +195,17 @@ const MapComponentDrainage: FC<MapComponentDrainageProps> = ({ viewMode = "pipe"
         ? "#3B82F6"
         : getPipeMarkerColor(mockValue);
 
-    const waterHeight = Math.min((mockValue / pipeHeightM) * 100, 100);
-    const scaleTicksHtml = [0, 0.25, 0.5, 0.75, 1]
-      .map((f) => {
-        const val = f * pipeHeightM;
-        const label = f === 0 ? "0" : val.toFixed(val < 10 ? 1 : 0);
-        return `<div class="pipe-scale-line" style="bottom: ${f * 100}%;"><span>${label}</span></div>`;
-      })
-      .join("");
+    // คลองไม่มีข้อมูลความสูง/ก้นคลองอ้างอิง จึงไม่คำนวณ % จริง — ใช้ระดับภาพคงที่แค่ให้ดูเหมือนหลอดน้ำท่อ
+    const waterHeight = isCanal ? 60 : Math.min((mockValue / pipeHeightM) * 100, 100);
+    const scaleTicksHtml = isCanal
+      ? ""
+      : [0, 0.25, 0.5, 0.75, 1]
+          .map((f) => {
+            const val = f * pipeHeightM;
+            const label = f === 0 ? "0" : val.toFixed(val < 10 ? 1 : 0);
+            return `<div class="pipe-scale-line" style="bottom: ${f * 100}%;"><span>${label}</span></div>`;
+          })
+          .join("");
 
     return `
       <div class="modern-popup">
@@ -195,11 +242,9 @@ const MapComponentDrainage: FC<MapComponentDrainageProps> = ({ viewMode = "pipe"
                     <span class="pipe-level-number">${mockValue.toFixed(2)}</span>
                     <span class="pipe-level-unit">${mockUnit}</span>
                   </div>
-                  ${capacityPct != null ? `<div class="pipe-level-pct" style="background: ${indicatorColor};">${capacityPct.toFixed(0)}% ของความจุท่อ</div>` : ""}
+                  ${!isCanal && capacityPct != null ? `<div class="pipe-level-pct" style="background: ${indicatorColor};">${capacityPct.toFixed(0)}% ของความจุท่อ</div>` : ""}
                 </div>
-                <div class="pipe-scale">
-                  ${scaleTicksHtml}
-                </div>
+                ${!isCanal ? `<div class="pipe-scale">${scaleTicksHtml}</div>` : ""}
               </div>
               <div class="pipe-cap pipe-cap-top"></div>
               <div class="pipe-cap pipe-cap-bottom"></div>
@@ -207,8 +252,8 @@ const MapComponentDrainage: FC<MapComponentDrainageProps> = ({ viewMode = "pipe"
             ${!isCanal ? `<div class="pipe-height-caption">ความสูงท่อ: ${pipeHeightM.toFixed(1)} ม.</div>` : ""}
           </div>
           ` : `
-          <div class="data-value-box">
-            <span class="data-number">${mockValue.toFixed(2)}</span>
+          <div class="data-value-box" style="border-color: ${indicatorColor};">
+            <span class="data-number" style="color: ${indicatorColor};">${mockValue.toFixed(2)}</span>
             <span class="data-unit">${mockUnit}</span>
           </div>
           `}
@@ -217,7 +262,7 @@ const MapComponentDrainage: FC<MapComponentDrainageProps> = ({ viewMode = "pipe"
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               <span>${timeLabel}</span>
             </div>
-            ${prefix === "WP" ? `
+            ${prefix === "WP" && !isCanal ? `
             <button class="drain-chart-btn" data-station-id="${station.id}" data-level="${mockValue.toFixed(2)}" title="ดูกราฟระดับน้ำในท่อ">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
@@ -288,6 +333,27 @@ const MapComponentDrainage: FC<MapComponentDrainageProps> = ({ viewMode = "pipe"
     };
     loadTelemetry();
     const interval = setInterval(loadTelemetry, 15 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [isLoaded]);
+
+  // ดึงข้อมูลสถานีบึง — ใช้เป็นแหล่งข้อมูลของคลองบางจุดที่ผูกกับ CANAL_LAKE_SOURCE (เช่น WP06 -> Lake_01)
+  useEffect(() => {
+    const loadLakes = async () => {
+      try {
+        const res = await fetch("/api/lake");
+        const json = await res.json();
+        const map: Record<string, LakeApiItem> = {};
+        for (const lake of json.lakes ?? []) {
+          map[lake.lake_id] = lake;
+        }
+        lakeRef.current = map;
+        if (isLoaded) addStationMarkers();
+      } catch (error) {
+        console.error("Error loading lake telemetry for canal:", error);
+      }
+    };
+    loadLakes();
+    const interval = setInterval(loadLakes, 15 * 60 * 1000);
     return () => clearInterval(interval);
   }, [isLoaded]);
 

@@ -13,7 +13,7 @@ import {
   getPipeLevelStatusThai,
   getRoadLevelStatusThai,
 } from "@/lib/water-level-status";
-import { CANAL_MAP_IDS, getPipeCapacityPct } from "@/lib/telemetry-stations";
+import { CANAL_MAP_IDS, CANAL_LAKE_SOURCE, getPipeCapacityPct } from "@/lib/telemetry-stations";
 import type { TelemetryApiResponse } from "@/lib/telemetry-types";
 import type { TelemetryStationResult } from "@/app/api/lib/fetchTelemetryReading";
 
@@ -316,16 +316,34 @@ export function useMapViewData() {
           return getLakesTableData();
         case "drainage": {
           if (drainageTab === "canal") {
-            // สถานีคลองบางจุดยังไม่มีสาย telemetry เชื่อม (ไม่มีใน pipeData เลย) — ใช้ CANAL_META
-            // สร้างแถวชื่อ/ที่ตั้งไว้ก่อนเสมอ ถ้ามีข้อมูลจริงมาจับคู่ด้วย map_id ค่อยแสดงค่าจริงทับ
+            // สถานีคลองบางจุดผูกกับสถานีบึง "ทางน้ำเปิด" ที่มี telemetry จริงอยู่แล้ว (CANAL_LAKE_SOURCE)
+            // เช่น WP06 -> Lake_01 — ให้ใช้ข้อมูลจริงจากบึงนั้นแทนที่จะรอสาย telemetry ท่อแยกต่างหาก
+            // ถ้ายังไม่มีการผูกไว้ (หรือไม่มีข้อมูล) ใช้ CANAL_META สร้างแถวชื่อ/ที่ตั้งเปล่าไว้ก่อน
             return CANAL_META.map((meta) => {
-              const station = pipeData.find((s) => s.map_id === meta.mapId);
-              // คลองยังไม่มีเกณฑ์ความรุนแรงที่ยืนยันแล้ว (ต่างจากท่อ) จึงไม่ใช้ getPipeLevelStatusThai
-              // ที่ตัดสีตาม PIPE_BANDS — ใช้สถานะกลางแทน ไม่บอกระดับความรุนแรง
-              if (station) {
-                return telemetryToWaterData([station], (levelM) =>
-                  levelM != null ? "มีข้อมูล" : "ไม่มีข้อมูล",
-                )[0];
+              const lakeId = CANAL_LAKE_SOURCE[meta.mapId];
+              const lake = lakeId ? lakesData.find((l) => l.lake_id === lakeId) : undefined;
+              // คลองยังไม่มีเกณฑ์ความรุนแรงที่ยืนยันแล้ว (ต่างจากท่อ/บึง) จึงไม่ใช้เกณฑ์สี ใช้สถานะกลางแทน
+              if (lake?.status === "ok" && lake.water_level != null) {
+                let timeDisplay = "—";
+                if (lake.date_time) {
+                  const d = new Date(lake.date_time.replace(" ", "T"));
+                  if (!isNaN(d.getTime())) {
+                    timeDisplay = `${d.getHours().toString().padStart(2, "0")}:${d
+                      .getMinutes()
+                      .toString()
+                      .padStart(2, "0")} น.`;
+                  }
+                }
+                return {
+                  station: meta.name,
+                  location: meta.location,
+                  level: lake.water_level,
+                  bankLevel: 0,
+                  diff: 0,
+                  status: "มีข้อมูล",
+                  time: timeDisplay,
+                  stationCode: meta.mapId,
+                };
               }
               return {
                 station: meta.name,

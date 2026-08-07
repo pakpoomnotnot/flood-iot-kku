@@ -140,6 +140,15 @@ export const ROAD_TELEMETRY_STATIONS: TelemetryStationMeta[] = [
  */
 export const CANAL_MAP_IDS: ReadonlySet<string> = new Set(["WP06"]);
 
+/**
+ * สถานีคลอง (WP) ที่จริงๆ แล้วใช้ข้อมูลระดับน้ำจากสถานีบึงแบบ "ทางน้ำเปิด" (Lake_XX)
+ * เช่น WP06 (สะพาน บ้านทุ่งเศรษฐี) กับ Lake_01 (สะพาน บ้านทุ่งเศรษฐี (ทางน้ำเปิด)) เป็นจุดเดียวกัน
+ * มี telemetry จริงผ่าน /api/lake อยู่แล้ว จึงดึงมาแสดงในส่วนคลองแทนที่จะรอสาย telemetry ท่อแยกต่างหาก
+ */
+export const CANAL_LAKE_SOURCE: Record<string, string> = {
+  WP06: "Lake_01",
+};
+
 export const PIPE_BY_MAP_ID = Object.fromEntries(
   PIPE_TELEMETRY_STATIONS.filter((s) => s.mapId).map((s) => [s.mapId!, s]),
 );
