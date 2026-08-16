@@ -1,18 +1,23 @@
 /**
  * ข้อมูลฝน "จริง" จาก MQTT (telemetry_<CODE>.csv) แบ่งตามช่วงเวลา (window):
- *   - 1h : ใช้ rain_value ของแถวที่ตรงเวลาชั่วโมงเต็ม (นาที=00) ล่าสุดเพียงค่าเดียว
- *   - 3h : sum rain_value ของ 3 แถวเวลาชั่วโมงเต็มล่าสุด
- *   - 24h: ใช้ rain_daily ของแถวล่าสุด (เวลาใดก็ได้) ตรงๆ
+ *   - 1h/3h: คำนวณจากผลต่างของ rain_total (สะสมไม่รีเซ็ตตามชั่วโมง) ระหว่างแถวติดกันทีละคู่
+ *     ทุก 15 นาที แล้วรวมย้อนหลังตามหน้าต่างเวลาที่ต้องการ ยึดเวลาจากแถวล่าสุดในข้อมูลจริงเสมอ
+ *     (ไม่ใช่เวลานาฬิกาปัจจุบัน) — ใช้ rain_total แทน rain_value ตรงๆ เพราะ rain_value จาก MQTT
+ *     บางสถานีค้างค่าเดิมซ้ำหลายรอบ 15 นาทีแล้วค่อยรีเซ็ตเป็น 0 (ไม่ใช่ปริมาณฝนที่ตกใหม่ต่อรอบ)
+ *     ถ้ารวมตรงๆ จะนับซ้ำ ส่วนผลต่างของ rain_total คำนวณทีละคู่แถวจะได้ปริมาณฝนต่อรอบที่ถูกต้อง
+ *     รองรับกรณี rain_total รีเซ็ต (ค่าลดฮวบกลางทาง เช่น รีบูตอุปกรณ์) ด้วยการไม่หักลบติดลบ
+ *   - 24h: ใช้ rain_daily ของแถวล่าสุด (เวลาใดก็ได้) ตรงๆ เหมือนเดิม
  */
 
 const MQTT_RAIN_BASE =
   "http://10.101.111.123:8080/transfer_data/telemetry_mqtt_data/rain";
 
-export type RainWindow = "1h" | "3h" | "24h";
+export type RainWindow = "1h" | "3h" | "24h" | "15m";
 
 export interface RainRow {
   date_time: string;
   rain_value: number;
+  rain_total: number;
   rain_daily: number;
 }
 
@@ -86,7 +91,7 @@ async function fetchCsvTail(url: string): Promise<string> {
 
 // schema คงที่ของไฟล์ telemetry_<CODE>.csv (ดู docs/mqtt-data-source.md หัวข้อ 5) —
 // ใช้ index ตายตัวแทนการ parse header เพราะตอนขอด้วย Range ท้ายไฟล์จะไม่มีแถว header ติดมาด้วย
-const COL = { date_time: 0, rain_value: 3, rain_daily: 5 };
+const COL = { date_time: 0, rain_value: 3, rain_total: 4, rain_daily: 5 };
 
 export async function fetchStationRows(stationCode: string): Promise<RainRow[]> {
   const url = `${MQTT_RAIN_BASE}/telemetry_${stationCode}.csv`;
@@ -106,6 +111,7 @@ export async function fetchStationRows(stationCode: string): Promise<RainRow[]> 
       return {
         date_time: cols[COL.date_time],
         rain_value: Number(cols[COL.rain_value]) || 0,
+        rain_total: Number(cols[COL.rain_total]) || 0,
         rain_daily: Number(cols[COL.rain_daily]) || 0,
       };
     })
@@ -134,37 +140,41 @@ export function computeActual(
     return { value: latest.rain_daily, time: latest.date_time, series };
   }
 
-  const fullHour = rows.filter((r) => {
-    const d = new Date(r.date_time.replace(" ", "T"));
-    return d.getMinutes() === 0;
-  });
-  if (fullHour.length === 0) {
+  // ปริมาณฝนแต่ละรอบ 15 นาที = ผลต่าง rain_total ระหว่างแถวติดกัน (กันรีเซ็ตกลางทางไม่ให้ติดลบ)
+  const deltaPoints: SeriesPoint[] = [];
+  for (let i = 1; i < rows.length; i++) {
+    const prev = rows[i - 1];
+    const curr = rows[i];
+    const raw = curr.rain_total - prev.rain_total;
+    // raw ติดลบ = rain_total รีเซ็ต (เช่น รีบูตอุปกรณ์) ระหว่างสองแถวนี้ — ถือว่าค่าปัจจุบัน
+    // ทั้งหมดคือฝนที่ตกนับจากรีเซ็ต (อุปกรณ์เริ่มนับใหม่จากใกล้ 0)
+    const delta = raw >= 0 ? raw : curr.rain_total;
+    deltaPoints.push({
+      label: hourLabel(curr.date_time),
+      time: curr.date_time,
+      value: Math.max(0, parseFloat(delta.toFixed(2))),
+    });
+  }
+  if (deltaPoints.length === 0) {
     return { value: 0, time: rows[rows.length - 1]?.date_time ?? null, series: [] };
   }
 
-  if (windowParam === "1h") {
-    const series = fullHour
-      .slice(-24)
-      .map((r) => ({ label: hourLabel(r.date_time), time: r.date_time, value: r.rain_value }));
-    const latest = fullHour[fullHour.length - 1];
-    return { value: latest.rain_value, time: latest.date_time, series };
+  // แสดงย้อนหลัง 24 ชม. ล่าสุดที่ความละเอียด 15 นาที (ทุก tab ใช้ series เดียวกัน ต่างกันแค่ยอดรวม)
+  const series = deltaPoints.slice(-96);
+  const latestTime = deltaPoints[deltaPoints.length - 1].time;
+
+  // 15m = ไม่รวมย้อนหลัง เอาแค่รอบ 15 นาทีล่าสุดรอบเดียว (ใช้แสดงค่า "ล่าสุด" ใน popup โดยไม่ยุ่งกับ
+  // เกณฑ์สีความรุนแรงที่คำนวณจากยอดสะสมรายชั่วโมง)
+  if (windowParam === "15m") {
+    const last = deltaPoints[deltaPoints.length - 1];
+    return { value: last.value, time: last.time, series };
   }
 
-  // 3h — รวมค่า 3 แถวชั่วโมงเต็มติดกัน นับถอยจากท้ายสุด
-  const buckets: SeriesPoint[] = [];
-  for (let end = fullHour.length; end > 0; end -= 3) {
-    const start = Math.max(0, end - 3);
-    const chunk = fullHour.slice(start, end);
-    if (chunk.length === 0) continue;
-    const sum = chunk.reduce((s, r) => s + r.rain_value, 0);
-    const last = chunk[chunk.length - 1];
-    buckets.unshift({
-      label: hourLabel(last.date_time),
-      time: last.date_time,
-      value: parseFloat(sum.toFixed(2)),
-    });
-    if (buckets.length >= 8) break;
-  }
-  const latestBucket = buckets[buckets.length - 1];
-  return { value: latestBucket?.value ?? 0, time: latestBucket?.time ?? null, series: buckets };
+  // ยอดรวมของหน้าต่างเวลาที่เลือก ยึดจาก "แถวล่าสุดในข้อมูลจริง" ย้อนหลังไปตามจำนวนรอบ 15 นาที
+  // (ไม่ใช่เวลานาฬิกาปัจจุบัน) — 1h = ย้อน 4 รอบ, 3h = ย้อน 12 รอบ
+  const roundsBack = windowParam === "1h" ? 4 : 12;
+  const windowPoints = deltaPoints.slice(-roundsBack);
+  const value = parseFloat(windowPoints.reduce((s, p) => s + p.value, 0).toFixed(2));
+
+  return { value, time: latestTime, series };
 }

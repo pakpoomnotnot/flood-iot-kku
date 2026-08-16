@@ -250,7 +250,10 @@ const ChartModal: FC<ChartModalProps> = ({
         <div className="px-4 pt-4 pb-5">
           <p className="text-[11px] font-medium text-gray-400 mb-2 uppercase tracking-wide">
             {activeTab === "forecast" ? "พยากรณ์ปริมาณฝน" : "ปริมาณฝนจริงจาก MQTT"} — มม. (
-            {RAIN_WINDOW_TABS.find((t) => t.key === windowParam)?.label}/ช่อง)
+            {activeTab === "actual"
+              ? windowParam === "24h" ? "1 วัน/ช่อง" : "15 นาที/ช่อง"
+              : `${RAIN_WINDOW_TABS.find((t) => t.key === windowParam)?.label}/ช่อง`}
+            )
           </p>
           {loading ? (
             <div className="flex h-[220px] items-center justify-center">
@@ -379,6 +382,7 @@ const MapComponent: FC<MapComponentProps> = ({ rainfallWindow = "1h" }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isSwitcherOpen, setSwitcherOpen] = useState(false);
   const [rainData, setRainData] = useState<Record<string, number>>({});
+  const [rain15mData, setRain15mData] = useState<Record<string, number>>({});
   const [lastUpdate, setLastUpdate] = useState("-");
   const [chartStation, setChartStation] = useState<
     (typeof staticStations)[0] | null
@@ -425,6 +429,29 @@ const MapComponent: FC<MapComponentProps> = ({ rainfallWindow = "1h" }) => {
     fetchRainData();
   }, [rainfallWindow]);
 
+  // ค่าปริมาณฝน "ล่าสุด 15 นาที" แยกจาก rainfallWindow — ใช้แสดงเฉพาะใน popup ของ marker
+  // เท่านั้น ไม่กระทบเกณฑ์สี/สถานะที่ยังยึดยอดสะสมรายชั่วโมงตามเดิม
+  useEffect(() => {
+    const fetch15m = async () => {
+      try {
+        const res = await fetch(`/api/rain/actual?window=15m`);
+        const result: {
+          stations?: { station_code: string; value: number }[];
+        } = await res.json();
+        if (result.stations && result.stations.length > 0) {
+          const cleaned: Record<string, number> = {};
+          result.stations.forEach((s) => {
+            cleaned[s.station_code] = s.value;
+          });
+          setRain15mData(cleaned);
+        }
+      } catch (e) {
+        console.error("Rain 15m fetch error:", e);
+      }
+    };
+    fetch15m();
+  }, []);
+
   const createMarkerElement = (value: number): HTMLDivElement => {
     const el = document.createElement("div");
     el.className = "custom-marker-wrapper";
@@ -437,6 +464,7 @@ const MapComponent: FC<MapComponentProps> = ({ rainfallWindow = "1h" }) => {
     station: (typeof staticStations)[0],
     value: number,
     time: string,
+    latest15m: number,
   ): string => {
     const color = getRainColor(value, rainfallWindow);
     const status = getRainStatus(value, rainfallWindow);
@@ -474,10 +502,10 @@ const MapComponent: FC<MapComponentProps> = ({ rainfallWindow = "1h" }) => {
           <div class="location-area">ID: ${station.id}</div>
         </div>
         <div class="popup-content-body">
-          <div class="data-label">ปริมาณน้ำฝนสะสม ${rainWindowLabel(rainfallWindow)} (ล่าสุด)</div>
+          <div class="data-label">ปริมาณน้ำฝนล่าสุด (15 นาที)</div>
           <div class="data-value-box" style="border-color:${color}40;">
-            <span class="data-number" style="color:${value > 0 ? color : "#9CA3AF"}">${value.toFixed(1)}</span>
-            <span class="data-unit">${rainUnitLabel(rainfallWindow)}</span>
+            <span class="data-number" style="color:${latest15m > 0 ? color : "#9CA3AF"}">${latest15m.toFixed(1)}</span>
+            <span class="data-unit">มม.</span>
           </div>
           <div class="popup-footer-row">
             <div class="data-timestamp">
@@ -504,9 +532,10 @@ const MapComponent: FC<MapComponentProps> = ({ rainfallWindow = "1h" }) => {
 
     staticStations.forEach((station) => {
       const rainValue = rainData[station.id] ?? 0;
+      const latest15m = rain15mData[station.id] ?? 0;
       const el = createMarkerElement(rainValue);
       const popup = new Popup({ offset: 35, closeButton: false }).setHTML(
-        createPopupContent(station, rainValue, lastUpdate),
+        createPopupContent(station, rainValue, lastUpdate, latest15m),
       );
 
       const marker = new Marker({ element: el })
@@ -552,7 +581,7 @@ const MapComponent: FC<MapComponentProps> = ({ rainfallWindow = "1h" }) => {
 
   useEffect(() => {
     if (isLoaded && map.current) addStationMarkers();
-  }, [isLoaded, rainData, rainfallWindow]);
+  }, [isLoaded, rainData, rain15mData, rainfallWindow]);
 
   useEffect(() => {
     if (map.current || !mapContainer.current) return;

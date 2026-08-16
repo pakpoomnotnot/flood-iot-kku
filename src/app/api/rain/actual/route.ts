@@ -13,9 +13,9 @@ import {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const windowParam = (searchParams.get("window") ?? "1h") as RainWindow;
-  if (!["1h", "3h", "24h"].includes(windowParam)) {
+  if (!["1h", "3h", "24h", "15m"].includes(windowParam)) {
     return NextResponse.json(
-      { error: "invalid window, use 1h | 3h | 24h" },
+      { error: "invalid window, use 1h | 3h | 24h | 15m" },
       { status: 400 },
     );
   }

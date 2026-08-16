@@ -318,29 +318,30 @@ const RainfallChartModal = ({ station, rainfallWindow = "1h", onClose }: Rainfal
 
   useEffect(() => {
     if (!station.stationCode) { setResult(null); setLoading(false); return; }
-    const controller = new AbortController();
+    // นับ sequence กันผลลัพธ์เก่า (เช่น สลับ tab ไวๆ) มาทับผลลัพธ์ใหม่ทีหลัง
+    const seqRef = { current: 0 };
     const fetchData = async () => {
+      const mySeq = ++seqRef.current;
       setLoading(true); setError(null);
       try {
         const endpoint = activeTab === "forecast" ? "/api/rain/forecast" : "/api/rain/actual";
         const res = await fetch(
           `${endpoint}?station_code=${station.stationCode}&window=${rainfallWindow}`,
-          { signal: controller.signal },
         );
+        if (mySeq !== seqRef.current) return;
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json: RainWindowResponse = await res.json();
         if (json.error) throw new Error(json.error);
         setResult(json);
       } catch (e: any) {
-        if (controller.signal.aborted) return;
+        if (mySeq !== seqRef.current) return;
         setError(e.message ?? "โหลดข้อมูลไม่สำเร็จ");
         setResult(null);
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        if (mySeq === seqRef.current) setLoading(false);
       }
     };
     fetchData();
-    return () => controller.abort();
   }, [station.stationCode, activeTab, rainfallWindow]);
 
   const series      = result?.series ?? [];
@@ -409,7 +410,11 @@ const RainfallChartModal = ({ station, rainfallWindow = "1h", onClose }: Rainfal
         {/* Chart */}
         <div className="px-4 pt-4 pb-5">
           <p className="text-[11px] font-medium text-gray-400 mb-2 uppercase tracking-wide">
-            {activeTab === "forecast" ? "พยากรณ์ปริมาณฝน" : "ปริมาณฝนจริงจาก MQTT"} — มม. ({WINDOW_LABEL[rainfallWindow]}/ช่อง)
+            {activeTab === "forecast" ? "พยากรณ์ปริมาณฝน" : "ปริมาณฝนจริงจาก MQTT"} — มม. (
+            {activeTab === "actual"
+              ? rainfallWindow === "24h" ? "1 วัน/ช่อง" : "15 นาที/ช่อง"
+              : `${WINDOW_LABEL[rainfallWindow]}/ช่อง`}
+            )
           </p>
           {loading ? (
             <div className="flex h-[220px] items-center justify-center">
@@ -686,7 +691,7 @@ const WaterTable = ({
                       {mode === "pond"
                         ? row.level > 0 ? row.level.toFixed(2) : "—"
                         : mode === "default"
-                          ? row.status === "ไม่มีข้อมูล"
+                          ? row.status === "ไม่มีข้อมูล" && !CANAL_MAP_IDS.has(row.stationCode ?? "")
                             ? "—"
                             : row.level.toFixed(2)
                           : row.level}
