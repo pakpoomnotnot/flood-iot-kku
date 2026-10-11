@@ -1,11 +1,11 @@
 // app/api/rain/forecast/route.ts
 //
 // ข้อมูลฝน "พยากรณ์" จากไฟล์รันล่าสุดของโมเดล 1hr_2km_f48hr
-// (http://10.101.111.123:8080/transfer_data/rain/1hr_2km_f48hr/) แบ่งตามช่วงเวลา (window):
+// (<DATA_SERVER_URL>/transfer_data/rain/1hr_2km_f48hr/) แบ่งตามช่วงเวลา (window):
 //   - 1h : ค่าพยากรณ์ของชั่วโมงถัดไป 1 ชม. จากปัจจุบัน
 //   - 3h : sum ค่าพยากรณ์ 3 ชั่วโมงถัดไปจากปัจจุบัน
 //
-// แทนที่การเรียก backend ภายนอก http://10.198.110.39:9001
+// แทนที่การเรียก backend ภายนอก
 import { NextRequest, NextResponse } from "next/server";
 import { RAIN_STATION_DISPLAY_ORDER } from "@/lib/rain-stations";
 import {

@@ -1,6 +1,8 @@
-export const FLOOD_MAP_BASE_URL =
-  process.env.FLOOD_MAP_BASE_URL ||
-  "http://10.101.111.123:8080/transfer_data/floodmap_result_ras";
+import { transferDataUrl } from "@/lib/server-config";
+
+export function floodMapBaseUrl(): string {
+  return transferDataUrl("floodmap_result_ras");
+}
 
 export interface FloodMapFrame {
   id: string;
@@ -116,7 +118,7 @@ export function pickBestTifFile(runFolder: string, files: string[]): string | nu
 }
 
 export async function resolveTifForFolder(runFolder: string): Promise<string | null> {
-  const res = await fetch(`${FLOOD_MAP_BASE_URL}/${runFolder}/`, {
+  const res = await fetch(`${floodMapBaseUrl()}/${runFolder}/`, {
     next: { revalidate: 300 },
     signal: AbortSignal.timeout(15_000),
   });
@@ -141,7 +143,7 @@ async function mapConcurrent<T, R>(
 }
 
 export async function fetchFloodMapTimeseries(days = 7): Promise<FloodMapDayGroup[]> {
-  const res = await fetch(`${FLOOD_MAP_BASE_URL}/`, {
+  const res = await fetch(`${floodMapBaseUrl()}/`, {
     next: { revalidate: 300 },
     signal: AbortSignal.timeout(30_000),
   });

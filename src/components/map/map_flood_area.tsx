@@ -1,5 +1,6 @@
 "use client";
 
+import { MAPTILER_API_KEY } from "@/lib/map-config";
 import React, { useCallback, useEffect, useMemo, useRef, useState, FC } from "react";
 import {
   Map as MapIcon,
@@ -68,7 +69,7 @@ const MapComponentFlood: FC = () => {
   const [framesLoading, setFramesLoading] = useState(true);
   const [frameRendering, setFrameRendering] = useState(false);
 
-  const API_KEY = "yYduxrRP3C81U2fRFNIU";
+  const API_KEY = MAPTILER_API_KEY;
 
   const basemaps: Record<BasemapStyleKey, BasemapConfig> = {
     hybrid: {

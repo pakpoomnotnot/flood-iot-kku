@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
+import { transferDataUrl } from "@/lib/server-config";
 
 export async function GET(request: Request) {
   try {
-    const baseUrl =
-      "http://10.101.111.123:8080/transfer_data/rain/1hr_2km_f48hr/";
+    const baseUrl = transferDataUrl("rain/1hr_2km_f48hr/");
 
     const { searchParams } = new URL(request.url);
     const limit = Number(searchParams.get("limit")) || 50;

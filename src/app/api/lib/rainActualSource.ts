@@ -9,8 +9,9 @@
  *   - 24h: ใช้ rain_daily ของแถวล่าสุด (เวลาใดก็ได้) ตรงๆ เหมือนเดิม
  */
 
-const MQTT_RAIN_BASE =
-  "http://10.101.111.123:8080/transfer_data/telemetry_mqtt_data/rain";
+import { transferDataUrl } from "@/lib/server-config";
+
+const mqttRainBase = () => transferDataUrl("telemetry_mqtt_data/rain");
 
 export type RainWindow = "1h" | "3h" | "24h" | "15m";
 
@@ -94,7 +95,7 @@ async function fetchCsvTail(url: string): Promise<string> {
 const COL = { date_time: 0, rain_value: 3, rain_total: 4, rain_daily: 5 };
 
 export async function fetchStationRows(stationCode: string): Promise<RainRow[]> {
-  const url = `${MQTT_RAIN_BASE}/telemetry_${stationCode}.csv`;
+  const url = `${mqttRainBase()}/telemetry_${stationCode}.csv`;
   const text = await fetchCsvTail(url);
   const lines = text.split(/\r?\n/).filter(Boolean);
   if (lines.length === 0) return [];

@@ -1,4 +1,5 @@
 "use client";
+import { MAPTILER_API_KEY } from "@/lib/map-config";
 import React, { useEffect, useRef, useState, FC } from "react";
 import { Map } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -13,7 +14,7 @@ const KhonKaenMap: FC<MapProps> = ({ sidebarWidth = 0 }) => {
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(false);
 
-  const API_KEY: string = "yYduxrRP3C81U2fRFNIU";
+  const API_KEY: string = MAPTILER_API_KEY;
 
   // ตรวจสอบขนาดหน้าจอ
   useEffect(() => {

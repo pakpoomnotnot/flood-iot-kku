@@ -3,12 +3,17 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_MAPTILER_API_KEY: ${NEXT_PUBLIC_MAPTILER_API_KEY:-}
     container_name: flood-nextjs
     restart: unless-stopped
     environment:
       - NODE_ENV=production
       - PORT=3000
       - HOSTNAME=0.0.0.0
+      - DATA_SERVER_URL=${DATA_SERVER_URL:?Set DATA_SERVER_URL in .env}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:?Set ADMIN_USERNAME in .env}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
     expose:
       - "3000"
     networks:

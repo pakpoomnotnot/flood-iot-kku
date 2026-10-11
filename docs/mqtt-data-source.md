@@ -3,7 +3,7 @@
 เอกสารนี้สรุปโครงสร้างข้อมูล MQTT telemetry ของโครงการ KKC-UFM (ระบบตรวจวัดน้ำท่วมเมืองขอนแก่น) จากไฟล์ที่ถูก export ไว้ที่:
 
 ```
-http://10.101.111.123:8080/transfer_data/telemetry_mqtt_data/
+<DATA_SERVER_URL>/transfer_data/telemetry_mqtt_data/
 ```
 
 ## 1. โครงสร้างไดเรกทอรีบนเซิร์ฟเวอร์
@@ -156,13 +156,13 @@ KKC-UFM/Project 02/Telemetry/03/GET/Config    # SUBSCRIBE (ข้อมูล co
 {
   "Version": "4.58",
   "boxType": "Sensor 02",
-  "macAddress": "34:94:54:15:F2:40",
+  "macAddress": "AA:BB:CC:DD:EE:FF",
   "deviceNum": "08",
   "date": "13-Sep-2023 12:00:00",
   "RSSI": -65,
-  "ssid": "WiFi_IoT_KKC_UFM",
-  "password": "UfM2025KkC",
-  "localIP": "192.168.1.108",
+  "ssid": "<wifi-ssid>",
+  "password": "<wifi-password>",
+  "localIP": "192.168.x.x",
   "locationGPS": "16.42, 102.86",
   "locationName": "เทศบาลเมืองเก่า",
   "On Time": 377,
@@ -214,5 +214,5 @@ raw_json
 
 ## 7. แหล่งข้อมูลต้นทาง
 
-- Directory listing: `http://10.101.111.123:8080/transfer_data/telemetry_mqtt_data/` (เข้าถึงได้เฉพาะในเครือข่ายภายใน/intranet)
+- Directory listing: `<DATA_SERVER_URL>/transfer_data/telemetry_mqtt_data/` (เข้าถึงได้เฉพาะในเครือข่ายภายใน/intranet)
 - ไฟล์อ้างอิง topic & mapping สถานที่ติดตั้ง: `Topic และ ลำดับสถานที่ติดตั้ง.xlsx` ในไดเรกทอรีเดียวกัน

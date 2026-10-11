@@ -1,10 +1,11 @@
 "use client";
 
+import { MAPTILER_API_KEY } from "@/lib/map-config";
 import maplibregl from "maplibre-gl";
 import type { FloodMapDayGroup } from "@/lib/flood-map-catalog";
 import { geotiffToImageOverlay } from "@/lib/flood-geotiff-render";
 
-const MAPTILER_KEY = "yYduxrRP3C81U2fRFNIU";
+const MAPTILER_KEY = MAPTILER_API_KEY;
 const HYBRID_STYLE_URL = `https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`;
 
 /**

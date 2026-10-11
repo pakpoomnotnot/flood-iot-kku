@@ -1,7 +1,7 @@
-export const baseUrl =
-  "http://10.101.111.123:8080/transfer_data/flow_result_hms/1hr_3km_f72hr/";
+import { transferDataUrl } from "@/lib/server-config";
 
 export async function loadCsvFiles(prefix: string) {
+  const baseUrl = transferDataUrl("flow_result_hms/1hr_3km_f72hr/");
   const html = await fetch(baseUrl).then((res) => res.text());
 
   // filter files by prefix

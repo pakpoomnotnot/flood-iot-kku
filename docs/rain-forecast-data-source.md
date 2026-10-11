@@ -3,7 +3,7 @@
 เอกสารนี้สรุปโครงสร้างข้อมูล **พยากรณ์ปริมาณน้ำฝน (rain forecast)** ที่ถูก export ไว้ที่:
 
 ```
-http://10.101.111.123:8080/transfer_data/rain/
+<DATA_SERVER_URL>/transfer_data/rain/
 ```
 
 (หมายเหตุ: เอกสารนี้ไม่ครอบคลุมไฟล์ `location_tele_kkn.csv` ในไดเรกทอรีเดียวกัน — ข้ามไปตามที่ระบุ)
@@ -90,7 +90,7 @@ datetime,SNK_HOSP,KKC_MUN,BKN,BTS,NLP,BNK,SIL_MUN,UNE_MC,MKO_MUN,NEU,UNE_SH,KKC_
 
 ## 5. ความสัมพันธ์กับส่วนอื่นของระบบ (ในโค้ดปัจจุบัน)
 
-ตรวจสอบโค้ดในโปรเจกต์แล้วพบว่า **แอปยังไม่ได้ดึงข้อมูลจากลิงก์ CSV นี้โดยตรง** — ฟีเจอร์กราฟพยากรณ์ฝนที่มีอยู่ ([src/app/api/rain/forecast-timeseries/route.ts](../src/app/api/rain/forecast-timeseries/route.ts)) เรียกไปยัง backend คนละตัว (`http://10.198.110.39:9001/rain/forecast-timeseries`) ซึ่งน่าจะเป็นบริการที่ประมวลผล/สรุปไฟล์ CSV เหล่านี้ไว้ล่วงหน้าอีกชั้นหนึ่ง ไม่ใช่การอ่านไฟล์ `rain_interp_to_tele_*.csv` ตรงๆ
+ตรวจสอบโค้ดในโปรเจกต์แล้วพบว่า **แอปยังไม่ได้ดึงข้อมูลจากลิงก์ CSV นี้โดยตรง** — ฟีเจอร์กราฟพยากรณ์ฝนที่มีอยู่ ([src/app/api/rain/forecast-timeseries/route.ts](../src/app/api/rain/forecast-timeseries/route.ts)) เรียกไปยัง backend คนละตัว (`<LEGACY_BACKEND_URL>/rain/forecast-timeseries`) ซึ่งน่าจะเป็นบริการที่ประมวลผล/สรุปไฟล์ CSV เหล่านี้ไว้ล่วงหน้าอีกชั้นหนึ่ง ไม่ใช่การอ่านไฟล์ `rain_interp_to_tele_*.csv` ตรงๆ
 
 ถ้าต้องการเชื่อมต่อแอปเข้ากับข้อมูลชุดนี้โดยตรงในอนาคต ควรพิจารณา:
 - เลือกความละเอียดให้เหมาะกับ use case (เช่น ใช้ `1hr_2km_f48hr` สำหรับแจ้งเตือนระยะสั้นแม่นยำสูง, ใช้ `3hr_9km_f10day` สำหรับแนวโน้มระยะยาว)

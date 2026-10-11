@@ -1,7 +1,9 @@
 // app/api/flood-maps/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
-const FLOOD_MAP_BASE_URL = 'http://10.101.111.123:8080/transfer_data/floodmap_result_ras';
+// Files are served through the app's own proxy so the data server address is never exposed.
+const cogProxyUrl = (filename: string) =>
+  `/api/flood-maps/cog?path=${encodeURIComponent(filename)}`;
 
 // Define available flood map scenarios
 export interface FloodMapScenario {
@@ -18,21 +20,21 @@ const FLOOD_SCENARIOS: FloodMapScenario[] = [
     date: '2019-09-02',
     displayName: '2 ก.ย. 2562 (อดีต)',
     filename: 'Depth (02SEP2019 23 00 00).Terrain.MergedInputs.tif',
-    fileUrl: `${FLOOD_MAP_BASE_URL}/Depth%20(02SEP2019%2023%2000%2000).Terrain.MergedInputs.tif`
+    fileUrl: cogProxyUrl('Depth (02SEP2019 23 00 00).Terrain.MergedInputs.tif')
   },
   {
     id: 2,
     date: '2022-09-26',
     displayName: '26 ก.ย. 2565 (อดีต)',
     filename: 'Depth (26SEP2022 23 00 00).Terrain.MergedInputs.tif',
-    fileUrl: `${FLOOD_MAP_BASE_URL}/Depth%20(26SEP2022%2023%2000%2000).Terrain.MergedInputs.tif`
+    fileUrl: cogProxyUrl('Depth (26SEP2022 23 00 00).Terrain.MergedInputs.tif')
   },
   {
     id: 3,
     date: '2025-08-15',
     displayName: '15 ส.ค. 2568 (พยากรณ์)',
     filename: 'Depth (15AUG2025 23 00 00).Terrain.MergedInputs.tif',
-    fileUrl: `${FLOOD_MAP_BASE_URL}/Depth%20(15AUG2025%2023%2000%2000).Terrain.MergedInputs.tif`
+    fileUrl: cogProxyUrl('Depth (15AUG2025 23 00 00).Terrain.MergedInputs.tif')
   }
 ];
 
@@ -123,8 +125,7 @@ export async function GET(request: NextRequest) {
 
     // Return all scenarios
     return NextResponse.json({
-      scenarios: FLOOD_SCENARIOS,
-      baseUrl: FLOOD_MAP_BASE_URL
+      scenarios: FLOOD_SCENARIOS
     });
   } catch (error) {
     console.error('Error in flood-maps API:', error);

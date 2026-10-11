@@ -1,7 +1,7 @@
 /**
  * แหล่งข้อมูลพยากรณ์ฝนภายใน — อ่านไฟล์ rain_interp_to_tele_*.csv โดยตรงจาก
- * http://10.101.111.123:8080/transfer_data/rain/1hr_2km_f48hr/
- * แทนการเรียก backend ภายนอก (http://10.198.110.39:9001)
+ * <DATA_SERVER_URL>/transfer_data/rain/1hr_2km_f48hr/
+ * แทนการเรียก backend ภายนอก
  *
  * ไฟล์แต่ละไฟล์คือรันของโมเดล ตั้งชื่อ rain_interp_to_tele_1hr_2km_<YYYYMMDD>_<HHMM>.csv
  * รันทุก 3 ชม. (01,04,07,10,13,16,19,22 น. เวลาไทย) แทนที่จะโหลด directory listing
@@ -9,8 +9,9 @@
  * แล้วไล่ถอยครั้งละ 3 ชม. หากยังไม่พบไฟล์ (เผื่อรันล่าสุดยังไม่ถูกเผยแพร่)
  */
 
-const FORECAST_BASE =
-  "http://10.101.111.123:8080/transfer_data/rain/1hr_2km_f48hr";
+import { transferDataUrl } from "@/lib/server-config";
+
+const forecastBase = () => transferDataUrl("rain/1hr_2km_f48hr");
 const RUN_HOURS = [1, 4, 7, 10, 13, 16, 19, 22];
 const BANGKOK_OFFSET_MS = 7 * 3600_000;
 
@@ -59,7 +60,7 @@ export async function fetchLatestForecastCsv(): Promise<LatestForecastCsv> {
   let lastError: unknown;
   for (let attempt = 0; attempt < 6; attempt++) {
     const runSlot = formatRunSlot(slot);
-    const url = `${FORECAST_BASE}/rain_interp_to_tele_1hr_2km_${runSlot}.csv`;
+    const url = `${forecastBase()}/rain_interp_to_tele_1hr_2km_${runSlot}.csv`;
     try {
       const res = await fetch(url, {
         next: { revalidate: 900 },

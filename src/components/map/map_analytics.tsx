@@ -1,5 +1,6 @@
 "use client";
 
+import { MAPTILER_API_KEY } from "@/lib/map-config";
 import React, { useEffect, useRef, useState, FC } from "react";
 import maplibregl, { Map as MapLibreMap } from "maplibre-gl";
 import * as GeoTIFF from "geotiff";
@@ -126,7 +127,7 @@ const MapComponentFixed: FC = () => {
     if (map.current || !mapContainer.current) return;
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: "https://api.maptiler.com/maps/topo-v2/style.json?key=yYduxrRP3C81U2fRFNIU",
+      style: `https://api.maptiler.com/maps/topo-v2/style.json?key=${MAPTILER_API_KEY}`,
       center: [102.82, 16.44],
       zoom: 12
     });

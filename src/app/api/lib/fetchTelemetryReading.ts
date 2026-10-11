@@ -1,8 +1,8 @@
 import type { TelemetryStationMeta } from "@/lib/telemetry-stations";
 
-export const TELEMETRY_BASE_URL =
-  process.env.TELEMETRY_CSV_BASE_URL ||
-  "http://10.101.111.123:8080/transfer_data/telemetry_mqtt_data";
+import { transferDataUrl } from "@/lib/server-config";
+
+const telemetryBaseUrl = () => transferDataUrl("telemetry_mqtt_data");
 
 export type TelemetryCategory = "lake" | "pipe" | "road";
 
@@ -115,7 +115,7 @@ export async function fetchTelemetryHistory(
   stationId: string,
   hours = 24,
 ): Promise<TelemetryReading[]> {
-  const url = `${TELEMETRY_BASE_URL}/${category}/${stationId}.csv`;
+  const url = `${telemetryBaseUrl()}/${category}/${stationId}.csv`;
 
   // ~700 ไบต์/แถว ทุก 15 นาที เผื่อ margin ให้พอสำหรับช่วงเวลาที่ขอ (สูงสุด 7 วัน)
   const tailBytes = Math.min(3_000_000, Math.max(300_000, hours * 4 * 700 * 1.3));
@@ -138,7 +138,7 @@ export async function fetchLatestTelemetryReading(
   category: TelemetryCategory,
   stationId: string,
 ): Promise<TelemetryReading | null> {
-  const url = `${TELEMETRY_BASE_URL}/${category}/${stationId}.csv`;
+  const url = `${telemetryBaseUrl()}/${category}/${stationId}.csv`;
   const text = await fetchCsvTail(url, 20_000, 15_000);
   const lines = splitDataLines(text);
   if (lines.length === 0) return null;

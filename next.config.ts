@@ -20,7 +20,6 @@ const nextConfig: NextConfig = {
   },
 
   images: {
-    domains: ["10.101.111.123"],
     unoptimized: true,
   },
 

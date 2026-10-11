@@ -1,4 +1,5 @@
 "use client";
+import { MAPTILER_API_KEY } from "@/lib/map-config";
 import React, { useEffect, useRef, useState, FC } from "react";
 import {
   Map as MapIcon,
@@ -86,7 +87,7 @@ const MapLibreComponent: FC<MapProps> = ({ sidebarWidth, isWidth}) => {
   // Use station context
   const { setSelectedStationData, getStationTypeConfig, getStationCounts, getAllStations } = useStation();
 
-  const API_KEY: string = "yYduxrRP3C81U2fRFNIU";
+  const API_KEY: string = MAPTILER_API_KEY;
 
   const basemaps: Record<BasemapStyleKey, BasemapConfig> = {
     hybrid: {

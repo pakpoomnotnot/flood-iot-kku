@@ -1,8 +1,7 @@
 // app/api/rain/telemetry-history/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
-const BASE_URL =
-  "http://10.101.111.123:8080/transfer_data/telemetry_mqtt_data/rain";
+import { transferDataUrl } from "@/lib/server-config";
 
 interface TelemetryRow {
   date_time: string;
@@ -60,7 +59,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "invalid station_code" }, { status: 400 });
   }
 
-  const fileUrl = `${BASE_URL}/telemetry_${stationCode}.csv`;
+  const fileUrl = `${transferDataUrl("telemetry_mqtt_data/rain")}/telemetry_${stationCode}.csv`;
 
   try {
     const res = await fetch(fileUrl, { cache: "no-store" });

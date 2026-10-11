@@ -1,5 +1,6 @@
 "use client";
 
+import { MAPTILER_API_KEY } from "@/lib/map-config";
 import React, { useEffect, useRef, useState, FC } from "react";
 import { Layers, Map as MapIcon, Droplets, ShieldAlert } from "lucide-react";
 import maplibregl, { Map, Marker, Popup, ScaleControl } from "maplibre-gl";
@@ -78,7 +79,7 @@ const MapComponentRoads: FC = () => {
   const [chartLevel, setChartLevel]       = useState(0);
 
   const { setSelectedStationData } = useStation();
-  const API_KEY = "yYduxrRP3C81U2fRFNIU";
+  const API_KEY = MAPTILER_API_KEY;
 
   const basemaps: Record<BasemapStyleKey, BasemapConfig> = {
     hybrid: { name: "Hybrid",      style: `https://api.maptiler.com/maps/hybrid/style.json?key=${API_KEY}`,  icon: "🌍" },

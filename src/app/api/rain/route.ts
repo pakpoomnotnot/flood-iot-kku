@@ -1,6 +1,5 @@
 // app/api/rain/route.ts — สรุปฝนสูงสุด (max_1h / max_3h / max_24h) ของทุกสถานี
-// อ่านจาก MQTT โดยตรง (10.101.111.123) แทนการเรียก backend ภายนอก
-// http://10.198.110.39:9001/rain/max-summary
+// อ่านจาก MQTT โดยตรง แทนการเรียก backend ภายนอก
 import { NextResponse } from "next/server";
 import { RAIN_STATION_DISPLAY_ORDER } from "@/lib/rain-stations";
 import {

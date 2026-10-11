@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { FLOOD_MAP_BASE_URL } from "@/lib/flood-map-catalog";
+import { floodMapBaseUrl } from "@/lib/flood-map-catalog";
 
 /** Proxy COG GeoTIFF พร้อมรองรับ HTTP Range (จำเป็นสำหรับ COG protocol) */
 export async function GET(req: NextRequest) {
@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Invalid path" }, { status: 400 });
   }
 
-  const targetUrl = `${FLOOD_MAP_BASE_URL}/${path}`;
+  const targetUrl = `${floodMapBaseUrl()}/${path}`;
   const range = req.headers.get("range");
 
   try {

@@ -6,9 +6,8 @@ import {
 } from "@/app/api/lib/rainForecastSource";
 
 // อ่านไฟล์พยากรณ์ฝน rain_interp_to_tele_1hr_2km_*.csv โดยตรงจาก
-// http://10.101.111.123:8080/transfer_data/rain/1hr_2km_f48hr/ (ไฟล์เดียวมีทั้ง
+// <DATA_SERVER_URL>/transfer_data/rain/1hr_2km_f48hr/ (ไฟล์เดียวมีทั้ง
 // ข้อมูลย้อนหลัง + พยากรณ์ล่วงหน้าต่อเนื่องกัน) แทนการเรียก backend ภายนอก
-// http://10.198.110.39:9001/rain/forecast-timeseries
 
 const STATIONS = RAIN_STATIONS;
 type StationCode = keyof typeof STATIONS;
