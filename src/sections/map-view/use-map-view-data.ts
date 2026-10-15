@@ -79,14 +79,6 @@ export function isForecastTab(tab: RainfallTab): boolean {
   return tab.startsWith("forecast_");
 }
 
-/** สลับดูสถานีท่อ (ปิด) กับคลอง (เปิด) ในหน้าระดับน้ำในทางระบายน้ำ — ใช้ทั้งแผนที่และตาราง */
-export type DrainageTab = "pipe" | "canal";
-
-export const DRAINAGE_TABS: { key: DrainageTab; label: string }[] = [
-  { key: "pipe", label: "ท่อระบายน้ำ" },
-  { key: "canal", label: "คลอง" },
-];
-
 export const STATION_METADATA = [
   { id: "SNK_HOSP", name: RAIN_STATIONS.SNK_HOSP.name, location: "ต. ในเมือง อ. เมือง" },
   { id: "KKC_MUN", name: RAIN_STATIONS.KKC_MUN.name, location: "ต. ในเมือง อ. เมือง" },
@@ -116,8 +108,8 @@ export const LAKE_META: { lakeId: string; name: string; location: string }[] = [
   { lakeId: "Lake_04", name: "บึงหนองเอียด", location: "ต. ศิลา อ. เมือง" },
 ];
 
-// สถานีคลอง (WP ที่อยู่ใน CANAL_MAP_IDS) — ยังไม่มีสาย telemetry เชื่อมเข้าระบบ (ไม่มีไฟล์ CSV)
-// จึงประกาศชื่อ/ที่ตั้งไว้ตรงนี้เพื่อให้ตารางแสดงแถวสถานีได้เหมือนท่อ แม้ค่ายังไม่มีก็ตาม
+// สถานีลำน้ำ (WP ที่อยู่ใน CANAL_MAP_IDS) แสดงในหน้า "ระดับน้ำในลำน้ำ" — ไม่มีสาย telemetry ท่อของตัวเอง
+// จึงประกาศชื่อ/ที่ตั้งไว้ตรงนี้เพื่อให้ตารางแสดงแถวสถานีได้ แม้ค่ายังไม่มีก็ตาม
 export const CANAL_META: { mapId: string; name: string; location: string }[] = [
   { mapId: "WP06", name: "สะพาน บ้านทุ่งเศรษฐี", location: "เทศบาลนครขอนแก่น" },
 ];
@@ -158,7 +150,6 @@ interface RainWindowApiStation {
 export function useMapViewData() {
   const [rainfallData, setRainfallData] = useState<WaterData[]>([]);
   const [rainfallTab, setRainfallTab] = useState<RainfallTab>("1hr");
-  const [drainageTab, setDrainageTab] = useState<DrainageTab>("pipe");
   const [lakesData, setLakesData] = useState<LakeApiItem[]>([]);
   const [pipeData, setPipeData] = useState<TelemetryStationResult[]>([]);
   const [roadData, setRoadData] = useState<TelemetryStationResult[]>([]);
@@ -315,14 +306,18 @@ export function useMapViewData() {
         case "ponds":
           return getLakesTableData();
         case "drainage": {
-          if (drainageTab === "canal") {
-            // สถานีคลองบางจุดผูกกับสถานีบึง "ทางน้ำเปิด" ที่มี telemetry จริงอยู่แล้ว (CANAL_LAKE_SOURCE)
-            // เช่น WP06 -> Lake_01 — ให้ใช้ข้อมูลจริงจากบึงนั้นแทนที่จะรอสาย telemetry ท่อแยกต่างหาก
-            // ถ้ายังไม่มีการผูกไว้ (หรือไม่มีข้อมูล) ใช้ CANAL_META สร้างแถวชื่อ/ที่ตั้งเปล่าไว้ก่อน
+          // สถานีลำน้ำ (เช่น WP06) แยกไปแสดงในหน้า "ระดับน้ำในลำน้ำ" ไม่ปนกับท่อระบายน้ำ
+          const filtered = pipeData.filter((s) => !CANAL_MAP_IDS.has(s.map_id ?? ""));
+          return telemetryToWaterData(filtered, getPipeLevelStatusThai);
+        }
+        case "stream":
+          // สถานีลำน้ำบางจุดผูกกับสถานีบึง "ทางน้ำเปิด" ที่มี telemetry จริงอยู่แล้ว (CANAL_LAKE_SOURCE)
+          // เช่น WP06 -> Lake_01 — ใช้ข้อมูลจริงจากบึงนั้น ถ้ายังไม่มีข้อมูลใช้ CANAL_META สร้างแถวชื่อ/ที่ตั้งเปล่าไว้ก่อน
+          {
             return CANAL_META.map((meta) => {
               const lakeId = CANAL_LAKE_SOURCE[meta.mapId];
               const lake = lakeId ? lakesData.find((l) => l.lake_id === lakeId) : undefined;
-              // คลองยังไม่มีเกณฑ์ความรุนแรงที่ยืนยันแล้ว (ต่างจากท่อ/บึง) จึงไม่ใช้เกณฑ์สี ใช้สถานะกลางแทน
+              // ลำน้ำยังไม่มีเกณฑ์ความรุนแรงที่ยืนยันแล้ว (ต่างจากท่อ/บึง) จึงไม่ใช้เกณฑ์สี ใช้สถานะกลางแทน
               if (lake?.status === "ok" && lake.water_level != null) {
                 let timeDisplay = "—";
                 if (lake.date_time) {
@@ -357,21 +352,19 @@ export function useMapViewData() {
               };
             });
           }
-          const filtered = pipeData.filter((s) => !CANAL_MAP_IDS.has(s.map_id ?? ""));
-          return telemetryToWaterData(filtered, getPipeLevelStatusThai);
-        }
         case "roads":
           return telemetryToWaterData(roadData, getRoadLevelStatusThai);
         default:
           return [];
       }
     },
-    [rainfallData, getLakesTableData, pipeData, roadData, drainageTab],
+    [rainfallData, getLakesTableData, lakesData, pipeData, roadData],
   );
 
-  const getTableMode = (activeView: string): "rainfall" | "pond" | "default" => {
+  const getTableMode = (activeView: string): "rainfall" | "pond" | "stream" | "default" => {
     if (activeView === "rainfall") return "rainfall";
     if (activeView === "ponds") return "pond";
+    if (activeView === "stream") return "stream";
     return "default";
   };
 
@@ -386,8 +379,6 @@ export function useMapViewData() {
   return {
     rainfallTab,
     setRainfallTab,
-    drainageTab,
-    setDrainageTab,
     getCurrentData,
     getTableMode,
     getTelemetryCategory,

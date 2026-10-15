@@ -9,6 +9,7 @@ import WaterTable from "@/components/dashboard-chart/dashbaord-table";
 import MapComponent from "@/components/map/map_rain";
 import MapComponentSwamp from "@/components/map/map_swamp";
 import MapComponentDrainage from "@/components/map/map_drainage";
+import MapComponentStream from "@/components/map/map_stream";
 import MapComponentRoads from "@/components/map/map_road";
 import MapComponentAnalytics from "@/components/map/map_analytics";
 import MapComponentFlood from "@/components/map/map_flood_area";
@@ -17,11 +18,9 @@ import MapComponentRadar from "@/components/map/map_radar";
 import { DashboardNavAdmin } from "@/components/layout/dashboard-nav-admin";
 import {
   RAINFALL_TABS,
-  DRAINAGE_TABS,
   useMapViewData,
   deriveRainWindow,
   type RainfallTab,
-  type DrainageTab,
 } from "./use-map-view-data";
 
 const RainfallTabBar = ({
@@ -53,35 +52,6 @@ const RainfallTabBar = ({
   </div>
 );
 
-const DrainageTabBar = ({
-  activeTab,
-  onTabChange,
-}: {
-  activeTab: DrainageTab;
-  onTabChange: (tab: DrainageTab) => void;
-}) => (
-  <div className="flex w-full border-b border-gray-200 bg-white">
-    {DRAINAGE_TABS.map((tab) => (
-      <button
-        key={tab.key}
-        onClick={() => onTabChange(tab.key)}
-        className={`
-          relative flex-1 px-2 py-3 text-xs font-medium transition-all duration-200
-          whitespace-nowrap overflow-hidden text-ellipsis
-          ${
-            activeTab === tab.key
-              ? "text-[#A73B24] border-b-2 border-[#A73B24]"
-              : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 border-b-2 border-transparent"
-          }
-        `}
-        title={tab.label}
-      >
-        {tab.label}
-      </button>
-    ))}
-  </div>
-);
-
 interface MapViewAdminProps {
   isLoggedIn?: boolean;
 }
@@ -92,8 +62,6 @@ const MapViewAdmin = ({ isLoggedIn = false }: MapViewAdminProps) => {
   const {
     rainfallTab,
     setRainfallTab,
-    drainageTab,
-    setDrainageTab,
     getCurrentData,
     getTableMode,
     getTelemetryCategory,
@@ -106,7 +74,9 @@ const MapViewAdmin = ({ isLoggedIn = false }: MapViewAdminProps) => {
       case "ponds":
         return <MapComponentSwamp />;
       case "drainage":
-        return <MapComponentDrainage viewMode={drainageTab} />;
+        return <MapComponentDrainage />;
+      case "stream":
+        return <MapComponentStream />;
       case "roads":
         return <MapComponentRoads />;
       case "analysis":
@@ -191,9 +161,6 @@ const MapViewAdmin = ({ isLoggedIn = false }: MapViewAdminProps) => {
                 >
                   {activeView === "rainfall" && (
                     <RainfallTabBar activeTab={rainfallTab} onTabChange={setRainfallTab} />
-                  )}
-                  {activeView === "drainage" && (
-                    <DrainageTabBar activeTab={drainageTab} onTabChange={setDrainageTab} />
                   )}
 
                   <div className="min-h-0 flex-1 overflow-auto">

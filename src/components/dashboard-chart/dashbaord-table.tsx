@@ -15,7 +15,6 @@ import {
 import { getPondStatus, getPondColor } from "@/lib/lake-thresholds";
 import { rainUnitLabel, getRainSeverity } from "@/lib/rain-severity";
 import { getPipeLevelColor, getRoadLevelColor } from "@/lib/water-level-status";
-import { CANAL_MAP_IDS } from "@/lib/telemetry-stations";
 import { TelemetryHistoryChartModal } from "@/components/telemetry/telemetry-history-chart-modal";
 import { useTelemetryHistory } from "@/hooks/use-telemetry-history";
 
@@ -186,12 +185,12 @@ function fmtArea(a: number): string {
 // ตรงกับ marker และ legend บนแผนที่เป๊ะๆ ไม่ต้อง maintain เกณฑ์สีแยกซ้ำอีกชุด
 // ─────────────────────────────────────────────
 const NO_DATA_BADGE: React.CSSProperties = { backgroundColor: "#e5e7eb", color: "#6b7280" };
-// สถานีคลองยังไม่มีเกณฑ์ความรุนแรงที่ยืนยันแล้ว (ต่างจากท่อ) จึงใช้สีกลาง ไม่ตัดสีตาม PIPE_BANDS
-const CANAL_BADGE: React.CSSProperties = { backgroundColor: "#3B82F6", color: "#fff" };
+// สถานีลำน้ำยังไม่มีเกณฑ์ความรุนแรงที่ยืนยันแล้ว (ต่างจากท่อ) จึงใช้สีกลาง ไม่ตัดสีตาม PIPE_BANDS
+const STREAM_BADGE: React.CSSProperties = { backgroundColor: "#3B82F6", color: "#fff" };
 
 function statusBadgeStyle(
   row: WaterData,
-  mode: "rainfall" | "pond" | "default",
+  mode: "rainfall" | "pond" | "stream" | "default",
   telemetryCategory: "pipe" | "road" | undefined,
   rainfallWindow: RainWindow,
 ): React.CSSProperties {
@@ -204,7 +203,7 @@ function statusBadgeStyle(
     const c = getPondColor(row.stationCode ?? "", row.level);
     return { backgroundColor: c.color, color: c.textColor };
   }
-  if (telemetryCategory === "pipe" && CANAL_MAP_IDS.has(row.stationCode ?? "")) return CANAL_BADGE;
+  if (mode === "stream") return STREAM_BADGE;
   const c = telemetryCategory === "road" ? getRoadLevelColor(row.level) : getPipeLevelColor(row.level);
   return { backgroundColor: c.color, color: c.textColor };
 }
@@ -609,7 +608,7 @@ const PondChartModal = ({ station, onClose }: PondChartModalProps) => {
 // ─────────────────────────────────────────────
 interface WaterTableProps {
   data: WaterData[];
-  mode?: "rainfall" | "pond" | "default";
+  mode?: "rainfall" | "pond" | "stream" | "default";
   telemetryCategory?: "pipe" | "road";
   /** ช่วงเวลาที่ตารางฝนกำลังแสดงอยู่ (1h/3h/24h) — ใช้กำหนด default การรวมค่าในกราฟฝนของแต่ละสถานี */
   rainfallWindow?: RainWindow;
@@ -626,7 +625,7 @@ const WaterTable = ({
   // คอลัมน์ header ตาม mode
   const levelHeader = mode === "rainfall"
     ? `ฝนล่าสุด (${rainUnitLabel(rainfallWindow)}) ↓`
-    : mode === "pond"
+    : mode === "pond" || mode === "stream"
       ? "ระดับน้ำ (ม.รทก.) ↓"
       : "ระดับน้ำ ↓";
 
@@ -690,11 +689,13 @@ const WaterTable = ({
                     <span className="inline-flex items-center justify-center rounded-md px-2.5 py-1 text-sm font-bold min-w-[60px] bg-white border border-gray-200 text-gray-800">
                       {mode === "pond"
                         ? row.level > 0 ? row.level.toFixed(2) : "—"
-                        : mode === "default"
-                          ? row.status === "ไม่มีข้อมูล" && !CANAL_MAP_IDS.has(row.stationCode ?? "")
-                            ? "—"
-                            : row.level.toFixed(2)
-                          : row.level}
+                        : mode === "stream"
+                          ? row.level.toFixed(2)
+                          : mode === "default"
+                            ? row.status === "ไม่มีข้อมูล"
+                              ? "—"
+                              : row.level.toFixed(2)
+                            : row.level}
                     </span>
                   </td>
 
@@ -728,15 +729,17 @@ const WaterTable = ({
 
                   {/* ปุ่มกราฟ */}
                   <td className="px-2 py-3 text-center">
-                    <button
-                      onClick={() => setSelectedStation(row)}
-                      className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 p-1.5 text-blue-500 transition-all hover:bg-blue-100 hover:text-blue-700 hover:border-blue-300 hover:scale-110 active:scale-95"
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round"
-                          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                      </svg>
-                    </button>
+                    {mode !== "stream" && (
+                      <button
+                        onClick={() => setSelectedStation(row)}
+                        className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 p-1.5 text-blue-500 transition-all hover:bg-blue-100 hover:text-blue-700 hover:border-blue-300 hover:scale-110 active:scale-95"
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round"
+                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))
